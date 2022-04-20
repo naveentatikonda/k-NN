@@ -35,8 +35,7 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 import org.junit.After;
 
-import static org.opensearch.knn.TestUtils.KNN_BWC_PREFIX;
-import static org.opensearch.knn.TestUtils.OPENDISTRO_SECURITY;
+import static org.opensearch.knn.TestUtils.*;
 
 /**
  * ODFE integration test base class to support both security disabled and enabled ODFE cluster.
@@ -147,7 +146,10 @@ public abstract class ODFERestTestCase extends OpenSearchRestTestCase {
     }
 
     private boolean skipDeleteIndex(String indexName) {
-        if (indexName != null && !OPENDISTRO_SECURITY.equals(indexName) && !indexName.matches(KNN_BWC_PREFIX + "(.*)")) {
+        if (indexName != null
+            && !OPENDISTRO_SECURITY.equals(indexName)
+            && !indexName.matches(KNN_BWC_PREFIX + "(.*)")
+            && !OPENSEARCH_KNN_MODELS_INDEX.equals(indexName)) {
             return false;
         }
 
