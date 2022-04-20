@@ -7,9 +7,12 @@ package org.opensearch.knn.bwc;
 
 import org.opensearch.knn.index.SpaceType;
 
-import static org.opensearch.knn.TestUtils.*;
+import java.util.Collections;
 
-public class IndexingIT extends AbstractRestartUpgradeTestCase {
+import static org.opensearch.knn.TestUtils.*;
+import static org.opensearch.knn.TestUtils.KNN_ALGO_PARAM_EF_CONSTRUCTION_MIN_VALUE;
+
+public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
     private static final int DIMENSIONS = 5;
     private static final int K = 5;
@@ -17,7 +20,7 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
 
     // Default Legacy Field Mapping
     // space_type : "l2", engine : "nmslib", m : 16, ef_construction : 512
-    public void testKnnIndexDefaultLegacyFieldMapping() throws Exception {
+    public void testKnnWarmupDefaultLegacyFieldMapping() throws Exception {
         waitForClusterHealthGreen(NODES_BWC_CLUSTER);
 
         if (isRunningAgainstOldCluster()) {
@@ -26,13 +29,13 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
         }
 
         else {
-            kNNIndexUpgradedCluster();
+            kNNWarmupUpgradedCluster();
         }
     }
 
     // Custom Legacy Field Mapping
     // space_type : "linf", engine : "nmslib", m : 2, ef_construction : 2
-    public void testKnnIndexCustomLegacyFieldMapping() throws Exception {
+    public void testKnnWarmupCustomLegacyFieldMapping() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(
                 testIndex,
@@ -45,24 +48,24 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
             );
             addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
         } else {
-            kNNIndexUpgradedCluster();
+            kNNWarmupUpgradedCluster();
         }
     }
 
     // Default Method Field Mapping
     // space_type : "l2", engine : "nmslib", m : 16, ef_construction : 512
-    public void testKnnIndexDefaultMethodFieldMapping() throws Exception {
+    public void testKnnWarmupDefaultMethodFieldMapping() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMethodFieldMapping(TEST_FIELD, DIMENSIONS));
             addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
         } else {
-            kNNIndexUpgradedCluster();
+            kNNWarmupUpgradedCluster();
         }
     }
 
     // Custom Method Field Mapping
-    // space_type : "l2", engine : "faiss", m : 2, ef_construction : 2
-    public void testKnnIndexCustomMethodFieldMapping() throws Exception {
+    // space_type : "innerproduct", engine : "faiss", m : 2, ef_construction : 2
+    public void testKnnWarmupCustomMethodFieldMapping() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(
                 testIndex,
@@ -78,18 +81,25 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
             );
             addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
         } else {
-            kNNIndexUpgradedCluster();
+            kNNWarmupUpgradedCluster();
         }
     }
 
-    public void kNNIndexUpgradedCluster() throws Exception {
+    public void kNNWarmupUpgradedCluster() throws Exception {
+        int graphCount = getTotalGraphsInCache();
+        knnWarmup(Collections.singletonList(testIndex));
+        assertEquals(graphCount + 1, getTotalGraphsInCache());
+
         validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, K);
-        cleanUpCache();
+
         addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
-        validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
-        forceMergeKnnIndex(testIndex);
+
+        graphCount = getTotalGraphsInCache();
+        knnWarmup(Collections.singletonList(testIndex));
+        assertEquals(graphCount + ADD_DOCS_CNT, getTotalGraphsInCache());
+
         validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
         deleteKNNIndex(testIndex);
-
     }
+
 }

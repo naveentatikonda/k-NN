@@ -11,6 +11,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.test.rest.OpenSearchRestTestCase;
 
 import java.util.Locale;
+import java.util.Optional;
 
 import static org.opensearch.knn.TestUtils.*;
 
@@ -77,8 +78,8 @@ public abstract class AbstractRollingUpgradeTestCase extends KNNRestTestCase {
         return Boolean.parseBoolean(System.getProperty(ROLLING_UPGRADE_FIRST_ROUND, "false"));
     }
 
-    protected final String getBWCVersion() {
-        return System.getProperty(BWC_VERSION, null);
+    protected final Optional<String> getBWCVersion() {
+        return Optional.ofNullable(System.getProperty(BWC_VERSION, null));
     }
 
 }

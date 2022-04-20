@@ -17,31 +17,26 @@ public class IndexingIT extends AbstractRollingUpgradeTestCase {
         waitForClusterHealthGreen(NODES_BWC_CLUSTER);
         switch (getClusterType()) {
             case OLD:
-
                 createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-                addKnnDocsBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+                addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
                 break;
             case MIXED:
-
                 if (isFirstMixedRound()) {
-                    validateSearchBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 10, K);
-                    addKnnDocsBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
-                    validateSearchBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
-
+                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, K);
+                    addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
+                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
                 } else {
-                    validateSearchBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
-                    addKnnDocsBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 20, ADD_DOCS_CNT);
-                    validateSearchBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 30, K);
+                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
+                    addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 20, ADD_DOCS_CNT);
+                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 30, K);
                 }
-
                 break;
             case UPGRADED:
-
-                validateSearchBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 30, K);
-                addKnnDocsBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 30, ADD_DOCS_CNT);
-                validateSearchBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 40, K);
+                validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 30, K);
+                addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 30, ADD_DOCS_CNT);
+                validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 40, K);
                 forceMergeKnnIndex(testIndex);
-                validateSearchBWCTests(testIndex, TEST_FIELD, DIMENSIONS, 40, K);
+                validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 40, K);
                 deleteKNNIndex(testIndex);
         }
     }
