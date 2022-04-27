@@ -905,7 +905,9 @@ public class KNNRestTestCase extends ODFERestTestCase {
         PriorityQueue<DistVector> pq = computeGroundTruthValues(queryVector, numDocs, k, dimension, spaceType);
 
         for (int i = k - 1; i >= 0; i--) {
-            assertEquals(pq.poll().getDocID(), results.get(i).getDocId());
+            int expDocID = Integer.parseInt(pq.poll().getDocID());
+            int actualDocID = Integer.parseInt(results.get(i).getDocId());
+            assertEquals(expDocID, actualDocID);
         }
     }
 
@@ -921,18 +923,20 @@ public class KNNRestTestCase extends ODFERestTestCase {
         assertEquals(k, results.size());
 
         for (int i = 0; i < k; i++) {
-            assertEquals(numDocs - i - 1, Integer.parseInt(results.get(i).getDocId()));
+            int expDocID = numDocs - i - 1;
+            int actualDocID = Integer.parseInt(results.get(i).getDocId());
+            assertEquals(expDocID, actualDocID);
         }
     }
 
-    // generate painless script score for space_type "l2" by creating query vector based on number of docs
+    // generate painless script source for space_type "l2" by creating query vector based on number of documents
     protected String generateL2PainlessScriptSource(String testField, int dimension, int numDocs) {
         float[] queryVector = new float[dimension];
         Arrays.fill(queryVector, (float) numDocs);
         return String.format("1/(1 + l2Squared(" + Arrays.toString(queryVector) + ", doc['%s']))", testField);
     }
 
-    // generate painless script score for space_type "l1" by creating query vector based on number of docs
+    // generate painless script source for space_type "l1" by creating query vector based on number of documents
     protected String generateL1PainlessScriptSource(String testField, int dimension, int numDocs) {
         float[] queryVector = new float[dimension];
         Arrays.fill(queryVector, (float) numDocs);

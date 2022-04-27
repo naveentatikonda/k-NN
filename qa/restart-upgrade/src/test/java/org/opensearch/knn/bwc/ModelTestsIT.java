@@ -1,12 +1,6 @@
 /*
- * SPDX-License-Identifier: Apache-2.0
- *
- * The OpenSearch Contributors require contributions made to
- * this file be licensed under the Apache-2.0 license or a
- * compatible open source license.
- *
- * Modifications Copyright OpenSearch Contributors. See
- * GitHub history for details.
+ *  Copyright OpenSearch Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  */
 
 package org.opensearch.knn.bwc;
@@ -55,7 +49,7 @@ public class ModelTestsIT extends AbstractRestartUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
     private static final int DIMENSIONS = 5;
     private static final int K = 5;
-    private static final int ADD_DOCS_CNT = 10;
+    private static final int ADD_DOCS_COUNT = 10;
     private static final String TEST_MODEL_ID = "test-model-id";
     private static final String TEST_MODEL_ID_DEFAULT = "test-model-id-default";
     private static final String MODEL_DESCRIPTION = "Description for train model test";
@@ -66,15 +60,15 @@ public class ModelTestsIT extends AbstractRestartUpgradeTestCase {
 
             // Create a training index and randomly ingest data into it
             createBasicKnnIndex(TRAINING_INDEX, TRAINING_FIELD, DIMENSIONS);
-            bulkIngestRandomVectors(TRAINING_INDEX, TRAINING_FIELD, ADD_DOCS_CNT, DIMENSIONS);
+            bulkIngestRandomVectors(TRAINING_INDEX, TRAINING_FIELD, ADD_DOCS_COUNT, DIMENSIONS);
 
             trainKNNModel(TEST_MODEL_ID, TRAINING_INDEX, TRAINING_FIELD, DIMENSIONS, MODEL_DESCRIPTION);
             validateModelCreated(TEST_MODEL_ID);
 
             createKnnIndex(testIndex, modelIndexMapping(TEST_FIELD, TEST_MODEL_ID));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
             validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
 
             searchKNNModel(TEST_MODEL_ID);
@@ -95,15 +89,15 @@ public class ModelTestsIT extends AbstractRestartUpgradeTestCase {
 
             // Create a training index and randomly ingest data into it
             createBasicKnnIndex(TRAINING_INDEX_DEFAULT, TRAINING_FIELD, DIMENSIONS);
-            bulkIngestRandomVectors(TRAINING_INDEX_DEFAULT, TRAINING_FIELD, ADD_DOCS_CNT, DIMENSIONS);
+            bulkIngestRandomVectors(TRAINING_INDEX_DEFAULT, TRAINING_FIELD, ADD_DOCS_COUNT, DIMENSIONS);
 
             trainKNNModel(TEST_MODEL_ID_DEFAULT, TRAINING_INDEX_DEFAULT, TRAINING_FIELD, DIMENSIONS, MODEL_DESCRIPTION);
             validateModelCreated(TEST_MODEL_ID_DEFAULT);
 
             createKnnIndex(testIndex, modelIndexMapping(TEST_FIELD, TEST_MODEL_ID_DEFAULT));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
             validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
 
             searchKNNModel(TEST_MODEL_ID);
@@ -134,9 +128,7 @@ public class ModelTestsIT extends AbstractRestartUpgradeTestCase {
 
         for (String method : Arrays.asList("GET", "POST")) {
             Request request = new Request(method, restURI);
-            request.setJsonEntity(
-                "{\n" + "    \"_source\" : false,\n" + "    \"query\": {\n" + "        \"match_all\": {}\n" + "    }\n" + "}"
-            );
+            request.setJsonEntity("{\n" + "\"_source\" : false,\n" + "\"query\": {\n" + "\"match_all\": {}\n" + "}\n" + "}");
             Response response = client().performRequest(request);
             assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
 

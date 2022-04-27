@@ -24,7 +24,7 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
     private static final int DIMENSIONS = 5;
     private static final int K = 5;
-    private static final int ADD_DOCS_CNT = 10;
+    private static final int ADD_DOCS_COUNT = 10;
 
     // Default Legacy Field Mapping
     // space_type : "l2", engine : "nmslib", m : 16, ef_construction : 512
@@ -33,11 +33,11 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
 
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         }
 
         else {
-            kNNIndexUpgradedCluster();
+            kNNIndexingTestsUpgradedCluster();
         }
     }
 
@@ -54,9 +54,9 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
                 ),
                 createKnnIndexMapping(TEST_FIELD, DIMENSIONS)
             );
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            kNNIndexUpgradedCluster();
+            kNNIndexingTestsUpgradedCluster();
         }
     }
 
@@ -65,9 +65,9 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
     public void testKnnIndexDefaultMethodFieldMapping() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMethodFieldMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            kNNIndexUpgradedCluster();
+            kNNIndexingTestsUpgradedCluster();
         }
     }
 
@@ -80,22 +80,13 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
                 getKNNDefaultIndexSettings(),
                 createKnnIndexCustomMethodFieldMapping(TEST_FIELD, DIMENSIONS, SpaceType.INNER_PRODUCT, KNN_ENGINE_FAISS, 50, 1024)
             );
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            kNNIndexUpgradedCluster();
+            kNNIndexingTestsUpgradedCluster();
         }
     }
 
-    public void kNNIndexUpgradedCluster() throws Exception {
-        validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, K);
-        cleanUpCache();
-        addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
-        validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
-        forceMergeKnnIndex(testIndex);
-        validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
-        deleteKNNIndex(testIndex);
-    }
-
+    // test null parameters
     public void testNullParametersOnUpgrade() throws Exception {
 
         // Skip test if version is 1.2 or 1.3
@@ -124,5 +115,71 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
         } else {
             deleteKNNIndex(testIndex);
         }
+    }
+
+    // test empty parameters
+    public void testEmptyParametersOnUpgrade() throws Exception {
+
+        // Skip test if version is 1.2 or 1.3
+        Optional<String> bwcVersion = getBWCVersion();
+        if (bwcVersion.isEmpty() || bwcVersion.get().startsWith("1.2") || bwcVersion.get().startsWith("1.3")) {
+            return;
+        }
+        if (isRunningAgainstOldCluster()) {
+            String mapping = Strings.toString(
+                XContentFactory.jsonBuilder()
+                    .startObject()
+                    .startObject("properties")
+                    .startObject(TEST_FIELD)
+                    .field("type", "knn_vector")
+                    .field("dimension", String.valueOf(DIMENSIONS))
+                    .startObject(KNN_METHOD)
+                    .field(NAME, METHOD_HNSW)
+                    .field(PARAMETERS, "")
+                    .endObject()
+                    .endObject()
+                    .endObject()
+                    .endObject()
+            );
+
+            createKnnIndex(testIndex, getKNNDefaultIndexSettings(), mapping);
+        } else {
+            deleteKNNIndex(testIndex);
+        }
+    }
+
+    // test no parameters
+    public void testNoParametersOnUpgrade() throws Exception {
+        if (isRunningAgainstOldCluster()) {
+            String mapping = Strings.toString(
+                XContentFactory.jsonBuilder()
+                    .startObject()
+                    .startObject("properties")
+                    .startObject(TEST_FIELD)
+                    .field("type", "knn_vector")
+                    .field("dimension", String.valueOf(DIMENSIONS))
+                    .startObject(KNN_METHOD)
+                    .field(NAME, METHOD_HNSW)
+                    .endObject()
+                    .endObject()
+                    .endObject()
+                    .endObject()
+            );
+
+            createKnnIndex(testIndex, getKNNDefaultIndexSettings(), mapping);
+        } else {
+            deleteKNNIndex(testIndex);
+        }
+    }
+
+    // KNN indexing tests when the cluster is upgraded to latest version
+    public void kNNIndexingTestsUpgradedCluster() throws Exception {
+        validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, K);
+        cleanUpCache();
+        addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
+        validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
+        forceMergeKnnIndex(testIndex);
+        validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
+        deleteKNNIndex(testIndex);
     }
 }

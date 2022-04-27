@@ -1,16 +1,11 @@
 /*
- * SPDX-License-Identifier: Apache-2.0
- *
- * The OpenSearch Contributors require contributions made to
- * this file be licensed under the Apache-2.0 license or a
- * compatible open source license.
- *
- * Modifications Copyright OpenSearch Contributors. See
- * GitHub history for details.
+ *  Copyright OpenSearch Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  */
 
 package org.opensearch.knn;
 
+import com.google.common.collect.ImmutableMap;
 import org.opensearch.common.xcontent.DeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentFactory;
@@ -30,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 import static org.apache.lucene.tests.util.LuceneTestCase.random;
 
@@ -192,6 +188,15 @@ public class TestUtils {
         return sum / recalls.size();
     }
 
+    public static Map<SpaceType, BiFunction<float[], float[], Float>> knnScoringBySpaceType = ImmutableMap.of(
+        SpaceType.L1,
+        KNNScoringUtil::l1Norm,
+        SpaceType.L2,
+        KNNScoringUtil::l2Squared,
+        SpaceType.LINF,
+        KNNScoringUtil::lInfNorm
+    );
+
     public static PriorityQueue<DistVector> computeGroundTruthValues(
         float[] queryVector,
         int numDocs,
@@ -199,17 +204,15 @@ public class TestUtils {
         int dimension,
         SpaceType spaceType
     ) {
+
         PriorityQueue<DistVector> pq = new PriorityQueue<>(k, new DistComparator());
-        float dist = 0.0f;
+
         for (int i = 0; i < numDocs; i++) {
+            float dist = 0.0f;
             float[] indexVector = new float[dimension];
             Arrays.fill(indexVector, (float) i);
-            if (spaceType != null && SpaceType.L1.getValue().equals(spaceType.getValue())) {
-                dist = KNNScoringUtil.l1Norm(queryVector, indexVector);
-            } else if (spaceType != null && SpaceType.L2.getValue().equals(spaceType.getValue())) {
-                dist = KNNScoringUtil.l2Squared(queryVector, indexVector);
-            } else if (spaceType != null && SpaceType.LINF.getValue().equals(spaceType.getValue())) {
-                dist = KNNScoringUtil.lInfNorm(queryVector, indexVector);
+            if (spaceType != null) {
+                dist = knnScoringBySpaceType.get(spaceType).apply(queryVector, indexVector);
             }
 
             if (pq.size() < k) {

@@ -5,6 +5,7 @@
 
 package org.opensearch.knn.bwc;
 
+import org.opensearch.common.settings.Settings;
 import org.opensearch.knn.index.SpaceType;
 
 import java.util.Collections;
@@ -18,7 +19,7 @@ public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
     private static final int DIMENSIONS = 5;
     private static final int K = 5;
-    private static final int ADD_DOCS_CNT = 10;
+    private static final int ADD_DOCS_COUNT = 10;
 
     // Default Legacy Field Mapping
     // space_type : "l2", engine : "nmslib", m : 16, ef_construction : 512
@@ -27,7 +28,7 @@ public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
 
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         }
 
         else {
@@ -39,16 +40,14 @@ public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
     // space_type : "linf", engine : "nmslib", m : 2, ef_construction : 2
     public void testKnnWarmupCustomLegacyFieldMapping() throws Exception {
         if (isRunningAgainstOldCluster()) {
-            createKnnIndex(
-                testIndex,
-                getKNNIndexCustomLegacyFieldMappingSettings(
-                    SpaceType.LINF,
-                    KNN_ALGO_PARAM_M_MIN_VALUE,
-                    KNN_ALGO_PARAM_EF_CONSTRUCTION_MIN_VALUE
-                ),
-                createKnnIndexMapping(TEST_FIELD, DIMENSIONS)
+            Settings indexMappingSettings = getKNNIndexCustomLegacyFieldMappingSettings(
+                SpaceType.LINF,
+                KNN_ALGO_PARAM_M_MIN_VALUE,
+                KNN_ALGO_PARAM_EF_CONSTRUCTION_MIN_VALUE
             );
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            String indexMapping = createKnnIndexMapping(TEST_FIELD, DIMENSIONS);
+            createKnnIndex(testIndex, indexMappingSettings, indexMapping);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
             kNNWarmupUpgradedCluster();
         }
@@ -59,7 +58,7 @@ public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
     public void testKnnWarmupDefaultMethodFieldMapping() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMethodFieldMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
             kNNWarmupUpgradedCluster();
         }
@@ -74,7 +73,7 @@ public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
                 getKNNDefaultIndexSettings(),
                 createKnnIndexCustomMethodFieldMapping(TEST_FIELD, DIMENSIONS, SpaceType.INNER_PRODUCT, KNN_ENGINE_FAISS, 50, 1024)
             );
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
             kNNWarmupUpgradedCluster();
         }
@@ -87,11 +86,11 @@ public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
 
         validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, K);
 
-        addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
+        addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
 
-        graphCount = getTotalGraphsInCache();
+        int updatedGraphCount = getTotalGraphsInCache();
         knnWarmup(Collections.singletonList(testIndex));
-        assertTrue(getTotalGraphsInCache() > graphCount);
+        assertTrue(getTotalGraphsInCache() > updatedGraphCount);
 
         validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 20, K);
         deleteKNNIndex(testIndex);

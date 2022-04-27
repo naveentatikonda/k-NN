@@ -1,12 +1,6 @@
 /*
- * SPDX-License-Identifier: Apache-2.0
- *
- * The OpenSearch Contributors require contributions made to
- * this file be licensed under the Apache-2.0 license or a
- * compatible open source license.
- *
- * Modifications Copyright OpenSearch Contributors. See
- * GitHub history for details.
+ *  Copyright OpenSearch Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  */
 
 package org.opensearch.knn.bwc;
@@ -28,16 +22,16 @@ public class RecallTestsIT extends AbstractRestartUpgradeTestCase {
     private static final int DIMENSIONS = 50;
     private static final int DIMENSIONS_RECALL_OLD = 1;
     private static final int K = 10;
-    private static final int ADD_DOCS_CNT = 1000;
+    private static final int ADD_DOCS_COUNT = 1000;
     private static final int QUERY_COUNT = 100;
 
     public void testKnnRecall() throws Exception {
         waitForClusterHealthGreen(NODES_BWC_CLUSTER);
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-            addDocs(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_CNT, true);
+            addDocs(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_COUNT, true);
 
-            double recallVal = getkNNBWCRecallValue(testIndex, TEST_FIELD, ADD_DOCS_CNT, DIMENSIONS, QUERY_COUNT, K, true, SpaceType.L2);
+            double recallVal = getkNNBWCRecallValue(testIndex, TEST_FIELD, ADD_DOCS_COUNT, DIMENSIONS, QUERY_COUNT, K, true, SpaceType.L2);
             createKnnIndex(TEST_INDEX_RECALL_OLD, getKNNDefaultIndexSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS_RECALL_OLD));
             addKnnDoc(TEST_INDEX_RECALL_OLD, "1", TEST_FIELD, new Float[] { (float) recallVal });
 
@@ -45,7 +39,7 @@ public class RecallTestsIT extends AbstractRestartUpgradeTestCase {
             double recallValUpgraded = getkNNBWCRecallValue(
                 testIndex,
                 TEST_FIELD,
-                ADD_DOCS_CNT,
+                ADD_DOCS_COUNT,
                 DIMENSIONS,
                 QUERY_COUNT,
                 K,

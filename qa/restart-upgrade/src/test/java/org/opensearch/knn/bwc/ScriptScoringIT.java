@@ -23,17 +23,17 @@ public class ScriptScoringIT extends AbstractRestartUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
     private static final int DIMENSIONS = 3;
     private static final int K = 5;
-    private static final int ADD_DOCS_CNT = 10;
+    private static final int ADD_DOCS_COUNT = 10;
 
     // KNN script scoring for space_type "l2"
     public void testKNNL2ScriptScore() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNScriptScoreSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_CNT, K, SpaceType.L2);
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
-            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_CNT), K, SpaceType.L2);
+            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_COUNT, K, SpaceType.L2);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
+            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_COUNT), K, SpaceType.L2);
             deleteKNNIndex(testIndex);
         }
     }
@@ -42,11 +42,11 @@ public class ScriptScoringIT extends AbstractRestartUpgradeTestCase {
     public void testKNNL1ScriptScore() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNScriptScoreSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_CNT, K, SpaceType.L1);
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
-            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_CNT), K, SpaceType.L1);
+            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_COUNT, K, SpaceType.L1);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
+            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_COUNT), K, SpaceType.L1);
             deleteKNNIndex(testIndex);
         }
     }
@@ -55,11 +55,11 @@ public class ScriptScoringIT extends AbstractRestartUpgradeTestCase {
     public void testKNNLinfScriptScore() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNScriptScoreSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_CNT, K, SpaceType.LINF);
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
-            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_CNT), K, SpaceType.LINF);
+            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_COUNT, K, SpaceType.LINF);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
+            validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_COUNT), K, SpaceType.LINF);
             deleteKNNIndex(testIndex);
         }
     }
@@ -68,11 +68,11 @@ public class ScriptScoringIT extends AbstractRestartUpgradeTestCase {
     public void testKNNInnerProductScriptScore() throws Exception {
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(testIndex, getKNNScriptScoreSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_CNT);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 0, ADD_DOCS_COUNT);
         } else {
-            validateKNNInnerProductScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_CNT, K);
-            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_CNT);
-            validateKNNInnerProductScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_CNT), K);
+            validateKNNInnerProductScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, ADD_DOCS_COUNT, K);
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 10, ADD_DOCS_COUNT);
+            validateKNNInnerProductScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, (2 * ADD_DOCS_COUNT), K);
             deleteKNNIndex(testIndex);
         }
     }
@@ -97,7 +97,9 @@ public class ScriptScoringIT extends AbstractRestartUpgradeTestCase {
         assertEquals(k, results.size());
 
         for (int i = 0; i < k; i++) {
-            assertEquals(numDocs - i - 1, Integer.parseInt(results.get(i).getDocId()));
+            int expDocID = numDocs - i - 1;
+            int actualDocID = Integer.parseInt(results.get(i).getDocId());
+            assertEquals(expDocID, actualDocID);
         }
     }
 
