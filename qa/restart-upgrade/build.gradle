@@ -3,6 +3,7 @@
  *  SPDX-License-Identifier: Apache-2.0
  */
 
+
 import org.opensearch.gradle.testclusters.StandaloneRestIntegTestTask
 //import org.opensearch.gradle.info.BuildParams
 //import org.opensearch.gradle.Version
@@ -10,7 +11,8 @@ import org.opensearch.gradle.testclusters.StandaloneRestIntegTestTask
 //import org.opensearch.gradle.BwcVersions
 apply from : "$rootDir/qa/build.gradle"
 
-String knn_bwc_version = System.getProperty("bwc.version")
+String default_bwc_version = System.getProperty("bwc.version")
+String knn_bwc_version = System.getProperty("tests.bwc.version", default_bwc_version)
 String baseName = "knnBwcCluster-restart"
 
 //for (String bwcVersion : System.getProperty("release.versions").split(',')) {
@@ -41,6 +43,11 @@ String baseName = "knnBwcCluster-restart"
         systemProperty 'tests.is_old_cluster', 'true'
         systemProperty 'tests.skip_delete_model_index', 'true'
         systemProperty 'tests.plugin_bwc_version', knn_bwc_version
+        if (knn_bwc_version.startsWith("1.0") || knn_bwc_version.startsWith("1.1")) {
+            filter {
+                excludeTestsMatching "org.opensearch.knn.bwc.ModelTestsIT"
+            }
+        }
         nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."${baseName}".allHttpSocketURI.join(",")}")
         nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."${baseName}".getName()}")
         systemProperty 'tests.security.manager', 'false'
@@ -61,6 +68,11 @@ String baseName = "knnBwcCluster-restart"
         systemProperty 'tests.skip_delete_model_index', 'true'
         systemProperty 'tests.is_old_cluster', 'false'
         systemProperty 'tests.plugin_bwc_version', knn_bwc_version
+        if (knn_bwc_version.startsWith("1.0") || knn_bwc_version.startsWith("1.1")) {
+            filter {
+                excludeTestsMatching "org.opensearch.knn.bwc.ModelTestsIT"
+            }
+        }
         nonInputProperties.systemProperty('tests.rest.cluster', "${-> testClusters."${baseName}".allHttpSocketURI.join(",")}")
         nonInputProperties.systemProperty('tests.clustername', "${-> testClusters."${baseName}".getName()}")
         systemProperty 'tests.security.manager', 'false'

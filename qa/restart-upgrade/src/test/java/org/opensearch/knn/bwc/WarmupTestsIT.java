@@ -9,6 +9,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.knn.index.SpaceType;
 
 import java.util.Collections;
+import java.util.Optional;
 
 import static org.opensearch.knn.TestUtils.KNN_ALGO_PARAM_M_MIN_VALUE;
 import static org.opensearch.knn.TestUtils.KNN_ALGO_PARAM_EF_CONSTRUCTION_MIN_VALUE;
@@ -67,6 +68,12 @@ public class WarmupTestsIT extends AbstractRestartUpgradeTestCase {
     // Custom Method Field Mapping
     // space_type : "innerproduct", engine : "faiss", m : 50, ef_construction : 1024
     public void testKnnWarmupCustomMethodFieldMapping() throws Exception {
+
+        // Skip test if version is 1.0 or 1.1
+        Optional<String> bwcVersion = getBWCVersion();
+        if (bwcVersion.isEmpty() || bwcVersion.get().startsWith("1.0") || bwcVersion.get().startsWith("1.1")) {
+            return;
+        }
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(
                 testIndex,

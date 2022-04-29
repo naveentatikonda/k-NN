@@ -74,6 +74,12 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
     // Custom Method Field Mapping
     // space_type : "inner_product", engine : "faiss", m : 50, ef_construction : 1024
     public void testKnnIndexCustomMethodFieldMapping() throws Exception {
+
+        // Skip test if version is 1.0 or 1.1
+        Optional<String> bwcVersion = getBWCVersion();
+        if (bwcVersion.isEmpty() || bwcVersion.get().startsWith("1.0") || bwcVersion.get().startsWith("1.1")) {
+            return;
+        }
         if (isRunningAgainstOldCluster()) {
             createKnnIndex(
                 testIndex,
@@ -120,9 +126,9 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
     // test empty parameters
     public void testEmptyParametersOnUpgrade() throws Exception {
 
-        // Skip test if version is 1.2 or 1.3
+        // Skip test if version is 1.x.y
         Optional<String> bwcVersion = getBWCVersion();
-        if (bwcVersion.isEmpty() || bwcVersion.get().startsWith("1.2") || bwcVersion.get().startsWith("1.3")) {
+        if (bwcVersion.isEmpty() || bwcVersion.get().startsWith("1.")) {
             return;
         }
         if (isRunningAgainstOldCluster()) {
