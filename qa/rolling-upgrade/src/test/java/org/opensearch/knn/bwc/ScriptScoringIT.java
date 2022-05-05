@@ -5,9 +5,9 @@
 
 package org.opensearch.knn.bwc;
 
-import static org.opensearch.knn.TestUtils.*;
+import org.opensearch.knn.index.SpaceType;
 
-public class IndexingIT extends AbstractRollingUpgradeTestCase {
+public class ScriptScoringIT extends AbstractRollingUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
     private static final int DIMENSIONS = 5;
     private static int DOC_ID = 0;
@@ -15,40 +15,39 @@ public class IndexingIT extends AbstractRollingUpgradeTestCase {
     private static final int NUM_DOCS = 10;
     private static int QUERY_COUNT = 0;
 
-    public void testKnnDefaultIndexSettings() throws Exception {
-        waitForClusterHealthGreen(NODES_BWC_CLUSTER);
+    // KNN script scoring for space_type "l2"
+    public void testKNNL2ScriptScore() throws Exception {
         switch (getClusterType()) {
             case OLD:
-                createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
+                createKnnIndex(testIndex, getKNNScriptScoreSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS));
                 addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, DOC_ID, NUM_DOCS);
                 break;
             case MIXED:
                 if (isFirstMixedRound()) {
                     QUERY_COUNT = NUM_DOCS;
-                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
                     DOC_ID = NUM_DOCS;
+                    validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K, SpaceType.L2);
                     addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, DOC_ID, NUM_DOCS);
                     QUERY_COUNT = 2 * NUM_DOCS;
-                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
+                    validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K, SpaceType.L2);
                 } else {
                     QUERY_COUNT = 2 * NUM_DOCS;
-                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
                     DOC_ID = 2 * NUM_DOCS;
+                    validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K, SpaceType.L2);
                     addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, DOC_ID, NUM_DOCS);
                     QUERY_COUNT = 3 * NUM_DOCS;
-                    validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
+                    validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K, SpaceType.L2);
                 }
                 break;
             case UPGRADED:
                 QUERY_COUNT = 3 * NUM_DOCS;
-                validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
                 DOC_ID = 3 * NUM_DOCS;
+                validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K, SpaceType.L2);
                 addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, DOC_ID, NUM_DOCS);
                 QUERY_COUNT = 4 * NUM_DOCS;
-                validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
-                forceMergeKnnIndex(testIndex);
-                validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
+                validateKNNScriptScoreSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K, SpaceType.L2);
                 deleteKNNIndex(testIndex);
         }
     }
+
 }
