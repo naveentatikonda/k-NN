@@ -1,0 +1,28 @@
+name: Pull request
+on:
+  pull_request:
+
+jobs:
+  slackNotification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    steps:
+#      - run: echo ::set-env name=pull_number::$(jq --raw-output .pull_request.number $GITHUB_EVENT_PATH)
+      - name: Slack Notification
+        id: slack
+        uses: slackapi/slack-github-action@v1.19.0
+        with:
+          payload: |
+            {
+              "SLACK_MESSAGE": "Please review this PR",
+              "PR": "${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+            }
+#          url: 'https://hooks.slack.com/workflows/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'
+#          data: "{SLACK_MESSAGE: 'Please review this PR'}"
+#        uses: rtCamp/action-slack-notify@master
+        env:
+#          SLACK_CHANNEL: 'os-specification-internal'
+#          SLACK_MESSAGE: 'Please review this PR'
+#          SLACK_TITLE: 'Pull request'
+##          SLACK_USERNAME: 'navtat'
+          SLACK_WEBHOOK_URL: 'https://hooks.slack.com/workflows/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'
