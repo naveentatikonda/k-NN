@@ -476,7 +476,7 @@ public class ModelDaoTests extends KNNSingleNodeTestCase {
         assertTrue(inProgressLatch1.await(100, TimeUnit.SECONDS));
     }
 
-    public void testDelete() throws IOException, InterruptedException {
+    public void testDelete() throws IOException, InterruptedException, ExecutionException {
         ModelDao modelDao = ModelDao.OpenSearchKNNModelDao.getInstance();
         String modelId = "testDeleteModelID";
         byte[] modelBlob = "hello".getBytes();

@@ -16,10 +16,7 @@ import com.google.common.io.Resources;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.ResourceNotFoundException;
-import org.opensearch.action.ActionListener;
-import org.opensearch.action.DocWriteRequest;
-import org.opensearch.action.DocWriteResponse;
-import org.opensearch.action.FailedNodeException;
+import org.opensearch.action.*;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.admin.indices.create.CreateIndexResponse;
 import org.opensearch.action.delete.DeleteAction;
@@ -41,14 +38,9 @@ import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.index.IndexNotFoundException;
+import org.opensearch.index.engine.Engine;
 import org.opensearch.knn.common.KNNConstants;
-import org.opensearch.knn.plugin.transport.DeleteModelResponse;
-import org.opensearch.knn.plugin.transport.GetModelResponse;
-import org.opensearch.knn.plugin.transport.RemoveModelFromCacheAction;
-import org.opensearch.knn.plugin.transport.RemoveModelFromCacheRequest;
-import org.opensearch.knn.plugin.transport.RemoveModelFromCacheResponse;
-import org.opensearch.knn.plugin.transport.UpdateModelMetadataAction;
-import org.opensearch.knn.plugin.transport.UpdateModelMetadataRequest;
+import org.opensearch.knn.plugin.transport.*;
 
 import java.io.IOException;
 import java.net.URL;
@@ -149,7 +141,7 @@ public interface ModelDao {
      * @param modelId  to delete
      * @param listener handles delete response
      */
-    void delete(String modelId, ActionListener<DeleteModelResponse> listener);
+    void delete(String modelId, ActionListener<DeleteModelResponse> listener) throws ExecutionException, InterruptedException;
 
     /**
      * Implementation of ModelDao for k-NN model index
@@ -427,8 +419,16 @@ public interface ModelDao {
             return Resources.toString(url, Charsets.UTF_8);
         }
 
+        private boolean isModelInTraining(String modelId) throws ExecutionException, InterruptedException {
+            Model model = get(modelId);
+            if (model.getModelMetadata().getState().equals(ModelState.TRAINING)) return true;
+
+            return false;
+        }
+
         @Override
-        public void delete(String modelId, ActionListener<DeleteModelResponse> listener) {
+        public void delete(String modelId, ActionListener<DeleteModelResponse> listener) throws ExecutionException, InterruptedException {
+
             // If the index is not created, there is no need to delete the model
             if (!isCreated()) {
                 logger.error("Cannot delete model \"" + modelId + "\". Model index " + MODEL_INDEX_NAME + "does not exist.");
@@ -437,13 +437,36 @@ public interface ModelDao {
                 return;
             }
 
+            StepListener<CancelModelTrainingResponse> cancelModelTrainingStep = new StepListener<>();
+            StepListener<AcknowledgedResponse> clearModelMetadataStep = new StepListener<>();
+            StepListener<DeleteResponse> deleteModelFromIndexStep = new StepListener<>();
+            StepListener<RemoveModelFromCacheResponse> clearModelFromCacheStep = new StepListener<>();
+
+            // Send model cancellation request to all the nodes
+            client.execute(
+                    CancelModelTrainingAction.INSTANCE,
+                    new CancelModelTrainingRequest(modelId),
+                    ActionListener.wrap(cancelModelTrainingStep::onResponse, cancelModelTrainingStep::onFailure)
+            );
+
+            // Remove the metadata asynchronously
+            // On model metadata removal, delete the model from the index
+            cancelModelTrainingStep.whenComplete(cancelModelTrainingResponse ->
+                    client.execute(
+                UpdateModelMetadataAction.INSTANCE,
+                new UpdateModelMetadataRequest(modelId, true, null),
+                ActionListener.wrap(clearModelMetadataStep::onResponse, clearModelMetadataStep::onFailure)), listener::onFailure);
+
             // Setup delete model request
             DeleteRequestBuilder deleteRequestBuilder = new DeleteRequestBuilder(client, DeleteAction.INSTANCE, MODEL_INDEX_NAME);
             deleteRequestBuilder.setId(modelId);
             deleteRequestBuilder.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
 
-            // On model deletion from the index, remove the model from all nodes' model cache
-            ActionListener<DeleteResponse> onModelDeleteListener = ActionListener.wrap(deleteResponse -> {
+            clearModelMetadataStep.whenComplete(acknowledgedResponse -> deleteRequestBuilder.execute(
+                    ActionListener.wrap(deleteModelFromIndexStep::onResponse, deleteModelFromIndexStep::onFailure)
+            ), listener::onFailure);
+
+            deleteModelFromIndexStep.whenComplete(deleteResponse -> {
                 // If model is not deleted, return with error message
                 if (deleteResponse.getResult() != DocWriteResponse.Result.DELETED) {
                     String errorMessage = String.format("Model \" %s \" does not exist", modelId);
@@ -454,35 +477,21 @@ public interface ModelDao {
                 // After model is deleted from the index, make sure the model is evicted from every cache in the
                 // cluster
                 client.execute(
-                    RemoveModelFromCacheAction.INSTANCE,
-                    new RemoveModelFromCacheRequest(modelId),
-                    ActionListener.wrap(removeModelFromCacheResponse -> {
-
-                        if (!removeModelFromCacheResponse.hasFailures()) {
-                            listener.onResponse(new DeleteModelResponse(modelId, deleteResponse.getResult().getLowercase(), null));
-                            return;
-                        }
-
-                        String failureMessage = buildRemoveModelErrorMessage(modelId, removeModelFromCacheResponse);
-
-                        listener.onResponse(new DeleteModelResponse(modelId, "failed", failureMessage));
-
-                    }, e -> listener.onResponse(new DeleteModelResponse(modelId, "failed", e.getMessage())))
-                );
+                        RemoveModelFromCacheAction.INSTANCE,
+                        new RemoveModelFromCacheRequest(modelId),
+                        ActionListener.wrap(clearModelFromCacheStep::onResponse, clearModelFromCacheStep::onFailure));
             }, e -> listener.onResponse(new DeleteModelResponse(modelId, "failed", e.getMessage())));
 
-            // On model metadata removal, delete the model from the index
-            ActionListener<AcknowledgedResponse> onMetadataUpdateListener = ActionListener.wrap(
-                acknowledgedResponse -> deleteRequestBuilder.execute(onModelDeleteListener),
-                listener::onFailure
-            );
+            clearModelFromCacheStep.whenComplete(removeModelFromCacheResponse -> {
+                if (!removeModelFromCacheResponse.hasFailures()) {
+                    listener.onResponse(new DeleteModelResponse(modelId, "deleted", null));
+                    return;
+                }
 
-            // Remove the metadata asynchronously
-            client.execute(
-                UpdateModelMetadataAction.INSTANCE,
-                new UpdateModelMetadataRequest(modelId, true, null),
-                onMetadataUpdateListener
-            );
+                String failureMessage = buildRemoveModelErrorMessage(modelId, removeModelFromCacheResponse);
+                listener.onResponse(new DeleteModelResponse(modelId, "failed", failureMessage));
+            }, e -> listener.onResponse(new DeleteModelResponse(modelId, "failed", e.getMessage())));
+
         }
 
         private String buildRemoveModelErrorMessage(String modelId, RemoveModelFromCacheResponse response) {

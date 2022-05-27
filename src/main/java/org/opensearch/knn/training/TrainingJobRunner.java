@@ -23,6 +23,8 @@ import org.opensearch.knn.plugin.stats.KNNCounter;
 import org.opensearch.threadpool.ThreadPool;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,6 +45,7 @@ public class TrainingJobRunner {
 
     private final Semaphore semaphore;
     private final AtomicInteger jobCount;
+    private static HashMap<String, Future> map;
 
     /**
      * Get singleton instance of TrainingJobRunner
@@ -70,6 +73,7 @@ public class TrainingJobRunner {
     public static void initialize(ThreadPool threadPool, ModelDao modelDao) {
         TrainingJobRunner.threadPool = threadPool;
         TrainingJobRunner.modelDao = modelDao;
+        TrainingJobRunner.map = new HashMap<>();
     }
 
     /**
@@ -126,7 +130,8 @@ public class TrainingJobRunner {
         );
 
         try {
-            threadPool.executor(TRAIN_THREAD_POOL).execute(() -> {
+            map.put(trainingJob.getModelId(),
+             threadPool.executor(TRAIN_THREAD_POOL).submit(() -> {
                 try {
                     trainingJob.run();
                     serializeModel(trainingJob, loggingListener, true);
@@ -140,7 +145,7 @@ public class TrainingJobRunner {
                     jobCount.decrementAndGet();
                     semaphore.release();
                 }
-            });
+            }) );
         } catch (RejectedExecutionException ree) {
             logger.error("Unable to train model \"" + trainingJob.getModelId() + "\": " + ree.getMessage());
 

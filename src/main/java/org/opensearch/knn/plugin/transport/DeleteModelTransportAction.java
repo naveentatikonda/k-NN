@@ -11,6 +11,7 @@
 
 package org.opensearch.knn.plugin.transport;
 
+import lombok.SneakyThrows;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
@@ -29,6 +30,7 @@ public class DeleteModelTransportAction extends HandledTransportAction<DeleteMod
         this.modelDao = ModelDao.OpenSearchKNNModelDao.getInstance();
     }
 
+    @SneakyThrows
     @Override
     protected void doExecute(Task task, DeleteModelRequest request, ActionListener<DeleteModelResponse> listener) {
         String modelID = request.getModelID();
