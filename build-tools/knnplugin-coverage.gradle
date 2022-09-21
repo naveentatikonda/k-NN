@@ -16,6 +16,8 @@
  *  cluster is stopped and dump it to a file. Luckily our current security policy seems to allow this. This will also probably
  *  break if there are multiple nodes in the integTestCluster. But for now... it sorta works.
  */
+
+import org.apache.tools.ant.taskdefs.condition.Os
 apply plugin: 'jacoco'
 
 // Get gradle to generate the required jvm agent arg for us using a dummy tasks of type Test. Unfortunately Elastic's
@@ -63,7 +65,13 @@ afterEvaluate {
     jacocoTestReport.dependsOn integTest
 
     testClusters.integTest {
-        jvmArgs " ${dummyIntegTest.jacoco.getAsJvmArg()}".replace('javaagent:','javaagent:/')
+        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            def jacocoExecDir = "javaagent:" + "${buildDir}\\tmp\\expandedArchives\\org.jacoco.agent-0.8.7.jar_3a83c50b4a016f281c4e9f3500d16b55\\jacocoagent.jar=destfile=build\\jacoco\\integTest.exec"
+            jvmArgs " ${dummyIntegTest.jacoco.getAsJvmArg()}".replace('javaagent:build/tmp/expandedArchives/org.jacoco.agent-0.8.7.jar_3a83c50b4a016f281c4e9f3500d16b55/jacocoagent.jar=destfile=build/jacoco/integTest.exec', "${jacocoExecDir}")
+        } else {
+            jvmArgs " ${dummyIntegTest.jacoco.getAsJvmArg()}".replace('javaagent:','javaagent:/')
+        }
+
         systemProperty 'com.sun.management.jmxremote', "true"
         systemProperty 'com.sun.management.jmxremote.authenticate', "false"
         systemProperty 'com.sun.management.jmxremote.port', "7777"
