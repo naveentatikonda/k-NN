@@ -1,0 +1,18 @@
+Index: build-tools/knnplugin-coverage.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/build-tools/knnplugin-coverage.gradle b/build-tools/knnplugin-coverage.gradle
+--- a/build-tools/knnplugin-coverage.gradle	(revision 8475892ebf7579a06a0aeb923378b9e3bae4c904)
++++ b/build-tools/knnplugin-coverage.gradle	(date 1663885364609)
+@@ -63,7 +63,8 @@
+     jacocoTestReport.dependsOn integTest
+ 
+     testClusters.integTest {
+-        jvmArgs " ${dummyIntegTest.jacoco.getAsJvmArg()}".replace('javaagent:','javaagent:/')
++        def jacocoExecDir = "javaagent:" + "${buildDir}\\tmp\\expandedArchives\\org.jacoco.agent-0.8.7.jar_3a83c50b4a016f281c4e9f3500d16b55\\jacocoagent.jar=destfile=build\\jacoco\\integTest.exec"
++        jvmArgs " ${dummyIntegTest.jacoco.getAsJvmArg()}".replace('javaagent:build/tmp/expandedArchives/org.jacoco.agent-0.8.7.jar_3a83c50b4a016f281c4e9f3500d16b55/jacocoagent.jar=destfile=build/jacoco/integTest.exec', "${jacocoExecDir}")
+         systemProperty 'com.sun.management.jmxremote', "true"
+         systemProperty 'com.sun.management.jmxremote.authenticate', "false"
+         systemProperty 'com.sun.management.jmxremote.port', "7777"

@@ -1,0 +1,17 @@
+Index: src/main/java/org/opensearch/knn/common/KNNConstants.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/org/opensearch/knn/common/KNNConstants.java b/src/main/java/org/opensearch/knn/common/KNNConstants.java
+--- a/src/main/java/org/opensearch/knn/common/KNNConstants.java	(revision 8475892ebf7579a06a0aeb923378b9e3bae4c904)
++++ b/src/main/java/org/opensearch/knn/common/KNNConstants.java	(date 1663803363304)
+@@ -90,7 +90,7 @@
+     public static final Integer MODEL_CACHE_EXPIRE_AFTER_ACCESS_TIME_MINUTES = 30;
+ 
+     // Lib names
+-    private static final String JNI_LIBRARY_PREFIX = "opensearchknn_";
++    private static final String JNI_LIBRARY_PREFIX = "libopensearchknn_";
+     public static final String FAISS_JNI_LIBRARY_NAME = JNI_LIBRARY_PREFIX + FAISS_NAME;
+     public static final String NMSLIB_JNI_LIBRARY_NAME = JNI_LIBRARY_PREFIX + NMSLIB_NAME;
+ }

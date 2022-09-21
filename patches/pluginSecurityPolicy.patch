@@ -1,0 +1,15 @@
+Index: src/main/plugin-metadata/plugin-security.policy
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/plugin-metadata/plugin-security.policy b/src/main/plugin-metadata/plugin-security.policy
+--- a/src/main/plugin-metadata/plugin-security.policy	(revision 8475892ebf7579a06a0aeb923378b9e3bae4c904)
++++ b/src/main/plugin-metadata/plugin-security.policy	(date 1663803363315)
+@@ -1,4 +1,6 @@
+ grant {
++    permission java.lang.RuntimePermission "loadLibrary.libopensearchknn_nmslib";
++    permission java.lang.RuntimePermission "loadLibrary.libopensearchknn_faiss";
+     permission java.lang.RuntimePermission "loadLibrary.opensearchknn_nmslib";
+     permission java.lang.RuntimePermission "loadLibrary.opensearchknn_faiss";
+     permission java.net.SocketPermission "*", "connect,resolve";

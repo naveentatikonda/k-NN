@@ -4,6 +4,7 @@
  */
 
 import org.opensearch.gradle.test.RestIntegTestTask
+import org.apache.tools.ant.taskdefs.condition.Os
 
 buildscript {
     ext {
@@ -12,6 +13,13 @@ buildscript {
         opensearch_version = System.getProperty("opensearch.version", "2.3.0-SNAPSHOT")
         version_qualifier = System.getProperty("build.version_qualifier", "")
         opensearch_group = "org.opensearch"
+    }
+    
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        exec {
+            commandLine 'cmd', '/c', "$rootDir\\scripts\\windowsScript.sh"
+	        sleep(45 * 1000)
+        }
     }
 
     // This isn't applying from repositories.gradle so repeating git diff it here
@@ -23,7 +31,7 @@ buildscript {
     }
 
     dependencies {
-        classpath "${opensearch_group}.gradle:build-tools:${opensearch_version}"
+        classpath "${opensearch_group}.gradle:build-tools:${opensearch_version}" 
     }
 }
 
@@ -171,7 +179,12 @@ opensearch_tmp_dir.mkdirs()
 
 task cmakeJniLib(type:Exec) {
     workingDir 'jni'
-    commandLine 'cmake', '.', "-DKNN_PLUGIN_VERSION=${opensearch_version}"
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        commandLine 'cmake', '.', "-G", "Unix Makefiles", "-DKNN_PLUGIN_VERSION=${opensearch_version}", "-DCXX_COMPILER_VERSION=12.2.0", "-DBLAS_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll", "-DLAPACK_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll"
+    }
+    else {
+        commandLine 'cmake', '.', "-DKNN_PLUGIN_VERSION=${opensearch_version}"
+    }
 }
 
 task buildJniLib(type:Exec) {
