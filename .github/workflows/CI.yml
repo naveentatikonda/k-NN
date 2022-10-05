@@ -1,46 +1,82 @@
 name: Build and Test k-NN
 on:
-  schedule:
-    - cron: '0 0 * * *'  # every night
+  #schedule:
+  #  - cron: '0 0 * * *'  # every night
   push:
     branches:
       - "*"
-      - "feature/**"
-  pull_request:
-    branches:
-      - "*"
-      - "feature/**"
+  #pull_request:
+  #  branches:
+  #    - "*"
+  #    - "feature/**"
 
 jobs:
-  Build-k-NN:
+#  Build-k-NN:
+#    strategy:
+#      matrix:
+#        #java: [11, 17]
+#        java: [17]
+#
+#    name: Build and Test k-NN Plugin on Ubuntu
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout k-NN
+#        uses: actions/checkout@v1
+#
+#      - name: Setup Java ${{ matrix.java }}
+#        uses: actions/setup-java@v1
+#        with:
+#          java-version: ${{ matrix.java }}
+#
+#      - name: Install dependencies
+#        run: |
+#          sudo apt-get install libopenblas-dev gfortran -y
+#
+#      - name: Run build
+#        run: |
+#          ./gradlew build
+#
+#      - name: Upload Coverage Report
+#        uses: codecov/codecov-action@v1
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+
+  Build-k-NN-Windows:
     strategy:
       matrix:
-        java: [11, 17]
+        java: [ 17 ]
 
-    name: Build and Test k-NN Plugin
-    runs-on: ubuntu-latest
+    name: Build and Test k-NN Plugin on Windows
+    runs-on: windows-latest
 
     steps:
       - name: Checkout k-NN
         uses: actions/checkout@v1
+        with:
+          submodules: true
 
       - name: Setup Java ${{ matrix.java }}
         uses: actions/setup-java@v1
         with:
           java-version: ${{ matrix.java }}
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get install libopenblas-dev gfortran -y
+      - name: Set up MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
 
       - name: Run build
         run: |
-          ./gradlew build
-
-      - name: Upload Coverage Report
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          echo 123
+          echo $SHELL
+          echo 123123
+          ls jni/
+          
+      #- name: Upload Coverage Report
+      #  uses: codecov/codecov-action@v1
+      #  with:
+      #    token: ${{ secrets.CODECOV_TOKEN }}
 
 #      - name: Pull and Run Docker for security tests
 #        run: |
@@ -82,3 +118,4 @@ jobs:
 #          else
 #            echo "Security plugin is NOT available. Skipping tests as they are already ran part of ./gradlew build"
 #          fi
+
