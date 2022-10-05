@@ -72,6 +72,9 @@ jobs:
           echo $SHELL
           echo 123123
           ls jni/
+          type .\jni\CMakeLists.txt | Select-String 'windows'
+          git apply patches\CMakeLists.patch --verbose
+          type .\jni\CMakeLists.txt | Select-String 'windows'
           
       #- name: Upload Coverage Report
       #  uses: codecov/codecov-action@v1
