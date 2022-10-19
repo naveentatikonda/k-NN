@@ -31,11 +31,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get install libopenblas-dev gfortran -y
+#          sudo apt-get install libopenblas-dev gfortran -y
 
       - name: Run build
         run: |
-          ./gradlew build
+#          ./gradlew build
 
       - name: Upload Coverage Report
         uses: codecov/codecov-action@v1
@@ -63,6 +63,15 @@ jobs:
         uses: egor-tensin/setup-mingw@v2
         with:
           platform: x64
+#      - name: Build OpenBLAS
+#        run: |
+#          git clone https://github.com/xianyi/OpenBLAS.git
+#          cd OpenBLAS
+#          git checkout v0.3.21
+#          cmake . -G "Unix Makefiles" -DBUILD_SHARED_LIBS=ON
+#          make -j 8 install
+#          mkdir ./src/main/resources/windowsDependencies
+#          cp ./OpenBLAS/lib/libopenblas.dll ./src/main/resources/windowsDependencies/
 
       - name: Run build
         run: |

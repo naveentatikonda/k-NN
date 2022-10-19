@@ -24,7 +24,7 @@ buildscript {
     }
 
     dependencies {
-        classpath "${opensearch_group}.gradle:build-tools:${opensearch_version}" 
+        classpath "${opensearch_group}.gradle:build-tools:${opensearch_version}"
     }
 }
 
@@ -179,7 +179,7 @@ task cmakeJniLib(type:Exec) {
     workingDir 'jni'
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         dependsOn windowsPatches
-        commandLine 'cmake', '.', "-G", "Unix Makefiles", "-DKNN_PLUGIN_VERSION=${opensearch_version}", "-DCXX_COMPILER_VERSION=12.2.0", "-DBLAS_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll", "-DLAPACK_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll"
+        commandLine 'cmake', '.', "-G", "Unix Makefiles", "-DKNN_PLUGIN_VERSION=${opensearch_version}", "-DBLAS_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll", "-DLAPACK_LIBRARIES=$rootDir\\src\\main\\resources\\windowsDependencies\\libopenblas.dll"
     }
     else {
         commandLine 'cmake', '.', "-DKNN_PLUGIN_VERSION=${opensearch_version}"
@@ -196,7 +196,12 @@ test {
     dependsOn buildJniLib
     systemProperty 'tests.security.manager', 'false'
     systemProperty "java.library.path", "$rootDir/jni/release"
-    environment('PATH', System.getenv('PATH') + ";$rootDir/jni/release" + ";$rootDir/src/main/resources/windowsDependencies")
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+
+        // Add the paths of built JNI libraries and its dependent libraries to PATH variable in System variables
+        environment('PATH', System.getenv('PATH') + ";$rootDir/jni/release" + ";$rootDir/src/main/resources/windowsDependencies")
+    }
+
 }
 
 def _numNodes = findProperty('numNodes') as Integer ?: 1
@@ -237,7 +242,13 @@ integTest {
 testClusters.integTest {
     testDistribution = "ARCHIVE"
     plugin(project.tasks.bundlePlugin.archiveFile)
-    environment('PATH', System.getenv('PATH') + ";$rootDir/jni/release" + ";$rootDir/src/main/resources/windowsDependencies")
+    println "Printing PATH"
+    println "$rootDir"
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+
+        // Add the paths of built JNI libraries and its dependent libraries to PATH variable in System variables
+        environment('PATH', System.getenv('PATH') + ";$rootDir/jni/release" + ";$rootDir/src/main/resources/windowsDependencies")
+    }
 
     // Cluster shrink exception thrown if we try to set numberOfNodes to 1, so only apply if > 1
     if (_numNodes > 1) numberOfNodes = _numNodes

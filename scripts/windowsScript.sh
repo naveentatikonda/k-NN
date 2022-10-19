@@ -13,7 +13,18 @@ set -ex
 git submodule update --init -- jni/external/nmslib
 git submodule update --init -- jni/external/faiss
 
-git apply patches/CMakeLists.patch
+git apply patches/windows/CMakeLists.patch
+
+# Validating if the CMakeLists patch is applied
+echo "Validating if the CMakeLists patch is applied"
+cat jni/CMakelists.txt | grep Windows
+
+# Replace '_MSC_VER' with '__MINGW32__'
 sed -i 's/ _MSC_VER/ __MINGW32__/g' jni/external/faiss/faiss/impl/index_read.cpp
 sed -i 's/ _MSC_VER/ __MINGW32__/g' jni/external/faiss/faiss/impl/index_write.cpp
+
+# Replace '#include <sys/mman.h>' with
+#  #ifndef __MINGW32__
+#    #include <sys/mman.h>
+#  #endif
 sed -i -e 's/#include <sys\/mman.h>/#ifndef __MINGW32__\n#include <sys\/mman.h>\n#endif/' jni/external/faiss/faiss/OnDiskInvertedLists.cpp
