@@ -244,11 +244,13 @@ testClusters.integTest {
     plugin(project.tasks.bundlePlugin.archiveFile)
     println "Printing PATH"
     println "$rootDir"
+    println System.getenv('PATH')
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
 
         // Add the paths of built JNI libraries and its dependent libraries to PATH variable in System variables
         environment('PATH', System.getenv('PATH') + ";$rootDir/jni/release" + ";$rootDir/src/main/resources/windowsDependencies")
     }
+    println System.getenv('PATH')
 
     // Cluster shrink exception thrown if we try to set numberOfNodes to 1, so only apply if > 1
     if (_numNodes > 1) numberOfNodes = _numNodes

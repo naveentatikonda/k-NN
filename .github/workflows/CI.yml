@@ -45,7 +45,7 @@ jobs:
   Build-k-NN-Windows:
     strategy:
       matrix:
-        java: [ 11, 17 ]
+        java: [ 11 ]
 
     name: Build and Test k-NN Plugin on Windows
     runs-on: windows-latest
@@ -60,9 +60,32 @@ jobs:
           java-version: ${{ matrix.java }}
 
       - name: Set up MinGW
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
+        run: |
+          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+          scoop bucket add main
+          scoop install mingw
+
+#        uses: msys2/setup-msys2@v2
+#        with:
+#          msystem: mingw64
+#          install: mingw-w64-x86_64-openssl
+#          path-type: minimal
+
+      - name: Put MSYS2_MinGW64 on PATH
+        run: |
+          echo "C:/Users/runneradmin/scoop/apps/mingw/current/bin" >> $env:GITHUB_PATH
+          refreshenv
+
+#        ls C:/Users/runneradmin/scoop/apps/mingw/current/bin
+        # there is not yet an environment variable for this path from msys2/setup-msys2
+#        run: echo "${{ runner.temp }}/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+#        run: echo "D:/a/_temp/msys64/mingw64/bin" >> $GITHUB_PATH
+#        run: ls D:/a/_temp/msys64/mingw64/bin/
+
+#        uses: egor-tensin/setup-mingw@v2
+#        with:
+#          platform: x64
+
 #      - name: Build OpenBLAS
 #        run: |
 #          git clone https://github.com/xianyi/OpenBLAS.git
@@ -70,12 +93,14 @@ jobs:
 #          git checkout v0.3.21
 #          cmake . -G "Unix Makefiles" -DBUILD_SHARED_LIBS=ON
 #          make -j 8 install
-#          mkdir ./src/main/resources/windowsDependencies
-#          cp ./OpenBLAS/lib/libopenblas.dll ./src/main/resources/windowsDependencies/
+#          mkdir ../src/main/resources/windowsDependencies
+#          cp ./lib/libopenblas.dll ../src/main/resources/windowsDependencies/
 
       - name: Run build
         run: |
           ./gradlew.bat build
+#          ./gradlew.bat ':integTest' --tests "org.opensearch.knn.recall.RecallTestsIT"
+ #         ./gradlew.bat ':integTest' --tests "org.opensearch.knn.index.FaissIT"
       - name: Upload Coverage Report
         uses: codecov/codecov-action@v1
         with:
