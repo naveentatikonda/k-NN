@@ -95,11 +95,12 @@ if [ "$JAVA_HOME" = "" ]; then
     echo "SET JAVA_HOME=$JAVA_HOME"
 fi
 
-cmake .
-make opensearchknn_faiss opensearchknn_nmslib
+#cmake .
+#make opensearchknn_faiss opensearchknn_nmslib
 
 cd $work_dir
-./gradlew assemble --no-daemon --refresh-dependencies -DskipTests=true -Dopensearch.version=$VERSION -Dbuild.snapshot=$SNAPSHOT -Dbuild.version_qualifier=$QUALIFIER
+#./gradlew assemble --no-daemon --refresh-dependencies -DskipTests=true -Dopensearch.version=$VERSION -Dbuild.snapshot=$SNAPSHOT -Dbuild.version_qualifier=$QUALIFIER
+./gradlew build --no-daemon --refresh-dependencies -x integTest -DskipTests=true -Dopensearch.version=$VERSION -Dbuild.snapshot=$SNAPSHOT -Dbuild.version_qualifier=$QUALIFIER
 ./gradlew publishPluginZipPublicationToZipStagingRepository -Dopensearch.version=$VERSION -Dbuild.snapshot=$SNAPSHOT -Dbuild.version_qualifier=$QUALIFIER
 
 # Add lib to zip

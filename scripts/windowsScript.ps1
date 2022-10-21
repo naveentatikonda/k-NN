@@ -1,3 +1,5 @@
+echo "Running Windows Powershell Setup for Building Libs"
+
 git submodule update --init -- jni/external/nmslib
 git submodule update --init -- jni/external/faiss
 
