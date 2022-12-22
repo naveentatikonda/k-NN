@@ -7,6 +7,7 @@ package org.opensearch.knn.indices;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.opensearch.OpenSearchParseException;
 import org.opensearch.Version;
 import org.opensearch.cluster.Diff;
 import org.opensearch.cluster.NamedDiff;
@@ -22,6 +23,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Iterator;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Sets;
 
@@ -79,17 +81,7 @@ public class ModelGraveyard implements Metadata.Custom {
         out.writeStringCollection(modelIds);
     }
 
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        Iterator model_ids = getModelIds().iterator();
 
-        builder.startArray("model_ids");
-        while (model_ids.hasNext()) {
-            builder.value(model_ids.next());
-        }
-        builder.endArray();
-        return builder;
-    }
 
     /**
      * @param modelId id of the model that needs to be removed from modelIds set
@@ -145,11 +137,189 @@ public class ModelGraveyard implements Metadata.Custom {
         return new ModelGraveyardDiff(streamInput);
     }
 
-    /**
-     * @param xContentParser
-     * @return ModelGraveyard
-     * @throws IOException
-     */
+
+    // Root Cause
+//    @Override
+//    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+//        return builder;
+//    }
+//
+//    public static ModelGraveyard fromXContent(XContentParser xContentParser) throws IOException {
+//        return new ModelGraveyard(xContentParser.list().stream().map(Object::toString).collect(Collectors.toSet()));
+//    }
+
+//    //Scenario 1(Bug Fix)
+//    @Override
+//    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+//        Iterator model_ids = getModelIds().iterator();
+//
+//        builder.startArray("model_ids");
+//        while (model_ids.hasNext()) {
+//            builder.value(model_ids.next());
+//        }
+//        builder.endArray();
+//        return builder;
+//    }
+//
+//    public static ModelGraveyard fromXContent(XContentParser xContentParser) throws IOException {
+//        ModelGraveyard modelGraveyard = new ModelGraveyard();
+//
+//        // If it is a fresh parser, move to the first token
+//        if (xContentParser.currentToken() == null) {
+//            xContentParser.nextToken();
+//        }
+//
+//        // on a start object move to next token
+//        if (xContentParser.currentToken() == XContentParser.Token.START_OBJECT) {
+//            xContentParser.nextToken();
+//        }
+//
+//        if (xContentParser.currentToken() == XContentParser.Token.END_OBJECT) {
+//            return modelGraveyard;
+//        }
+//
+//        if (xContentParser.currentToken() == XContentParser.Token.FIELD_NAME) {
+//            String fieldValue = xContentParser.currentName();
+//            //String fieldValue2 = xContentParser
+//            System.out.println("ModelGraveyard Field name is: "+fieldValue);
+//        }
+//
+//        if (xContentParser.currentToken() != XContentParser.Token.FIELD_NAME) {
+//            throw new IllegalArgumentException("expected field name but got a " + xContentParser.currentToken());
+//        }
+//
+//        while (xContentParser.nextToken() != XContentParser.Token.END_OBJECT) {
+//            if (xContentParser.currentToken() == XContentParser.Token.VALUE_STRING) {
+//                modelGraveyard.add(xContentParser.text());
+//            }
+//        }
+//        return modelGraveyard;
+//    }
+
+    //Scenario 2
+//    @Override
+//    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+//        Iterator model_ids = getModelIds().iterator();
+//
+//        builder.startArray("model_ids");
+//        while (model_ids.hasNext()) {
+//            builder.value(model_ids.next());
+//        }
+//        builder.endArray();
+//        return builder;
+//    }
+//
+//    public static ModelGraveyard fromXContent(XContentParser xContentParser) throws IOException {
+//        ModelGraveyard modelGraveyard = new ModelGraveyard();
+//
+//        // If it is a fresh parser, move to the first token
+//        if (xContentParser.currentToken() == null) {
+//            xContentParser.nextToken();
+//        }
+//
+//        // on a start object move to next token
+//        if (xContentParser.currentToken() == XContentParser.Token.START_OBJECT) {
+//            xContentParser.nextToken();
+//        }
+//
+////        if (xContentParser.currentToken() != XContentParser.Token.FIELD_NAME) {
+////            throw new IllegalArgumentException("expected field name but got a " + xContentParser.currentToken());
+////        }
+//
+//        while (xContentParser.nextToken() != XContentParser.Token.END_OBJECT) {
+//            if (xContentParser.currentToken() == XContentParser.Token.VALUE_STRING) {
+//                modelGraveyard.add(xContentParser.text());
+//            }
+//        }
+//        return modelGraveyard;
+//    }
+
+
+
+
+//    @Override
+//    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+//        Iterator model_ids = getModelIds().iterator();
+//
+//        builder.startArray("model_ids");
+//        while (model_ids.hasNext()) {
+//            builder.value(model_ids.next());
+//        }
+//        builder.endArray();
+//        return builder;
+//    }
+//
+//    public static ModelGraveyard fromXContent(XContentParser xContentParser) throws IOException {
+////        return new ModelGraveyard(xContentParser.list().stream().map(Object::toString).collect(Collectors.toSet()));
+//
+//        ModelGraveyard modelGraveyard = new ModelGraveyard();
+//
+//        // If it is a fresh parser, move to the first token
+//        if (xContentParser.currentToken() == null) {
+//            xContentParser.nextToken();
+//        }
+//
+//        // on a start object move to next token
+//        if (xContentParser.currentToken() == XContentParser.Token.START_OBJECT) {
+//            xContentParser.nextToken();
+//        }
+//
+////        if (xContentParser.currentToken() != XContentParser.Token.FIELD_NAME) {
+////            throw new IllegalArgumentException("expected field name but got a " + xContentParser.currentToken());
+////        } else {
+////            System.out.println("Printing field name" + xContentParser.currentToken().name());
+////        }
+//
+//        while (xContentParser.nextToken() != XContentParser.Token.END_OBJECT) {
+//            if (xContentParser.currentToken() == XContentParser.Token.VALUE_STRING) {
+//                modelGraveyard.add(xContentParser.text());
+//            }
+//        }
+//        return modelGraveyard;
+//    }
+
+    // Scenario 3
+//    @Override
+//    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+//        Iterator model_ids = getModelIds().iterator();
+//
+//        builder.startArray("model_ids");
+//        while (model_ids.hasNext()) {
+//            builder.value(model_ids.next());
+//        }
+//        builder.endArray();
+//        return builder;
+//    }
+//
+//    public static ModelGraveyard fromXContent(XContentParser xContentParser) throws IOException {
+//        ModelGraveyard modelGraveyard = new ModelGraveyard();
+//        while (xContentParser.currentToken() != XContentParser.Token.END_OBJECT) {
+//            if (xContentParser.currentToken() == XContentParser.Token.VALUE_STRING) {
+//                modelGraveyard.add(xContentParser.text());
+//            }
+//            xContentParser.nextToken();
+//        }
+//        return modelGraveyard;
+//    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        Iterator model_ids = getModelIds().iterator();
+
+        builder.startArray("model_ids");
+        while (model_ids.hasNext()) {
+            builder.value(model_ids.next());
+        }
+        builder.endArray();
+        return builder;
+    }
+
+    // Added validation checks to validate all the different possible scenarios
+    // {}
+    // {model_ids:[]}
+    // {model_ids: ["abcd", "1234"]}
+    // {model_ids:"abcd"}
+    // {model_ids:null}
     public static ModelGraveyard fromXContent(XContentParser xContentParser) throws IOException {
         ModelGraveyard modelGraveyard = new ModelGraveyard();
 
@@ -158,13 +328,24 @@ public class ModelGraveyard implements Metadata.Custom {
             xContentParser.nextToken();
         }
 
-        // on a start object move to next token
-        if (xContentParser.currentToken() == XContentParser.Token.START_OBJECT) {
-            xContentParser.nextToken();
+        if (xContentParser.currentToken() != XContentParser.Token.START_OBJECT) {
+            throw new OpenSearchParseException("Unable to parse ModelGraveyard. Expecting START_OBJECT but got " + xContentParser.currentToken());
+        }
+
+        if (xContentParser.nextToken() == XContentParser.Token.END_OBJECT) {
+            return modelGraveyard;
         }
 
         if (xContentParser.currentToken() != XContentParser.Token.FIELD_NAME) {
-            throw new IllegalArgumentException("expected field name but got a " + xContentParser.currentToken());
+            throw new OpenSearchParseException("Unable to parse ModelGraveyard. Expecting FIELD_NAME but got " + xContentParser.currentToken());
+        }
+
+        if (! "model_ids".equals(xContentParser.currentName())) {
+            throw new OpenSearchParseException("Unable to parse ModelGraveyard. Expecting field model_ids but got " + xContentParser.currentName());
+        }
+
+        if (xContentParser.nextToken() != XContentParser.Token.START_ARRAY) {
+            throw new OpenSearchParseException("Unable to parse ModelGraveyard. Expecting START_ARRAY but got " + xContentParser.currentToken());
         }
 
         while (xContentParser.nextToken() != XContentParser.Token.END_OBJECT) {
@@ -174,6 +355,7 @@ public class ModelGraveyard implements Metadata.Custom {
         }
         return modelGraveyard;
     }
+
 
     /**
      * The ModelGraveyardDiff class compares the previous modelGraveyard object with the current updated modelGraveyard object
