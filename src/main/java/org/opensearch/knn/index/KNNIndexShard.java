@@ -101,6 +101,18 @@ public class KNNIndexShard {
     }
 
     /**
+     * Removes all the k-NN segments for this shard from the cache.
+     *
+     * @throws IOException
+     */
+    public void clearCache() throws IOException {
+        logger.info("[KNN] Evicting Index from Cache: " + getIndexName());
+        try (Engine.Searcher searcher = indexShard.acquireSearcher("knn-clear-cache")) {
+            getAllEnginePaths(searcher.getIndexReader()).forEach((key, value) -> nativeMemoryCacheManager.invalidate(key));
+        }
+    }
+
+    /**
      * For the given shard, get all of its engine paths
      *
      * @param indexReader IndexReader to read the file paths for the shard
