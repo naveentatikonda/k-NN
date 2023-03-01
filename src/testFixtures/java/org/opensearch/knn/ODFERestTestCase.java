@@ -149,7 +149,7 @@ public abstract class ODFERestTestCase extends OpenSearchRestTestCase {
     }
 
     private boolean getSkipDeleteModelIndexFlag() {
-        return Boolean.parseBoolean(System.getProperty(SKIP_DELETE_MODEL_INDEX, "false"));
+        return Boolean.parseBoolean(System.getProperty(SKIP_DELETE_MODEL_INDEX, "true"));
     }
 
     private boolean skipDeleteModelIndex(String indexName) {

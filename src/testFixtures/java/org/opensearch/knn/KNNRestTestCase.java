@@ -9,8 +9,9 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
 import com.google.common.primitives.Floats;
 import org.apache.commons.lang.StringUtils;
+import org.opensearch.action.search.SearchResponse;
 import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.common.xcontent.*;
 import org.opensearch.index.query.MatchAllQueryBuilder;
 import org.opensearch.knn.index.query.KNNQueryBuilder;
 import org.opensearch.knn.index.KNNSettings;
@@ -27,15 +28,12 @@ import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.xcontent.ToXContent;
-import org.opensearch.common.xcontent.XContentBuilder;
-import org.opensearch.common.xcontent.XContentFactory;
-import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.query.ExistsQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.functionscore.ScriptScoreQueryBuilder;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.script.Script;
+import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.metrics.ScriptedMetricAggregationBuilder;
 
 import javax.management.MBeanServerInvocationHandler;
@@ -62,26 +60,6 @@ import java.util.PriorityQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.opensearch.knn.common.KNNConstants.DIMENSION;
-import static org.opensearch.knn.common.KNNConstants.KNN_ENGINE;
-import static org.opensearch.knn.common.KNNConstants.KNN_METHOD;
-import static org.opensearch.knn.common.KNNConstants.METHOD_PARAMETER_SPACE_TYPE;
-import static org.opensearch.knn.common.KNNConstants.MODEL_BLOB_PARAMETER;
-import static org.opensearch.knn.common.KNNConstants.MODEL_DESCRIPTION;
-import static org.opensearch.knn.common.KNNConstants.MODEL_ERROR;
-import static org.opensearch.knn.common.KNNConstants.MODEL_ID;
-import static org.opensearch.knn.common.KNNConstants.MODEL_INDEX_MAPPING_PATH;
-import static org.opensearch.knn.common.KNNConstants.MODEL_INDEX_NAME;
-import static org.opensearch.knn.common.KNNConstants.MODEL_STATE;
-import static org.opensearch.knn.common.KNNConstants.MODEL_TIMESTAMP;
-import static org.opensearch.knn.common.KNNConstants.TRAIN_FIELD_PARAMETER;
-import static org.opensearch.knn.common.KNNConstants.TRAIN_INDEX_PARAMETER;
-import static org.opensearch.knn.common.KNNConstants.NAME;
-import static org.opensearch.knn.common.KNNConstants.METHOD_HNSW;
-import static org.opensearch.knn.common.KNNConstants.PARAMETERS;
-import static org.opensearch.knn.common.KNNConstants.METHOD_PARAMETER_EF_CONSTRUCTION;
-import static org.opensearch.knn.common.KNNConstants.METHOD_PARAMETER_M;
-
 import static org.opensearch.knn.TestUtils.NUMBER_OF_REPLICAS;
 import static org.opensearch.knn.TestUtils.NUMBER_OF_SHARDS;
 import static org.opensearch.knn.TestUtils.INDEX_KNN;
@@ -92,6 +70,7 @@ import static org.opensearch.knn.TestUtils.FIELD;
 import static org.opensearch.knn.TestUtils.QUERY_VALUE;
 import static org.opensearch.knn.TestUtils.computeGroundTruthValues;
 
+import static org.opensearch.knn.common.KNNConstants.*;
 import static org.opensearch.knn.index.memory.NativeMemoryCacheManager.GRAPH_COUNT;
 import static org.opensearch.knn.plugin.stats.StatNames.INDICES_IN_CACHE;
 
@@ -630,6 +609,15 @@ public class KNNRestTestCase extends ODFERestTestCase {
     }
 
     protected void createModelSystemIndex() throws IOException {
+        if (isModelIndexCreated()) {
+            List<String> modelIds = searchModelIds();
+            if (modelIds.size() > 0) {
+                deleteModel(modelIds);
+                return;
+            }
+            return;
+        }
+
         URL url = ModelDao.class.getClassLoader().getResource(MODEL_INDEX_MAPPING_PATH);
         if (url == null) {
             throw new IllegalStateException("Unable to retrieve mapping for \"" + MODEL_INDEX_NAME + "\"");
@@ -639,6 +627,79 @@ public class KNNRestTestCase extends ODFERestTestCase {
         mapping = mapping.substring(1, mapping.length() - 1);
 
         createIndex(MODEL_INDEX_NAME, Settings.builder().put("number_of_shards", 1).put("number_of_replicas", 0).build(), mapping);
+    }
+
+    protected boolean isModelIndexCreated() throws IOException {
+        Response response = client().performRequest(new Request("GET", "/_cat/indices?format=json&expand_wildcards=all"));
+        XContentType xContentType = XContentType.fromMediaType(response.getEntity().getContentType().getValue());
+        try (
+            XContentParser parser = xContentType.xContent()
+                .createParser(
+                    NamedXContentRegistry.EMPTY,
+                    DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
+                    response.getEntity().getContent()
+                )
+        ) {
+            XContentParser.Token token = parser.nextToken();
+            List<Map<String, Object>> parserList = null;
+            if (token == XContentParser.Token.START_ARRAY) {
+                parserList = parser.listOrderedMap().stream().map(obj -> (Map<String, Object>) obj).collect(Collectors.toList());
+            } else {
+                parserList = Collections.singletonList(parser.mapOrdered());
+            }
+
+            for (Map<String, Object> index : parserList) {
+                String indexName = (String) index.get("index");
+                if (indexName.equals(MODEL_INDEX_NAME)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    protected void deleteModel(List<String> modelIds) throws IOException {
+        String restURI = "";
+        for (String modelId : modelIds)
+            restURI = String.join("/", KNNPlugin.KNN_BASE_URI, MODELS, modelId);
+        Request request = new Request("DELETE", restURI);
+        Response response = client().performRequest(request);
+    }
+
+    // public boolean isModelIndexCreated() {
+    // Request request = new Request("HEAD", "/" + MODEL_INDEX_NAME);
+    // Response response = client().performRequest(request);
+    // assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+    //
+    // String responseBody = EntityUtils.toString(response.getEntity());
+    // XContentParser parser = createParser(XContentType.JSON.xContent(), responseBody);
+    // SearchResponse searchResponse = SearchResponse.fromXContent(parser);
+    //
+    // }
+
+    public List<String> searchModelIds() throws IOException {
+        List<String> modelIds = new ArrayList<>();
+
+        String restURI = String.join("/", KNNPlugin.KNN_BASE_URI, MODELS, "_search");
+
+        Request request = new Request("GET", restURI);
+        request.setJsonEntity("{\n" + "    \"query\": {\n" + "        \"match_all\": {}\n" + "    }\n" + "}");
+        Response response = client().performRequest(request);
+        assertEquals(RestStatus.OK, RestStatus.fromCode(response.getStatusLine().getStatusCode()));
+
+        String responseBody = EntityUtils.toString(response.getEntity());
+
+        XContentParser parser = createParser(XContentType.JSON.xContent(), responseBody);
+        SearchResponse searchResponse = SearchResponse.fromXContent(parser);
+        // assertNotNull(searchResponse);
+
+        // returns only model from ModelIndex
+        if (searchResponse.getHits().getHits().length > 0) {
+            for (SearchHit hit : searchResponse.getHits().getHits()) {
+                modelIds.add(hit.getId());
+            }
+        }
+        return modelIds;
     }
 
     protected void addModelToSystemIndex(String modelId, ModelMetadata modelMetadata, byte[] model) throws IOException {
