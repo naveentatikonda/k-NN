@@ -13,6 +13,7 @@ buildscript {
         opensearch_version = System.getProperty("opensearch.version", "2.7.0-SNAPSHOT")
         version_qualifier = System.getProperty("build.version_qualifier", "")
         opensearch_group = "org.opensearch"
+        oldBWCVersion = "2.6.0"
     }
 
     // This isn't applying from repositories.gradle so repeating git diff it here
@@ -322,5 +323,9 @@ task updateVersion {
             }
         }
         ant.replaceregexp(file:'build.gradle', match: '"opensearch.version", "\\d.*"', replace: '"opensearch.version", "' + newVersion.tokenize('-')[0] + '-SNAPSHOT"', flags:'g', byline:true)
+        // Updating oldBWCVersion as current OpenSearch Version before version bump
+        ant.replaceregexp(file:'build.gradle', match: oldBWCVersion, replace: opensearch_version.tokenize('-')[0], flags:'g', byline:true)
+        // Include the current OpenSearch Version before version bump to the bwc_version matrix
+        ant.replaceregexp(file:".github/workflows/backwards_compatibility_tests_workflow.yml", match: oldBWCVersion, replace: oldBWCVersion + '", "' + opensearch_version.tokenize('-')[0], flags:'g', byline:true)
     }
 }

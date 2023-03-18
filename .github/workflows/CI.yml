@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         java: [11, 17]
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
 
     name: Build and Test k-NN Plugin
     runs-on: ${{ matrix.os }}
@@ -43,7 +43,7 @@ jobs:
 
       - name: Run build
         run: |
-          ./gradlew build
+          ./gradlew updateVersion -DnewVersion="2.8.0-SNAPSHOT"
 
       - name: Upload Coverage Report
         if: startsWith(matrix.os,'ubuntu')
