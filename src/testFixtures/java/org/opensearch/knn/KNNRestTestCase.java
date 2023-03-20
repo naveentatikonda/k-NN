@@ -568,7 +568,7 @@ public class KNNRestTestCase extends ODFERestTestCase {
     protected Response clearCache(List<String> indices) throws IOException {
         String indicesSuffix = String.join(",", indices);
         String restURI = String.join("/", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE, indicesSuffix);
-        Request request = new Request("GET", restURI);
+        Request request = new Request("POST", restURI);
         return client().performRequest(request);
     }
 

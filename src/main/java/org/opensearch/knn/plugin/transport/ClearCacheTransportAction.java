@@ -148,21 +148,21 @@ public class ClearCacheTransportAction extends TransportBroadcastByNodeAction<
     /**
      * @param clusterState  ClusterState
      * @param request ClearCacheRequest
-     * @return ClusterBlockException if there is any global cluster block at a cluster block level of "METADATA_READ"
+     * @return ClusterBlockException if there is any global cluster block at a cluster block level of "METADATA_WRITE"
      */
     @Override
     protected ClusterBlockException checkGlobalBlock(ClusterState clusterState, ClearCacheRequest request) {
-        return clusterState.blocks().globalBlockedException(ClusterBlockLevel.METADATA_READ);
+        return clusterState.blocks().globalBlockedException(ClusterBlockLevel.METADATA_WRITE);
     }
 
     /**
      * @param clusterState ClusterState
      * @param request ClearCacheRequest
      * @param concreteIndices Indices in the request
-     * @return ClusterBlockException if there is any cluster block on any of the given indices at a cluster block level of "METADATA_READ"
+     * @return ClusterBlockException if there is any cluster block on any of the given indices at a cluster block level of "METADATA_WRITE"
      */
     @Override
     protected ClusterBlockException checkRequestBlock(ClusterState clusterState, ClearCacheRequest request, String[] concreteIndices) {
-        return clusterState.blocks().indicesBlockedException(ClusterBlockLevel.METADATA_READ, concreteIndices);
+        return clusterState.blocks().indicesBlockedException(ClusterBlockLevel.METADATA_WRITE, concreteIndices);
     }
 }

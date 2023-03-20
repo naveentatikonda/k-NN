@@ -16,6 +16,8 @@ public enum KNNCounter {
     GRAPH_INDEX_ERRORS("graph_index_errors"),
     GRAPH_INDEX_REQUESTS("graph_index_requests"),
     KNN_QUERY_REQUESTS("knn_query_requests"),
+    MANUAL_EVICTION_COUNT("manual_eviction_count"),
+    MANUAL_EVICTION_ERROR_COUNT("manual_eviction_error_count"),
     SCRIPT_COMPILATIONS("script_compilations"),
     SCRIPT_COMPILATION_ERRORS("script_compilation_errors"),
     SCRIPT_QUERY_REQUESTS("script_query_requests"),

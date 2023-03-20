@@ -32,7 +32,7 @@ public class RestClearCacheHandlerIT extends KNNRestTestCase {
         String nonExistentIndex = "non-existent-index";
 
         String restURI = String.join("/", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE, nonExistentIndex);
-        Request request = new Request(RestRequest.Method.GET.name(), restURI);
+        Request request = new Request(RestRequest.Method.POST.name(), restURI);
 
         ResponseException ex = expectThrows(ResponseException.class, () -> client().performRequest(request));
         assertTrue(ex.getMessage().contains(nonExistentIndex));
@@ -44,7 +44,7 @@ public class RestClearCacheHandlerIT extends KNNRestTestCase {
         createIndex(notKNNIndex, Settings.EMPTY);
 
         String restURI = String.join("/", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE, notKNNIndex);
-        Request request = new Request(RestRequest.Method.GET.name(), restURI);
+        Request request = new Request(RestRequest.Method.POST.name(), restURI);
 
         ResponseException ex = expectThrows(ResponseException.class, () -> client().performRequest(request));
         assertTrue(ex.getMessage().contains(notKNNIndex));

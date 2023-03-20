@@ -17,16 +17,19 @@ import org.apache.lucene.store.FilterDirectory;
 import org.opensearch.index.engine.Engine;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.knn.index.mapper.KNNVectorFieldMapper;
+import org.opensearch.knn.index.memory.NativeMemoryAllocation;
 import org.opensearch.knn.index.memory.NativeMemoryCacheManager;
 import org.opensearch.knn.index.memory.NativeMemoryEntryContext;
 import org.opensearch.knn.index.memory.NativeMemoryLoadStrategy;
 import org.opensearch.knn.index.util.KNNEngine;
+import org.opensearch.knn.plugin.stats.KNNCounter;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -103,12 +106,26 @@ public class KNNIndexShard {
     /**
      * Removes all the k-NN segments for this shard from the cache.
      *
-     * @throws IOException
      */
-    public void clearCache() throws IOException {
-        logger.info("[KNN] Evicting Index from Cache: " + getIndexName());
-        try (Engine.Searcher searcher = indexShard.acquireSearcher("knn-clear-cache")) {
-            getAllEnginePaths(searcher.getIndexReader()).forEach((key, value) -> nativeMemoryCacheManager.invalidate(key));
+    public void clearCache() {
+        String indexName = getIndexName();
+        Optional<NativeMemoryAllocation> indexAllocationOptional;
+        NativeMemoryAllocation indexAllocation;
+        indexAllocationOptional = nativeMemoryCacheManager.getIndexMemoryAllocation(indexName);
+        if (indexAllocationOptional.isPresent()) {
+            indexAllocation = indexAllocationOptional.get();
+            indexAllocation.writeLock();
+            logger.info("[KNN] Evicting index from cache: [{}]", indexName);
+            try (Engine.Searcher searcher = indexShard.acquireSearcher("knn-clear-cache")) {
+                getAllEnginePaths(searcher.getIndexReader()).forEach((key, value) -> nativeMemoryCacheManager.invalidate(key));
+                KNNCounter.MANUAL_EVICTION_COUNT.increment();
+            } catch (IOException ex) {
+                logger.error("[KNN] Failed to evict index from cache: [{}]", indexName);
+                KNNCounter.MANUAL_EVICTION_ERROR_COUNT.increment();
+                throw new RuntimeException(ex);
+            } finally {
+                indexAllocation.writeUnlock();
+            }
         }
     }
 

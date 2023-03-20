@@ -126,6 +126,11 @@ public class KNNStats {
             .put(StatNames.GRAPH_QUERY_REQUESTS.getName(), new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.GRAPH_QUERY_REQUESTS)))
             .put(StatNames.GRAPH_INDEX_ERRORS.getName(), new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.GRAPH_INDEX_ERRORS)))
             .put(StatNames.GRAPH_INDEX_REQUESTS.getName(), new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.GRAPH_INDEX_REQUESTS)))
+            .put(StatNames.MANUAL_EVICTION_COUNT.getName(), new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.MANUAL_EVICTION_COUNT)))
+            .put(
+                StatNames.MANUAL_EVICTION_ERROR_COUNT.getName(),
+                new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.MANUAL_EVICTION_ERROR_COUNT))
+            )
             .put(StatNames.CIRCUIT_BREAKER_TRIGGERED.getName(), new KNNStat<>(true, new KNNCircuitBreakerSupplier()));
     }
 

@@ -66,7 +66,8 @@ public class RestClearCacheHandler extends BaseRestHandler {
     @Override
     public List<Route> routes() {
         return ImmutableList.of(
-            new Route(RestRequest.Method.GET, String.format(Locale.ROOT, "%s/%s/{%s}", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE, INDEX))
+            new Route(RestRequest.Method.POST, String.format(Locale.ROOT, "%s/%s/{%s}", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE, INDEX)),
+            new Route(RestRequest.Method.POST, String.format(Locale.ROOT, "%s/%s", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE))
         );
     }
 
