@@ -78,6 +78,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
         protected final Parameter<Boolean> stored = Parameter.boolParam("store", false, m -> toType(m).stored, false);
         protected final Parameter<Boolean> hasDocValues = Parameter.boolParam("doc_values", false, m -> toType(m).hasDocValues, true);
+        protected final Parameter<Boolean> isByteVector = Parameter.boolParam("byte_vector", false, m -> toType(m).isByteVector, false);
         protected final Parameter<Integer> dimension = new Parameter<>(KNNConstants.DIMENSION, false, () -> -1, (n, c, o) -> {
             if (o == null) {
                 throw new IllegalArgumentException("Dimension cannot be null");
@@ -168,7 +169,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
         @Override
         protected List<Parameter<?>> getParameters() {
-            return Arrays.asList(stored, hasDocValues, dimension, meta, knnMethodContext, modelId);
+            return Arrays.asList(stored, hasDocValues, dimension, isByteVector, meta, knnMethodContext, modelId);
         }
 
         protected Explicit<Boolean> ignoreMalformed(BuilderContext context) {
@@ -203,6 +204,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                     buildFullName(context),
                     metaValue,
                     dimension.getValue(),
+                    isByteVector.getValue(),
                     knnMethodContext
                 );
                 if (knnMethodContext.getKnnEngine() == KNNEngine.LUCENE) {
@@ -216,6 +218,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                             .ignoreMalformed(ignoreMalformed)
                             .stored(stored.get())
                             .hasDocValues(hasDocValues.get())
+//                            .isByteVector(isByteVector.getValue())
                             .knnMethodContext(knnMethodContext)
                             .build();
                     return new LuceneFieldMapper(createLuceneFieldMapperInput);
@@ -334,6 +337,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
     @Getter
     public static class KNNVectorFieldType extends MappedFieldType {
         int dimension;
+        boolean isByteVector;
         String modelId;
         KNNMethodContext knnMethodContext;
 
@@ -345,10 +349,33 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             this(name, meta, dimension, knnMethodContext, null);
         }
 
+        public KNNVectorFieldType(
+            String name,
+            Map<String, String> meta,
+            int dimension,
+            boolean isByteVector,
+            KNNMethodContext knnMethodContext
+        ) {
+            this(name, meta, dimension, knnMethodContext, isByteVector);
+        }
+
         public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext, String modelId) {
             super(name, false, false, true, TextSearchInfo.NONE, meta);
             this.dimension = dimension;
             this.modelId = modelId;
+            this.knnMethodContext = knnMethodContext;
+        }
+
+        public KNNVectorFieldType(
+            String name,
+            Map<String, String> meta,
+            int dimension,
+            KNNMethodContext knnMethodContext,
+            boolean isByteVector
+        ) {
+            super(name, false, false, true, TextSearchInfo.NONE, meta);
+            this.dimension = dimension;
+            this.isByteVector = isByteVector;
             this.knnMethodContext = knnMethodContext;
         }
 
@@ -385,6 +412,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
     protected Explicit<Boolean> ignoreMalformed;
     protected boolean stored;
     protected boolean hasDocValues;
+    protected boolean isByteVector;
     protected Integer dimension;
     protected ModelDao modelDao;
 
@@ -457,6 +485,60 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         if (!KNNSettings.isKNNPluginEnabled()) {
             throw new IllegalStateException("KNN plugin is disabled. To enable update knn.plugin.enabled setting to true");
         }
+    }
+
+    Optional<byte[]> getBytesFromContext(ParseContext context, int dimension) throws IOException {
+        context.path().add(simpleName());
+
+        ArrayList<Byte> vector = new ArrayList<>();
+        XContentParser.Token token = context.parser().currentToken();
+        float value;
+        if (token == XContentParser.Token.START_ARRAY) {
+            token = context.parser().nextToken();
+            while (token != XContentParser.Token.END_ARRAY) {
+                value = context.parser().floatValue();
+
+                if (Float.isNaN(value)) {
+                    throw new IllegalArgumentException("KNN vector values cannot be NaN");
+                }
+
+                if (Float.isInfinite(value)) {
+                    throw new IllegalArgumentException("KNN vector values cannot be infinity");
+                }
+                // byte b = ((Float)value).byteValue();
+                vector.add((byte) value);
+                token = context.parser().nextToken();
+            }
+        }
+        // else if (token == XContentParser.Token.VALUE_NUMBER) {
+        // value = context.parser().floatValue();
+        //
+        // if (Float.isNaN(value)) {
+        // throw new IllegalArgumentException("KNN vector values cannot be NaN");
+        // }
+        //
+        // if (Float.isInfinite(value)) {
+        // throw new IllegalArgumentException("KNN vector values cannot be infinity");
+        // }
+        //
+        // vector.add(value);
+        // context.parser().nextToken();
+        // } else if (token == XContentParser.Token.VALUE_NULL) {
+        // context.path().remove();
+        // return Optional.empty();
+        // }
+
+        if (dimension != vector.size()) {
+            String errorMessage = String.format("Vector dimension mismatch. Expected: %d, Given: %d", dimension, vector.size());
+            throw new IllegalArgumentException(errorMessage);
+        }
+
+        byte[] array = new byte[vector.size()];
+        int i = 0;
+        for (Byte f : vector) {
+            array[i++] = f;
+        }
+        return Optional.of(array);
     }
 
     Optional<float[]> getFloatsFromContext(ParseContext context, int dimension) throws IOException {

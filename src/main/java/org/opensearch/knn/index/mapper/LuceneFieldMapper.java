@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnVectorField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.index.DocValuesType;
@@ -34,6 +35,7 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
 
     /** FieldType used for initializing VectorField, which is used for creating binary doc values. **/
     private final FieldType vectorFieldType;
+    private final boolean isByteVector;
 
     LuceneFieldMapper(final CreateLuceneFieldMapperInput input) {
         super(
@@ -46,6 +48,9 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
             input.isHasDocValues()
         );
 
+//         isByteVector = input.isByteVector();
+        isByteVector = input.getMappedFieldType().isByteVector();
+//        isByteVector = true;
         this.knnMethod = input.getKnnMethodContext();
         final VectorSimilarityFunction vectorSimilarityFunction = this.knnMethod.getSpaceType().getVectorSimilarityFunction();
 
@@ -61,8 +66,15 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
             );
         }
 
-        this.fieldType = KnnVectorField.createFieldType(dimension, vectorSimilarityFunction);
+        if (isByteVector) {
+            System.out.println("Naveen: Inside isByteVector");
+            this.fieldType = KnnByteVectorField.createFieldType(dimension, vectorSimilarityFunction);
+        } else {
+            System.out.println("Naveen: Not Inside isByteVector");
+            this.fieldType = KnnVectorField.createFieldType(dimension, vectorSimilarityFunction);
+        }
 
+        this.hasDocValues = true;
         if (this.hasDocValues) {
             this.vectorFieldType = buildDocValuesFieldType(this.knnMethod.getKnnEngine());
         } else {
@@ -84,24 +96,37 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
         validateIfKNNPluginEnabled();
         validateIfCircuitBreakerIsNotTriggered();
 
-        Optional<float[]> arrayOptional = getFloatsFromContext(context, dimension);
+        if (isByteVector) {
+            Optional<byte[]> arrayOptional = getBytesFromContext(context, dimension);
+            if (arrayOptional.isEmpty()) {
+                return;
+            }
+            final byte[] array = arrayOptional.get();
+            KnnByteVectorField point = new KnnByteVectorField(name(), array, fieldType);
+            context.doc().add(point);
+            if (fieldType.stored()) {
+                context.doc().add(new StoredField(name(), point.toString()));
+            }
 
-        if (arrayOptional.isEmpty()) {
-            return;
+            if (hasDocValues && vectorFieldType != null) {
+                context.doc().add(new VectorField(name(), array, vectorFieldType));
+            }
+        } else {
+            Optional<float[]> arrayOptional = getFloatsFromContext(context, dimension);
+            if (arrayOptional.isEmpty()) {
+                return;
+            }
+            final float[] array = arrayOptional.get();
+            KnnVectorField point = new KnnVectorField(name(), array, fieldType);
+            context.doc().add(point);
+            if (fieldType.stored()) {
+                context.doc().add(new StoredField(name(), point.toString()));
+            }
+
+            if (hasDocValues && vectorFieldType != null) {
+                context.doc().add(new VectorField(name(), array, vectorFieldType));
+            }
         }
-        final float[] array = arrayOptional.get();
-
-        KnnVectorField point = new KnnVectorField(name(), array, fieldType);
-
-        context.doc().add(point);
-        if (fieldType.stored()) {
-            context.doc().add(new StoredField(name(), point.toString()));
-        }
-
-        if (hasDocValues && vectorFieldType != null) {
-            context.doc().add(new VectorField(name(), array, vectorFieldType));
-        }
-
         context.path().remove();
     }
 
@@ -126,6 +151,7 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
         Explicit<Boolean> ignoreMalformed;
         boolean stored;
         boolean hasDocValues;
+        boolean isByteVector;
         @NonNull
         KNNMethodContext knnMethodContext;
     }

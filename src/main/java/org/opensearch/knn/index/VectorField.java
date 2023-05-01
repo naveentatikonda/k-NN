@@ -23,4 +23,15 @@ public class VectorField extends Field {
             throw new RuntimeException(e);
         }
     }
+
+    public VectorField(String name, byte[] value, IndexableFieldType type) {
+        super(name, new BytesRef(), type);
+        try {
+            final KNNVectorSerializer vectorSerializer = KNNVectorSerializerFactory.getDefaultSerializer();
+            // final byte[] floatToByte = vectorSerializer.floatToByteArray(value);
+            this.setBytesValue(value);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
