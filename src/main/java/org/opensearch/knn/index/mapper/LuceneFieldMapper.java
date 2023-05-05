@@ -35,7 +35,8 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
 
     /** FieldType used for initializing VectorField, which is used for creating binary doc values. **/
     private final FieldType vectorFieldType;
-    private final boolean isByteVector;
+//    private final boolean isByteVector;
+    private final String vectorDataType;
 
     LuceneFieldMapper(final CreateLuceneFieldMapperInput input) {
         super(
@@ -49,7 +50,7 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
         );
 
 //         isByteVector = input.isByteVector();
-        isByteVector = input.getMappedFieldType().isByteVector();
+        vectorDataType = input.getMappedFieldType().getVectorDataType();
 //        isByteVector = true;
         this.knnMethod = input.getKnnMethodContext();
         final VectorSimilarityFunction vectorSimilarityFunction = this.knnMethod.getSpaceType().getVectorSimilarityFunction();
@@ -66,7 +67,7 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
             );
         }
 
-        if (isByteVector) {
+        if (vectorDataType.equalsIgnoreCase("byte")) {
             System.out.println("Naveen: Inside isByteVector");
             this.fieldType = KnnByteVectorField.createFieldType(dimension, vectorSimilarityFunction);
         } else {
@@ -96,7 +97,7 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
         validateIfKNNPluginEnabled();
         validateIfCircuitBreakerIsNotTriggered();
 
-        if (isByteVector) {
+        if (vectorDataType.equalsIgnoreCase("byte")) {
             Optional<byte[]> arrayOptional = getBytesFromContext(context, dimension);
             if (arrayOptional.isEmpty()) {
                 return;
@@ -151,7 +152,8 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
         Explicit<Boolean> ignoreMalformed;
         boolean stored;
         boolean hasDocValues;
-        boolean isByteVector;
+        @NonNull
+        String vectorDataType;
         @NonNull
         KNNMethodContext knnMethodContext;
     }
