@@ -12,8 +12,7 @@ import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnVectorField;
 import org.apache.lucene.document.StoredField;
-import org.apache.lucene.index.DocValuesType;
-import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.index.*;
 import org.opensearch.common.Explicit;
 import org.opensearch.index.mapper.ParseContext;
 import org.opensearch.knn.index.KNNMethodContext;
@@ -21,6 +20,7 @@ import org.opensearch.knn.index.VectorField;
 import org.opensearch.knn.index.util.KNNEngine;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.lucene.index.VectorValues.MAX_DIMENSIONS;
@@ -35,7 +35,7 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
 
     /** FieldType used for initializing VectorField, which is used for creating binary doc values. **/
     private final FieldType vectorFieldType;
-//    private final boolean isByteVector;
+    // private final boolean isByteVector;
     private final String vectorDataType;
 
     LuceneFieldMapper(final CreateLuceneFieldMapperInput input) {
@@ -49,9 +49,9 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
             input.isHasDocValues()
         );
 
-//         isByteVector = input.isByteVector();
+        // isByteVector = input.isByteVector();
         vectorDataType = input.getMappedFieldType().getVectorDataType();
-//        isByteVector = true;
+        // isByteVector = true;
         this.knnMethod = input.getKnnMethodContext();
         final VectorSimilarityFunction vectorSimilarityFunction = this.knnMethod.getSpaceType().getVectorSimilarityFunction();
 
@@ -75,16 +75,121 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
             this.fieldType = KnnVectorField.createFieldType(dimension, vectorSimilarityFunction);
         }
 
-        this.hasDocValues = true;
+        // this.hasDocValues = true;
         if (this.hasDocValues) {
-            this.vectorFieldType = buildDocValuesFieldType(this.knnMethod.getKnnEngine());
+            this.vectorFieldType = buildDocValuesFieldType(
+                this.knnMethod.getKnnEngine(),
+                vectorDataType,
+                input.mappedFieldType.getDimension()
+            );
         } else {
             this.vectorFieldType = null;
         }
     }
 
-    private static FieldType buildDocValuesFieldType(KNNEngine knnEngine) {
-        FieldType field = new FieldType();
+    // private static FieldType buildDocValuesFieldType(KNNEngine knnEngine, String vectorDataType, int dimension) {
+    // FieldType field = new FieldType();
+    // if (vectorDataType.equals("byte")) {
+    // field.setVectorAttributes(dimension, VectorEncoding.BYTE, field.vectorSimilarityFunction());
+    // }
+    //// field.setVectorAttributes(dimension, VectorEncoding.FLOAT32, field.vectorSimilarityFunction());
+    // field.putAttribute(KNN_ENGINE, knnEngine.getName());
+    // field.setDocValuesType(DocValuesType.BINARY);
+    // field.freeze();
+    // return field;
+    // }
+
+    private static FieldType buildDocValuesFieldType(KNNEngine knnEngine, String vectorDataType, int dimension) {
+        FieldType field = null;
+        if (vectorDataType.equals("byte")) {
+            IndexableFieldType indexableFieldType = new IndexableFieldType() {
+                @Override
+                public boolean stored() {
+                    return false;
+                }
+
+                @Override
+                public boolean tokenized() {
+                    return true;
+                }
+
+                @Override
+                public boolean storeTermVectors() {
+                    return false;
+                }
+
+                @Override
+                public boolean storeTermVectorOffsets() {
+                    return false;
+                }
+
+                @Override
+                public boolean storeTermVectorPositions() {
+                    return false;
+                }
+
+                @Override
+                public boolean storeTermVectorPayloads() {
+                    return false;
+                }
+
+                @Override
+                public boolean omitNorms() {
+                    return false;
+                }
+
+                @Override
+                public IndexOptions indexOptions() {
+                    return IndexOptions.NONE;
+                }
+
+                @Override
+                public DocValuesType docValuesType() {
+                    return DocValuesType.NONE;
+                }
+
+                @Override
+                public int pointDimensionCount() {
+                    return 0;
+                }
+
+                @Override
+                public int pointIndexDimensionCount() {
+                    return 0;
+                }
+
+                @Override
+                public int pointNumBytes() {
+                    return 0;
+                }
+
+                @Override
+                public int vectorDimension() {
+                    return 0;
+                }
+
+                @Override
+                public VectorEncoding vectorEncoding() {
+                    return VectorEncoding.BYTE;
+                }
+
+                @Override
+                public VectorSimilarityFunction vectorSimilarityFunction() {
+                    return VectorSimilarityFunction.EUCLIDEAN;
+                }
+
+                @Override
+                public Map<String, String> getAttributes() {
+                    return null;
+                }
+            };
+            field = new FieldType(indexableFieldType);
+            // field.setVectorAttributes(dimension, VectorEncoding.BYTE, field.vectorSimilarityFunction());
+        }
+        // field.setVectorAttributes(dimension, VectorEncoding.FLOAT32, field.vectorSimilarityFunction());
+        else {
+            field = new FieldType();
+        }
         field.putAttribute(KNN_ENGINE, knnEngine.getName());
         field.setDocValuesType(DocValuesType.BINARY);
         field.freeze();
@@ -152,7 +257,6 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
         Explicit<Boolean> ignoreMalformed;
         boolean stored;
         boolean hasDocValues;
-        @NonNull
         String vectorDataType;
         @NonNull
         KNNMethodContext knnMethodContext;

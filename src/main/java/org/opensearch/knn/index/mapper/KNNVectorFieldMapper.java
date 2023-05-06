@@ -78,22 +78,27 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
         protected final Parameter<Boolean> stored = Parameter.boolParam("store", false, m -> toType(m).stored, false);
         protected final Parameter<Boolean> hasDocValues = Parameter.boolParam("doc_values", false, m -> toType(m).hasDocValues, true);
-//        protected final Parameter<Boolean> isByteVector = Parameter.boolParam("byte_vector", false, m -> toType(m).isByteVector, false);
+        // protected final Parameter<Boolean> isByteVector = Parameter.boolParam("byte_vector", false, m -> toType(m).isByteVector, false);
 
-//        protected final Parameter<String> vectorDataType = new Parameter<>("data_type", false, "float", (n,c,o) -> {
-//            String value;
-//            try {
-//                value = XContentMapValues.nodeStringValue(o);
-//            } catch (Exception exception) {
-//                throw new IllegalArgumentException(
-//                        String.format("Unable to parse [dimension] from provided value [%s] for vector [%s]", o, name)
-//                );
-//            }
-//            return value;
-//
-//        }, m -> toType(m).vectorDataType);
+        // protected final Parameter<String> vectorDataType = new Parameter<>("data_type", false, "float", (n,c,o) -> {
+        // String value;
+        // try {
+        // value = XContentMapValues.nodeStringValue(o);
+        // } catch (Exception exception) {
+        // throw new IllegalArgumentException(
+        // String.format("Unable to parse [dimension] from provided value [%s] for vector [%s]", o, name)
+        // );
+        // }
+        // return value;
+        //
+        // }, m -> toType(m).vectorDataType);
 
-        protected final Parameter<String> vectorDataType = Parameter.stringParam("data_type", false, m -> toType(m).vectorDataType, "float");
+        protected final Parameter<String> vectorDataType = Parameter.stringParam(
+            "data_type",
+            false,
+            m -> toType(m).vectorDataType,
+            "float"
+        );
 
         protected final Parameter<Integer> dimension = new Parameter<>(KNNConstants.DIMENSION, false, () -> -1, (n, c, o) -> {
             if (o == null) {
@@ -234,8 +239,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                             .ignoreMalformed(ignoreMalformed)
                             .stored(stored.get())
                             .hasDocValues(hasDocValues.get())
-//                            .isByteVector(isByteVector.getValue())
-                                .vectorDataType(vectorDataType.getValue())
+                            // .isByteVector(isByteVector.getValue())
+                            .vectorDataType(vectorDataType.getValue())
                             .knnMethodContext(knnMethodContext)
                             .build();
                     return new LuceneFieldMapper(createLuceneFieldMapperInput);
@@ -366,15 +371,15 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             this(name, meta, dimension, knnMethodContext, null);
         }
 
-//        public KNNVectorFieldType(
-//                String name,
-//                Map<String, String> meta,
-//                String vectorDataType,
-//                int dimension,
-//                KNNMethodContext knnMethodContext
-//        ) {
-//            this(name, meta, vectorDataType, dimension, knnMethodContext);
-//        }
+        // public KNNVectorFieldType(
+        // String name,
+        // Map<String, String> meta,
+        // String vectorDataType,
+        // int dimension,
+        // KNNMethodContext knnMethodContext
+        // ) {
+        // this(name, meta, vectorDataType, dimension, knnMethodContext);
+        // }
 
         public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext, String modelId) {
             super(name, false, false, true, TextSearchInfo.NONE, meta);
@@ -383,7 +388,13 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             this.knnMethodContext = knnMethodContext;
         }
 
-        public KNNVectorFieldType(String name, Map<String, String> meta, String vectorDataType, int dimension, KNNMethodContext knnMethodContext) {
+        public KNNVectorFieldType(
+            String name,
+            Map<String, String> meta,
+            String vectorDataType,
+            int dimension,
+            KNNMethodContext knnMethodContext
+        ) {
             super(name, false, false, true, TextSearchInfo.NONE, meta);
             this.dimension = dimension;
             this.knnMethodContext = knnMethodContext;
@@ -447,7 +458,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         this.stored = stored;
         this.hasDocValues = hasDocValues;
         this.dimension = mappedFieldType.getDimension();
-        this.vectorDataType=mappedFieldType.getVectorDataType();
+        this.vectorDataType = mappedFieldType.getVectorDataType();
         updateEngineStats();
     }
 
