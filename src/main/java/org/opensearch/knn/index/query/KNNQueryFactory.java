@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
+import org.apache.lucene.search.KnnByteVectorQuery;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
 import org.opensearch.index.query.QueryBuilder;
@@ -47,6 +48,17 @@ public class KNNQueryFactory {
         return create(createQueryRequest);
     }
 
+    public static Query create(KNNEngine knnEngine, String indexName, String fieldName, byte[] vector, int k) {
+        final CreateQueryRequest createQueryRequest = CreateQueryRequest.builder()
+            .knnEngine(knnEngine)
+            .indexName(indexName)
+            .fieldName(fieldName)
+            .byteVector(vector)
+            .k(k)
+            .build();
+        return create(createQueryRequest);
+    }
+
     /**
      * Creates a Lucene query for a particular engine.
      * @param createQueryRequest request object that has all required fields to construct the query
@@ -59,6 +71,7 @@ public class KNNQueryFactory {
         final String fieldName = createQueryRequest.getFieldName();
         final int k = createQueryRequest.getK();
         final float[] vector = createQueryRequest.getVector();
+        final byte[] byteVector = createQueryRequest.getByteVector();
 
         if (KNNEngine.getEnginesThatCreateCustomSegmentFiles().contains(createQueryRequest.getKnnEngine())) {
             log.debug(String.format("Creating custom k-NN query for index: %s \"\", field: %s \"\", k: %d", indexName, fieldName, k));
@@ -73,13 +86,23 @@ public class KNNQueryFactory {
             );
             try {
                 final Query filterQuery = createQueryRequest.getFilter().get().toQuery(queryShardContext);
-                return new KnnFloatVectorQuery(fieldName, vector, k, filterQuery);
+                if (vector != null) {
+                    return new KnnFloatVectorQuery(fieldName, vector, k, filterQuery);
+                } else if (byteVector != null) {
+                    return new KnnByteVectorQuery(fieldName, byteVector, k, filterQuery);
+                }
+
             } catch (IOException e) {
                 throw new RuntimeException("Cannot create knn query with filter", e);
             }
         }
         log.debug(String.format("Creating Lucene k-NN query for index: %s \"\", field: %s \"\", k: %d", indexName, fieldName, k));
-        return new KnnFloatVectorQuery(fieldName, vector, k);
+        if (vector != null) {
+            return new KnnFloatVectorQuery(fieldName, vector, k);
+        } else if (byteVector != null) {
+            return new KnnByteVectorQuery(fieldName, byteVector, k);
+        }
+        return null;
     }
 
     /**
@@ -99,6 +122,8 @@ public class KNNQueryFactory {
         private String fieldName;
         @Getter
         private float[] vector;
+        @Getter
+        private byte[] byteVector;
         @Getter
         private int k;
         // can be null in cases filter not passed with the knn query

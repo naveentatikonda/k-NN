@@ -52,6 +52,7 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
      */
     private final String fieldName;
     private final float[] vector;
+    private final byte[] byteVector;
     private int k = 0;
     private QueryBuilder filter;
     private static final Version MINIMAL_SUPPORTED_VERSION_FOR_LUCENE_HNSW_FILTER = Version.V_2_4_0;
@@ -64,19 +65,23 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
      * @param k         K nearest neighbours for the given vector
      */
     public KNNQueryBuilder(String fieldName, float[] vector, int k) {
-        this(fieldName, vector, k, null);
+        this(fieldName, vector, null, k, null);
     }
 
-    public KNNQueryBuilder(String fieldName, float[] vector, int k, QueryBuilder filter) {
+    public KNNQueryBuilder(String fieldName, byte[] vector, int k) {
+        this(fieldName, null, vector, k, null);
+    }
+
+    public KNNQueryBuilder(String fieldName, float[] vector, byte[] byteVector, int k, QueryBuilder filter) {
         if (Strings.isNullOrEmpty(fieldName)) {
             throw new IllegalArgumentException("[" + NAME + "] requires fieldName");
         }
-        if (vector == null) {
+        if (vector == null && byteVector == null) {
             throw new IllegalArgumentException("[" + NAME + "] requires query vector");
         }
-        if (vector.length == 0) {
-            throw new IllegalArgumentException("[" + NAME + "] query vector is empty");
-        }
+        // if (vector.length == 0 && byteVector.length == 0) {
+        // throw new IllegalArgumentException("[" + NAME + "] query vector is empty");
+        // }
         if (k <= 0) {
             throw new IllegalArgumentException("[" + NAME + "] requires k > 0");
         }
@@ -86,6 +91,7 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
 
         this.fieldName = fieldName;
         this.vector = vector;
+        this.byteVector = byteVector;
         this.k = k;
         this.filter = filter;
     }
@@ -102,6 +108,14 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         return vec;
     }
 
+    private static byte[] ObjectsToBytes(List<Object> objs) {
+        byte[] vec = new byte[objs.size()];
+        for (int i = 0; i < objs.size(); i++) {
+            vec[i] = ((Number) objs.get(i)).byteValue();
+        }
+        return vec;
+    }
+
     /**
      * @param in Reads from stream
      * @throws IOException Throws IO Exception
@@ -110,7 +124,15 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         super(in);
         try {
             fieldName = in.readString();
-            vector = in.readFloatArray();
+            boolean flag = in.readBoolean();
+            if (flag) {
+                vector = in.readFloatArray();
+                byteVector = null;
+            } else {
+                byteVector = in.readByteArray();
+                vector = null;
+            }
+
             k = in.readInt();
             // We're checking if all cluster nodes has at least that version or higher. This check is required
             // to avoid issues with cluster upgrade
@@ -199,7 +221,8 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
             }
         }
 
-        KNNQueryBuilder knnQueryBuilder = new KNNQueryBuilder(fieldName, ObjectsToFloats(vector), k, filter);
+        // KNNQueryBuilder knnQueryBuilder = new KNNQueryBuilder(fieldName, ObjectsToFloats(vector), k, filter);
+        KNNQueryBuilder knnQueryBuilder = new KNNQueryBuilder(fieldName, null, ObjectsToBytes(vector), k, filter);
         knnQueryBuilder.queryName(queryName);
         knnQueryBuilder.boost(boost);
         return knnQueryBuilder;
@@ -208,7 +231,13 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
     @Override
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeString(fieldName);
-        out.writeFloatArray(vector);
+        boolean flag = vector != null;
+        out.writeBoolean(flag);
+        if (flag) {
+            out.writeFloatArray(vector);
+        } else {
+            out.writeByteArray(byteVector);
+        }
         out.writeInt(k);
         // We're checking if all cluster nodes has at least that version or higher. This check is required
         // to avoid issues with cluster upgrade
@@ -231,6 +260,10 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         return this.vector;
     }
 
+    public Object byteVector() {
+        return this.byteVector;
+    }
+
     public int getK() {
         return this.k;
     }
@@ -244,7 +277,7 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         builder.startObject(NAME);
         builder.startObject(fieldName);
 
-        builder.field(VECTOR_FIELD.getPreferredName(), vector);
+        builder.field(VECTOR_FIELD.getPreferredName(), vector != null ? vector : byteVector);
         builder.field(K_FIELD.getPreferredName(), k);
         if (filter != null) {
             builder.field(FILTER_FIELD.getPreferredName(), filter);
@@ -266,6 +299,7 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         int fieldDimension = knnVectorFieldType.getDimension();
         KNNMethodContext knnMethodContext = knnVectorFieldType.getKnnMethodContext();
         KNNEngine knnEngine = KNNEngine.DEFAULT;
+        String dataType = knnVectorFieldType.getVectorDataType();
 
         if (fieldDimension == -1) {
             // If dimension is not set, the field uses a model and the information needs to be retrieved from there
@@ -277,10 +311,22 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
             knnEngine = knnMethodContext.getKnnEngine();
         }
 
-        if (fieldDimension != vector.length) {
-            throw new IllegalArgumentException(
-                String.format("Query vector has invalid dimension: %d. Dimension should be: %d", vector.length, fieldDimension)
-            );
+        if (dataType.equals("byte")) {
+            if (byteVector == null) {
+                throw new IllegalArgumentException(String.format("Invalid Query Vector. Query Vector datatype should be of type [byte]"));
+            }
+            if (fieldDimension != byteVector.length) {
+                throw new IllegalArgumentException(
+                    String.format("Query vector has invalid dimension: %d. Dimension should be: %d", byteVector.length, fieldDimension)
+                );
+            }
+
+        } else {
+            if (fieldDimension != vector.length) {
+                throw new IllegalArgumentException(
+                    String.format("Query vector has invalid dimension: %d. Dimension should be: %d", vector.length, fieldDimension)
+                );
+            }
         }
 
         if (KNNEngine.getEnginesThatCreateCustomSegmentFiles().contains(knnEngine) && filter != null) {
@@ -292,7 +338,8 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
             .knnEngine(knnEngine)
             .indexName(indexName)
             .fieldName(this.fieldName)
-            .vector(this.vector)
+            .vector(dataType.equals("byte") ? null : this.vector)
+            .byteVector(dataType.equals("byte") ? this.byteVector : null)
             .k(this.k)
             .filter(this.filter)
             .context(context)
@@ -316,12 +363,15 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
 
     @Override
     protected boolean doEquals(KNNQueryBuilder other) {
-        return Objects.equals(fieldName, other.fieldName) && Objects.equals(vector, other.vector) && Objects.equals(k, other.k);
+        return Objects.equals(fieldName, other.fieldName)
+            && Objects.equals(vector, other.vector)
+            && Objects.equals(byteVector, other.byteVector)
+            && Objects.equals(k, other.k);
     }
 
     @Override
     protected int doHashCode() {
-        return Objects.hash(fieldName, vector, k);
+        return Objects.hash(fieldName, vector, byteVector, k);
     }
 
     @Override
