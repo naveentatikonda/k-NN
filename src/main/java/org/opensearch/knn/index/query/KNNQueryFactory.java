@@ -86,10 +86,10 @@ public class KNNQueryFactory {
             );
             try {
                 final Query filterQuery = createQueryRequest.getFilter().get().toQuery(queryShardContext);
-                if (vector != null) {
-                    return new KnnFloatVectorQuery(fieldName, vector, k, filterQuery);
-                } else if (byteVector != null) {
+                if (byteVector != null) {
                     return new KnnByteVectorQuery(fieldName, byteVector, k, filterQuery);
+                } else if (vector != null) {
+                    return new KnnFloatVectorQuery(fieldName, vector, k, filterQuery);
                 }
 
             } catch (IOException e) {

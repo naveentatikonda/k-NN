@@ -52,7 +52,6 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
      */
     private final String fieldName;
     private final float[] vector;
-    private final byte[] byteVector;
     private int k = 0;
     private QueryBuilder filter;
     private static final Version MINIMAL_SUPPORTED_VERSION_FOR_LUCENE_HNSW_FILTER = Version.V_2_4_0;
@@ -68,9 +67,9 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         this(fieldName, vector, null, k, null);
     }
 
-    public KNNQueryBuilder(String fieldName, byte[] vector, int k) {
-        this(fieldName, null, vector, k, null);
-    }
+    // public KNNQueryBuilder(String fieldName, byte[] vector, int k) {
+    // this(fieldName, null, vector, k, null);
+    // }
 
     public KNNQueryBuilder(String fieldName, float[] vector, byte[] byteVector, int k, QueryBuilder filter) {
         if (Strings.isNullOrEmpty(fieldName)) {
@@ -91,7 +90,6 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
 
         this.fieldName = fieldName;
         this.vector = vector;
-        this.byteVector = byteVector;
         this.k = k;
         this.filter = filter;
     }
@@ -124,14 +122,15 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         super(in);
         try {
             fieldName = in.readString();
-            boolean flag = in.readBoolean();
-            if (flag) {
-                vector = in.readFloatArray();
-                byteVector = null;
-            } else {
-                byteVector = in.readByteArray();
-                vector = null;
-            }
+            vector = in.readFloatArray();
+            // boolean flag = in.readBoolean();
+            // if (flag) {
+            // vector = in.readFloatArray();
+            // byteVector = null;
+            // } else {
+            // byteVector = in.readByteArray();
+            // vector = null;
+            // }
 
             k = in.readInt();
             // We're checking if all cluster nodes has at least that version or higher. This check is required
@@ -222,7 +221,8 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         }
 
         // KNNQueryBuilder knnQueryBuilder = new KNNQueryBuilder(fieldName, ObjectsToFloats(vector), k, filter);
-        KNNQueryBuilder knnQueryBuilder = new KNNQueryBuilder(fieldName, null, ObjectsToBytes(vector), k, filter);
+        // KNNQueryBuilder knnQueryBuilder = new KNNQueryBuilder(fieldName, null, ObjectsToBytes(vector), k, filter);
+        KNNQueryBuilder knnQueryBuilder = new KNNQueryBuilder(fieldName, ObjectsToFloats(vector), null, k, filter);
         knnQueryBuilder.queryName(queryName);
         knnQueryBuilder.boost(boost);
         return knnQueryBuilder;
@@ -231,13 +231,14 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
     @Override
     protected void doWriteTo(StreamOutput out) throws IOException {
         out.writeString(fieldName);
-        boolean flag = vector != null;
-        out.writeBoolean(flag);
-        if (flag) {
-            out.writeFloatArray(vector);
-        } else {
-            out.writeByteArray(byteVector);
-        }
+        out.writeFloatArray(vector);
+        // boolean flag = vector != null;
+        // out.writeBoolean(flag);
+        // if (flag) {
+        // out.writeFloatArray(vector);
+        // } else {
+        // out.writeByteArray(byteVector);
+        // }
         out.writeInt(k);
         // We're checking if all cluster nodes has at least that version or higher. This check is required
         // to avoid issues with cluster upgrade
@@ -260,9 +261,9 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         return this.vector;
     }
 
-    public Object byteVector() {
-        return this.byteVector;
-    }
+    // public Object byteVector() {
+    // return this.byteVector;
+    // }
 
     public int getK() {
         return this.k;
@@ -277,7 +278,8 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         builder.startObject(NAME);
         builder.startObject(fieldName);
 
-        builder.field(VECTOR_FIELD.getPreferredName(), vector != null ? vector : byteVector);
+        // builder.field(VECTOR_FIELD.getPreferredName(), vector != null ? vector : byteVector);
+        builder.field(VECTOR_FIELD.getPreferredName(), vector);
         builder.field(K_FIELD.getPreferredName(), k);
         if (filter != null) {
             builder.field(FILTER_FIELD.getPreferredName(), filter);
@@ -311,7 +313,13 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
             knnEngine = knnMethodContext.getKnnEngine();
         }
 
+        byte[] byteVector = new byte[0];
         if (dataType.equals("byte")) {
+            byteVector = new byte[vector.length];
+            for (int i = 0; i < vector.length; i++) {
+                byteVector[i] = (byte) vector[i];
+            }
+
             if (byteVector == null) {
                 throw new IllegalArgumentException(String.format("Invalid Query Vector. Query Vector datatype should be of type [byte]"));
             }
@@ -339,7 +347,7 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
             .indexName(indexName)
             .fieldName(this.fieldName)
             .vector(dataType.equals("byte") ? null : this.vector)
-            .byteVector(dataType.equals("byte") ? this.byteVector : null)
+            .byteVector(dataType.equals("byte") ? byteVector : null)
             .k(this.k)
             .filter(this.filter)
             .context(context)
@@ -363,15 +371,15 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
 
     @Override
     protected boolean doEquals(KNNQueryBuilder other) {
-        return Objects.equals(fieldName, other.fieldName)
-            && Objects.equals(vector, other.vector)
-            && Objects.equals(byteVector, other.byteVector)
+        return Objects.equals(fieldName, other.fieldName) && Objects.equals(vector, other.vector)
+        // && Objects.equals(byteVector, other.byteVector)
             && Objects.equals(k, other.k);
     }
 
     @Override
     protected int doHashCode() {
-        return Objects.hash(fieldName, vector, byteVector, k);
+        // return Objects.hash(fieldName, vector, byteVector, k);
+        return Objects.hash(fieldName, vector, k);
     }
 
     @Override
