@@ -510,12 +510,21 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         }
     }
 
+    public byte normalize(float val, float min, float max, int B) {
+        val = (val - min) / (max - min);
+        return (byte) (Math.floor(val * (B - 1)) - (B / 2));
+
+    }
+
     Optional<byte[]> getBytesFromContext(ParseContext context, int dimension) throws IOException {
         context.path().add(simpleName());
 
         ArrayList<Byte> vector = new ArrayList<>();
         XContentParser.Token token = context.parser().currentToken();
         float value;
+        float max = 218.0f;
+        float min = 0.0f;
+        int B = 256;
         if (token == XContentParser.Token.START_ARRAY) {
             token = context.parser().nextToken();
             while (token != XContentParser.Token.END_ARRAY) {
@@ -529,27 +538,27 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                     throw new IllegalArgumentException("KNN vector values cannot be infinity");
                 }
                 // byte b = ((Float)value).byteValue();
-                vector.add((byte) value);
+                // vector.add((byte) value);
+                vector.add(normalize(value, min, max, B));
                 token = context.parser().nextToken();
             }
+        } else if (token == XContentParser.Token.VALUE_NUMBER) {
+            value = context.parser().floatValue();
+
+            if (Float.isNaN(value)) {
+                throw new IllegalArgumentException("KNN vector values cannot be NaN");
+            }
+
+            if (Float.isInfinite(value)) {
+                throw new IllegalArgumentException("KNN vector values cannot be infinity");
+            }
+
+            vector.add(normalize(value, min, max, B));
+            context.parser().nextToken();
+        } else if (token == XContentParser.Token.VALUE_NULL) {
+            context.path().remove();
+            return Optional.empty();
         }
-        // else if (token == XContentParser.Token.VALUE_NUMBER) {
-        // value = context.parser().floatValue();
-        //
-        // if (Float.isNaN(value)) {
-        // throw new IllegalArgumentException("KNN vector values cannot be NaN");
-        // }
-        //
-        // if (Float.isInfinite(value)) {
-        // throw new IllegalArgumentException("KNN vector values cannot be infinity");
-        // }
-        //
-        // vector.add(value);
-        // context.parser().nextToken();
-        // } else if (token == XContentParser.Token.VALUE_NULL) {
-        // context.path().remove();
-        // return Optional.empty();
-        // }
 
         if (dimension != vector.size()) {
             String errorMessage = String.format("Vector dimension mismatch. Expected: %d, Given: %d", dimension, vector.size());

@@ -289,6 +289,11 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         builder.endObject();
     }
 
+    public static byte normalize(float val, float min, float max, int B) {
+        val = (val - min) / (max - min);
+        return (byte) (Math.floor(val * (B - 1)) - (B / 2));
+    }
+
     @Override
     protected Query doToQuery(QueryShardContext context) {
         MappedFieldType mappedFieldType = context.fieldMapper(this.fieldName);
@@ -315,9 +320,13 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
 
         byte[] byteVector = new byte[0];
         if (dataType.equals("byte")) {
+            float max = 218.0f;
+            float min = 0.0f;
+            int B = 256;
             byteVector = new byte[vector.length];
             for (int i = 0; i < vector.length; i++) {
-                byteVector[i] = (byte) vector[i];
+                // byteVector[i] = (byte) vector[i];
+                byteVector[i] = normalize(vector[i], min, max, B);
             }
 
             if (byteVector == null) {
