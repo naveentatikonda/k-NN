@@ -289,7 +289,7 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         builder.endObject();
     }
 
-    public static byte normalize(float val, float min, float max, int B) {
+    public static byte normalizeQuery(float val, float min, float max, int B) {
         val = (val - min) / (max - min);
         return (byte) (Math.floor(val * (B - 1)) - (B / 2));
     }
@@ -320,13 +320,15 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
 
         byte[] byteVector = new byte[0];
         if (dataType.equals("byte")) {
-            float max = 218.0f;
-            float min = 0.0f;
+            // float max = 218.0f;
+            // float min = 0.0f;
+            float max = 5.9609f;
+            float min = -6.5254f;
             int B = 256;
             byteVector = new byte[vector.length];
             for (int i = 0; i < vector.length; i++) {
                 // byteVector[i] = (byte) vector[i];
-                byteVector[i] = normalize(vector[i], min, max, B);
+                byteVector[i] = normalizeQuery(vector[i], min, max, B);
             }
 
             if (byteVector == null) {
