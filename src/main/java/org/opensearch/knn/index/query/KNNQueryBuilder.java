@@ -322,8 +322,10 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
         if (dataType.equals("byte")) {
             // float max = 218.0f;
             // float min = 0.0f;
-            float max = 5.9609f;
-            float min = -6.5254f;
+            // float max = 5.9609f;
+            // float min = -6.5254f;
+            float max = 1.4772f;
+            float min = 0.0f;
             int B = 256;
             byteVector = new byte[vector.length];
             for (int i = 0; i < vector.length; i++) {

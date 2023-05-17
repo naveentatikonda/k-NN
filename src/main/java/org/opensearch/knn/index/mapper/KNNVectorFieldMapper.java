@@ -524,8 +524,10 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         float value;
         // float max = 218.0f;
         // float min = 0.0f;
-        float max = 5.9609f;
-        float min = -6.5254f;
+        // float max = 5.9609f;
+        // float min = -6.5254f;
+        float max = 1.4772f;
+        float min = 0.0f;
         int B = 256;
         if (token == XContentParser.Token.START_ARRAY) {
             token = context.parser().nextToken();
