@@ -42,11 +42,7 @@ import org.opensearch.search.aggregations.support.CoreValuesSourceType;
 import org.opensearch.search.lookup.SearchLookup;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 
 import static org.opensearch.knn.common.KNNConstants.KNN_METHOD;
@@ -511,9 +507,43 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
     }
 
     public byte normalize(float val, float min, float max, int B) {
-        val = (val - min) / (max - min);
-        return (byte) (Math.floor(val * (B - 1)) - (B / 2));
+        // val = (val - min) / (max - min);
+        // // return (byte) (Math.floor(val * (B - 1)) - (B / 2));
+        // val = val * (B - 1);
+        // int int_part = (int) Math.floor(val);
+        // float frac_part = val - int_part;
+        // int bval = int_part;
+        // if (0.5 < frac_part) bval = int_part + 1;
+        //
+        // return (byte) (bval - B / 2);
+        Random r = new Random();
+        if (val > 0) {
+            float pos_max = max;
+            float pos_min = 0.0f;
+            int pos_B = 127;
+            val = (val - pos_min) / (pos_max - pos_min);
+            val = val * pos_B;
+            int int_part = (int) Math.floor(val);
+            float frac_part = val - int_part;
+            int bval = int_part;
+            // if (0.5 < frac_part) bval = int_part + 1;
+            if (r.nextFloat() < frac_part) bval = int_part + 1;
+            return (byte) bval;
+        } else if (val < 0) {
+            float neg_max = -1 * min;
+            float neg_min = 0.0f;
+            int neg_B = 128;
+            val = (val - neg_min) / (neg_max - neg_min);
+            val = val * neg_B;
+            int int_part = (int) Math.floor(val);
+            float frac_part = val - int_part;
+            int bval = int_part;
+            if (r.nextFloat() < 1 - frac_part) bval = int_part + 1;
+            // if (0.5 < frac_part) bval = int_part + 1;
 
+            return (byte) bval;
+        }
+        return 0;
     }
 
     Optional<byte[]> getBytesFromContext(ParseContext context, int dimension) throws IOException {
@@ -528,8 +558,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         // float min = -6.5254f;
         // float max = 1.4772f;
         // float min = 0.0f;
-        float max = 0.58118767f;
-        float min = -0.5549725f;
+        float max = 4.609f;
+        float min = -6.7986f;
         int B = 256;
         if (token == XContentParser.Token.START_ARRAY) {
             token = context.parser().nextToken();
