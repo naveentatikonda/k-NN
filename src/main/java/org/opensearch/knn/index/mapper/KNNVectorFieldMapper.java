@@ -274,6 +274,22 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             }
 
             // Build legacy
+            // if ((boolean) KNNSettings.state().getSettingValue(String.valueOf(IS_KNN_INDEX_SETTING))) {
+            // if (vectorDataType.getValue() != "float") {
+            // throw new IllegalArgumentException("Can't use vector data type with Legacy Field Mapping");
+            // }
+            //
+            // }
+            // if (indexSettings.getValue(KNNSettings.IS_KNN_INDEX_SETTING)) {
+            //
+            // }
+            // if(IS_KNN_INDEX_SETTING.get(context.indexSettings())) {
+            if (context.indexSettings().getAsBoolean("index.knn", false)) {
+                if (!Objects.equals(vectorDataType.getValue(), "float")) {
+                    throw new IllegalArgumentException("Can't use vector data type with Legacy Field Mapping");
+                }
+            }
+
             if (this.spaceType == null) {
                 this.spaceType = LegacyFieldMapper.getSpaceType(context.indexSettings());
             }
@@ -360,11 +376,15 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         KNNMethodContext knnMethodContext;
 
         public KNNVectorFieldType(String name, Map<String, String> meta, int dimension) {
-            this(name, meta, dimension, null, null);
+            this(name, meta, dimension, "float", null, null);
         }
 
         public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext) {
-            this(name, meta, dimension, knnMethodContext, null);
+            this(name, meta, dimension, "float", knnMethodContext, null);
+        }
+
+        public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext, String modelId) {
+            this(name, meta, dimension, "float", knnMethodContext, modelId);
         }
 
         // public KNNVectorFieldType(
@@ -377,13 +397,6 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         // this(name, meta, vectorDataType, dimension, knnMethodContext);
         // }
 
-        public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext, String modelId) {
-            super(name, false, false, true, TextSearchInfo.NONE, meta);
-            this.dimension = dimension;
-            this.modelId = modelId;
-            this.knnMethodContext = knnMethodContext;
-        }
-
         public KNNVectorFieldType(
             String name,
             Map<String, String> meta,
@@ -391,8 +404,20 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             int dimension,
             KNNMethodContext knnMethodContext
         ) {
+            this(name, meta, dimension, vectorDataType, knnMethodContext, null);
+        }
+
+        public KNNVectorFieldType(
+            String name,
+            Map<String, String> meta,
+            int dimension,
+            String vectorDataType,
+            KNNMethodContext knnMethodContext,
+            String modelId
+        ) {
             super(name, false, false, true, TextSearchInfo.NONE, meta);
             this.dimension = dimension;
+            this.modelId = modelId;
             this.knnMethodContext = knnMethodContext;
             this.vectorDataType = vectorDataType;
         }
