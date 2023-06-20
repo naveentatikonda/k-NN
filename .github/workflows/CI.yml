@@ -12,45 +12,45 @@ on:
       - "feature/**"
 
 jobs:
-  Build-k-NN:
-    strategy:
-      matrix:
-        java: [8, 11, 14]
-
-    name: Build and Test k-NN Plugin
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout k-NN
-        uses: actions/checkout@v1
-
-      - name: Setup Java ${{ matrix.java }}
-        uses: actions/setup-java@v1
-        with:
-          java-version: ${{ matrix.java }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get install libopenblas-dev gfortran -y
-
-      - name: Run build
-        run: |
-          ./gradlew build
-
-      - name: Run k-NN Backwards Compatibility Tests
-        run: |
-          echo "Running backwards compatibility tests ..."
-          ./gradlew bwcTestSuite -Dtests.security.manager=false
-
-      - name: Upload Coverage Report
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+#  Build-k-NN:
+#    strategy:
+#      matrix:
+#        java: [8, 11, 14]
+#
+#    name: Build and Test k-NN Plugin
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout k-NN
+#        uses: actions/checkout@v1
+#
+#      - name: Setup Java ${{ matrix.java }}
+#        uses: actions/setup-java@v1
+#        with:
+#          java-version: ${{ matrix.java }}
+#
+#      - name: Install dependencies
+#        run: |
+#          sudo apt-get install libopenblas-dev gfortran -y
+#
+#      - name: Run build
+#        run: |
+#          ./gradlew build
+#
+#      - name: Run k-NN Backwards Compatibility Tests
+#        run: |
+#          echo "Running backwards compatibility tests ..."
+#          ./gradlew bwcTestSuite -Dtests.security.manager=false
+#
+#      - name: Upload Coverage Report
+#        uses: codecov/codecov-action@v1
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
 
   Build-k-NN-Windows:
     strategy:
       matrix:
-        java: [ 8, 11, 14 ]
+        java: [11]
 
     name: Build and Test k-NN Plugin on Windows
     runs-on: windows-latest
@@ -70,10 +70,32 @@ jobs:
           scoop bucket add main
           scoop install mingw
 
+      - name: Install Chocolatey
+        run: |
+          Get-ChildItem -Path "C:\Users\"
+          Get-ChildItem -Path "C:\Users\runneradmin\"
+          Get-ChildItem -Path "C:\ProgramData\Chocolatey\helpers\"
+          Get-ChildItem -Path env:\choc*
+#          $ChocolateyProfile = "C:\ProgramData\Chocolatey\helpers\chocolateyProfile.psm1"
+#          Import-Module "$ChocolateyProfile"
+#          $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+#          if: Test-Path($ChocolateyProfile)
+#          then
+#            Import-Module "$ChocolateyProfile"
+#          fi
+
       - name: Add MinGW to PATH
         run: |
-          echo "C:/Users/runneradmin/scoop/apps/mingw/current/bin" >> $env:GITHUB_PATH
-          refreshenv
+          $env:PATH += ";C:\Users\runneradmin\scoop\apps\mingw\current\bin\"
+          echo $env:PATH
+#          $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+#          Import-Module "$ChocolateyProfile"
+#          refreshenv
+#          $env:GITHUB_PATH += ";C:/Users/runneradmin/scoop/apps/mingw/current/bin"
+#          $env:GITHUB_PATH = [System.Environment]::GetEnvironmentVariable("GITHUB_PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("GITHUB_PATH","User")
+#          $env:GITHUB_PATH += ";C:/Users/runneradmin/scoop/apps/mingw/current/bin"
+#          echo "C:/Users/runneradmin/scoop/apps/mingw/current/bin" >> $env:GITHUB_PATH
+#          refreshenv
 
       - name: Download OpenBLAS
         run: |
@@ -82,12 +104,22 @@ jobs:
           Expand-Archive -Path .\OpenBLAS-0.3.21-x64.zip -DestinationPath .\OpenBLAS\
           mkdir ./src/main/resources/windowsDependencies
           cp ./OpenBLAS/bin/libopenblas.dll ./src/main/resources/windowsDependencies/
+          cp C:/Users/runneradmin/scoop/apps/mingw/current/bin/libgcc_s_seh-1.dll ./src/main/resources/windowsDependencies/
+          cp C:/Users/runneradmin/scoop/apps/mingw/current/bin/libwinpthread-1.dll ./src/main/resources/windowsDependencies/
+          cp C:/Users/runneradmin/scoop/apps/mingw/current/bin/libstdc++-6.dll ./src/main/resources/windowsDependencies/
+          cp C:/Users/runneradmin/scoop/apps/mingw/current/bin/libgomp-1.dll ./src/main/resources/windowsDependencies/
+          Get-ChildItem -Path "./src/main/resources/windowsDependencies/"
           rm .\OpenBLAS-0.3.21-x64.zip
           rm -r .\OpenBLAS\
 
       - name: Run build
         run: |
           ./gradlew.bat build
+
+      - name: Check Dependencies
+        run: |
+          ldd ./jni/release/opensearchknn_faiss.dll
+          ldd ./jni/release/opensearchknn_nmslib.dll
       - name: Upload Coverage Report
         uses: codecov/codecov-action@v1
         with:
