@@ -45,7 +45,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -64,8 +66,7 @@ import static org.opensearch.knn.common.KNNConstants.PARAMETERS;
 import static org.opensearch.Version.CURRENT;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE;
-import static org.opensearch.knn.index.VectorDataType.getValues;
+import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 
 public class KNNVectorFieldMapperTests extends KNNTestCase {
 
@@ -94,6 +95,9 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
         KNNVectorFieldMapper.Builder builder = new KNNVectorFieldMapper.Builder(fieldName, modelDao);
 
         assertEquals(7, builder.getParameters().size());
+        List<String> actualParams = builder.getParameters().stream().map(a -> a.name).collect(Collectors.toList());
+        List<String> expectedParams = Arrays.asList("store", "doc_values", DIMENSION, VECTOR_DATA_TYPE_FIELD, "meta", KNN_METHOD, MODEL_ID);
+        assertEquals(expectedParams, actualParams);
     }
 
     public void testBuilder_build_fromKnnMethodContext() {
@@ -350,7 +354,10 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
         String fieldName = "test-field-name-vec";
         String indexName = "test-index-name-vec";
         String vectorDataType = "invalid";
-        String supportedTypes = String.join(",", getValues());
+        String supportedTypes = String.join(
+            ",",
+            Arrays.stream((VectorDataType.values())).map(VectorDataType::getValue).collect(Collectors.toCollection(HashSet::new))
+        );
 
         Settings settings = Settings.builder().put(settings(CURRENT).build()).build();
 
@@ -361,7 +368,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
             .startObject()
             .field(TYPE_FIELD_NAME, KNN_VECTOR_TYPE)
             .field(DIMENSION, 10)
-            .field(VECTOR_DATA_TYPE, vectorDataType)
+            .field(VECTOR_DATA_TYPE_FIELD, vectorDataType)
             .startObject(KNN_METHOD)
             .field(NAME, METHOD_HNSW)
             .field(METHOD_PARAMETER_SPACE_TYPE, SpaceType.L2)
@@ -382,9 +389,9 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
         );
         assertEquals(
             String.format(
-                "[%s] field was set as [%s] in index mapping. But, supported values are [%s]",
-                VECTOR_DATA_TYPE,
-                vectorDataType,
+                Locale.ROOT,
+                "Invalid value provided for [%s] field. Supported values are [%s]",
+                VECTOR_DATA_TYPE_FIELD,
                 supportedTypes
             ),
             ex.getMessage()
@@ -834,7 +841,6 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
         }
 
         assertEquals(TEST_BYTE_VECTOR_BYTES_REF, vectorField.binaryValue());
-        assertEquals(VectorEncoding.BYTE, vectorField.fieldType().vectorEncoding());
         assertArrayEquals(TEST_BYTE_VECTOR, knnByteVectorField.vectorValue());
 
         // Test when doc values are disabled
@@ -889,13 +895,13 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
             .knnMethodContext(knnMethodContext);
     }
 
-    public static float[] createInitializedFloatArray(int dimension, float value) {
+    private static float[] createInitializedFloatArray(int dimension, float value) {
         float[] array = new float[dimension];
         Arrays.fill(array, value);
         return array;
     }
 
-    public static byte[] createInitializedByteArray(int dimension, byte value) {
+    private static byte[] createInitializedByteArray(int dimension, byte value) {
         byte[] array = new byte[dimension];
         Arrays.fill(array, value);
         return array;

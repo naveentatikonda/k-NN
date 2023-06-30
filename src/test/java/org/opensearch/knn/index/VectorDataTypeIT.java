@@ -15,11 +15,12 @@ import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.index.util.KNNEngine;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import static org.opensearch.knn.common.KNNConstants.DIMENSION;
 import static org.opensearch.knn.common.KNNConstants.LUCENE_NAME;
 import static org.opensearch.knn.common.KNNConstants.METHOD_HNSW;
-import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE;
+import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 import static org.opensearch.knn.index.VectorDataType.getValues;
 
 public class VectorDataTypeIT extends KNNRestTestCase {
@@ -75,7 +76,6 @@ public class VectorDataTypeIT extends KNNRestTestCase {
     // Set an invalid value for data_type field while creating the index which should throw an exception
     public void testInvalidVectorDataType() {
         String vectorDataType = "invalidVectorType";
-        String supportedTypes = String.join(",", getValues());
         ResponseException ex = expectThrows(
             ResponseException.class,
             () -> createKnnIndexMappingWithLuceneEngine(2, SpaceType.L2, vectorDataType)
@@ -84,10 +84,10 @@ public class VectorDataTypeIT extends KNNRestTestCase {
             ex.getMessage()
                 .contains(
                     String.format(
-                        "[%s] field was set as [%s] in index mapping. But, supported values are [%s]",
-                        VECTOR_DATA_TYPE,
-                        vectorDataType,
-                        supportedTypes
+                        Locale.ROOT,
+                        "Invalid value provided for [%s] field. Supported values are [%s]",
+                        VECTOR_DATA_TYPE_FIELD,
+                        String.join(",", getValues())
                     )
                 )
         );
@@ -100,8 +100,9 @@ public class VectorDataTypeIT extends KNNRestTestCase {
             ex.getMessage()
                 .contains(
                     String.format(
+                        Locale.ROOT,
                         "[%s] on mapper [%s] of type [%s] must not have a [null] value",
-                        VECTOR_DATA_TYPE,
+                        VECTOR_DATA_TYPE_FIELD,
                         FIELD_NAME,
                         KNN_VECTOR_TYPE
                     )
@@ -133,8 +134,9 @@ public class VectorDataTypeIT extends KNNRestTestCase {
             ex.getMessage()
                 .contains(
                     String.format(
-                        "[%s] field was set as [%s] in index mapping. But, KNN vector values are not within in the byte range [{}, {}]",
-                        VECTOR_DATA_TYPE,
+                        Locale.ROOT,
+                        "[%s] field was set as [%s] in index mapping. But, KNN vector values are not within in the byte range [%d, %d]",
+                        VECTOR_DATA_TYPE_FIELD,
                         VectorDataType.BYTE.getValue(),
                         Byte.MIN_VALUE,
                         Byte.MAX_VALUE
@@ -149,7 +151,18 @@ public class VectorDataTypeIT extends KNNRestTestCase {
             ResponseException.class,
             () -> createKnnIndexMappingWithNmslibEngine(2, SpaceType.L2, VectorDataType.BYTE.getValue())
         );
-        assertTrue(ex.getMessage().contains(String.format("[%s] is only supported for [%s] engine", VECTOR_DATA_TYPE, LUCENE_NAME)));
+        assertTrue(
+            ex.getMessage()
+                .contains(
+                    String.format(
+                        Locale.ROOT,
+                        "[%s] field with value [%s] is only supported for [%s] engine",
+                        VECTOR_DATA_TYPE_FIELD,
+                        VectorDataType.BYTE.getValue(),
+                        LUCENE_NAME
+                    )
+                )
+        );
     }
 
     private void createKnnIndexMappingWithNmslibEngine(int dimension, SpaceType spaceType, String vectorDataType) throws Exception {
@@ -168,7 +181,7 @@ public class VectorDataTypeIT extends KNNRestTestCase {
             .startObject(FIELD_NAME)
             .field(TYPE_FIELD_NAME, KNN_VECTOR_TYPE)
             .field(DIMENSION, dimension)
-            .field(VECTOR_DATA_TYPE, vectorDataType)
+            .field(VECTOR_DATA_TYPE_FIELD, vectorDataType)
             .startObject(KNNConstants.KNN_METHOD)
             .field(KNNConstants.NAME, METHOD_HNSW)
             .field(KNNConstants.METHOD_PARAMETER_SPACE_TYPE, spaceType.getValue())
