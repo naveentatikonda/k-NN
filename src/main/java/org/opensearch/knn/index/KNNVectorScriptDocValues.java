@@ -20,10 +20,12 @@ public final class KNNVectorScriptDocValues extends ScriptDocValues<float[]> {
     private final BinaryDocValues binaryDocValues;
     private final String fieldName;
     private boolean docExists;
+    private final String vectorDataType;
 
-    public KNNVectorScriptDocValues(BinaryDocValues binaryDocValues, String fieldName) {
+    public KNNVectorScriptDocValues(BinaryDocValues binaryDocValues, String fieldName, String vectorDataType) {
         this.binaryDocValues = binaryDocValues;
         this.fieldName = fieldName;
+        this.vectorDataType = vectorDataType;
     }
 
     @Override
@@ -34,6 +36,33 @@ public final class KNNVectorScriptDocValues extends ScriptDocValues<float[]> {
         }
         docExists = false;
     }
+
+    // public byte[] byteToByteIntArray(ByteArrayInputStream byteStream) throws IOException, ClassNotFoundException {
+    // if (byteStream == null) {
+    // throw new IllegalArgumentException("Byte stream cannot be deserialized to array of bytes");
+    // }
+    //// DataInputStream dataIs = new DataInputStream
+    //// (byteStream);
+    //// final byte[] vector = new byte[byteStream.available()];
+    //// int i=0;
+    //// // available stream to be read
+    //// while(dataIs.available()>0)
+    //// {
+    ////
+    //// vector[i++] = dataIs.readByte();
+    ////
+    //// }
+    //
+    // final ObjectInputStream objectStream = new ObjectInputStream(byteStream);
+    // final byte[] vector = (byte[]) objectStream.readObject();
+    //
+    //// final byte[] vectorAsByteArray = new byte[byteStream.available()];
+    //// byteStream.read(vectorAsByteArray, 0, byteStream.available());
+    //// final byte[] vector = new byte[vectorAsByteArray.length];
+    //// ByteBuffer.wrap(vectorAsByteArray).asFloatBuffer().get((byte)vector);
+    //// byte a = vectorAsByteArray[0];
+    // return vector;
+    // }
 
     public float[] getValue() {
         if (!docExists) {
@@ -48,10 +77,23 @@ public final class KNNVectorScriptDocValues extends ScriptDocValues<float[]> {
         }
         try {
             BytesRef value = binaryDocValues.binaryValue();
-            ByteArrayInputStream byteStream = new ByteArrayInputStream(value.bytes, value.offset, value.length);
-            final KNNVectorSerializer vectorSerializer = KNNVectorSerializerFactory.getSerializerByStreamContent(byteStream);
-            final float[] vector = vectorSerializer.byteToFloatArray(byteStream);
-            return vector;
+            if (vectorDataType.equals("byte")) {
+                byte[] byteVector = value.bytes;
+                float[] vector = new float[value.length];
+                int i = 0;
+                int j = value.offset;
+
+                while (i < value.length) {
+                    vector[i++] = value.bytes[j++];
+                }
+                return vector;
+            } else {
+                ByteArrayInputStream byteStream = new ByteArrayInputStream(value.bytes, value.offset, value.length);
+                final KNNVectorSerializer vectorSerializer = KNNVectorSerializerFactory.getSerializerByStreamContent(byteStream);
+                final float[] vector = vectorSerializer.byteToFloatArray(byteStream);
+                return vector;
+            }
+
         } catch (IOException e) {
             throw ExceptionsHelper.convertToOpenSearchException(e);
         }

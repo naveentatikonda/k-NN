@@ -20,7 +20,6 @@ import org.opensearch.knn.index.VectorField;
 import org.opensearch.knn.index.util.KNNEngine;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.lucene.index.VectorValues.MAX_DIMENSIONS;
@@ -102,88 +101,88 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
     private static FieldType buildDocValuesFieldType(KNNEngine knnEngine, String vectorDataType, int dimension) {
         FieldType field = null;
         if (vectorDataType.equals("byte")) {
-//            IndexableFieldType indexableFieldType = new IndexableFieldType() {
-//                @Override
-//                public boolean stored() {
-//                    return false;
-//                }
-//
-//                @Override
-//                public boolean tokenized() {
-//                    return true;
-//                }
-//
-//                @Override
-//                public boolean storeTermVectors() {
-//                    return false;
-//                }
-//
-//                @Override
-//                public boolean storeTermVectorOffsets() {
-//                    return false;
-//                }
-//
-//                @Override
-//                public boolean storeTermVectorPositions() {
-//                    return false;
-//                }
-//
-//                @Override
-//                public boolean storeTermVectorPayloads() {
-//                    return false;
-//                }
-//
-//                @Override
-//                public boolean omitNorms() {
-//                    return false;
-//                }
-//
-//                @Override
-//                public IndexOptions indexOptions() {
-//                    return IndexOptions.NONE;
-//                }
-//
-//                @Override
-//                public DocValuesType docValuesType() {
-//                    return DocValuesType.NONE;
-//                }
-//
-//                @Override
-//                public int pointDimensionCount() {
-//                    return 0;
-//                }
-//
-//                @Override
-//                public int pointIndexDimensionCount() {
-//                    return 0;
-//                }
-//
-//                @Override
-//                public int pointNumBytes() {
-//                    return 0;
-//                }
-//
-//                @Override
-//                public int vectorDimension() {
-//                    return 0;
-//                }
-//
-//                @Override
-//                public VectorEncoding vectorEncoding() {
-//                    return VectorEncoding.BYTE;
-//                }
-//
-//                @Override
-//                public VectorSimilarityFunction vectorSimilarityFunction() {
-//                    return VectorSimilarityFunction.EUCLIDEAN;
-//                }
-//
-//                @Override
-//                public Map<String, String> getAttributes() {
-//                    return null;
-//                }
-//            };
-//            field = new FieldType(indexableFieldType);
+            // IndexableFieldType indexableFieldType = new IndexableFieldType() {
+            // @Override
+            // public boolean stored() {
+            // return false;
+            // }
+            //
+            // @Override
+            // public boolean tokenized() {
+            // return true;
+            // }
+            //
+            // @Override
+            // public boolean storeTermVectors() {
+            // return false;
+            // }
+            //
+            // @Override
+            // public boolean storeTermVectorOffsets() {
+            // return false;
+            // }
+            //
+            // @Override
+            // public boolean storeTermVectorPositions() {
+            // return false;
+            // }
+            //
+            // @Override
+            // public boolean storeTermVectorPayloads() {
+            // return false;
+            // }
+            //
+            // @Override
+            // public boolean omitNorms() {
+            // return false;
+            // }
+            //
+            // @Override
+            // public IndexOptions indexOptions() {
+            // return IndexOptions.NONE;
+            // }
+            //
+            // @Override
+            // public DocValuesType docValuesType() {
+            // return DocValuesType.NONE;
+            // }
+            //
+            // @Override
+            // public int pointDimensionCount() {
+            // return 0;
+            // }
+            //
+            // @Override
+            // public int pointIndexDimensionCount() {
+            // return 0;
+            // }
+            //
+            // @Override
+            // public int pointNumBytes() {
+            // return 0;
+            // }
+            //
+            // @Override
+            // public int vectorDimension() {
+            // return 0;
+            // }
+            //
+            // @Override
+            // public VectorEncoding vectorEncoding() {
+            // return VectorEncoding.BYTE;
+            // }
+            //
+            // @Override
+            // public VectorSimilarityFunction vectorSimilarityFunction() {
+            // return VectorSimilarityFunction.EUCLIDEAN;
+            // }
+            //
+            // @Override
+            // public Map<String, String> getAttributes() {
+            // return null;
+            // }
+            // };
+            // field = new FieldType(indexableFieldType);
             field = new FieldType();
             // field.setVectorAttributes(dimension, VectorEncoding.BYTE, field.vectorSimilarityFunction());
         }

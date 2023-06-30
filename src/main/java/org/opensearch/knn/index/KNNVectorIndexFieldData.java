@@ -21,10 +21,12 @@ public class KNNVectorIndexFieldData implements IndexFieldData<KNNVectorDVLeafFi
 
     private final String fieldName;
     private final ValuesSourceType valuesSourceType;
+    private final String vectorDataType;
 
-    public KNNVectorIndexFieldData(String fieldName, ValuesSourceType valuesSourceType) {
+    public KNNVectorIndexFieldData(String fieldName, ValuesSourceType valuesSourceType, String vectorDataType) {
         this.fieldName = fieldName;
         this.valuesSourceType = valuesSourceType;
+        this.vectorDataType = vectorDataType;
     }
 
     @Override
@@ -39,7 +41,7 @@ public class KNNVectorIndexFieldData implements IndexFieldData<KNNVectorDVLeafFi
 
     @Override
     public KNNVectorDVLeafFieldData load(LeafReaderContext context) {
-        return new KNNVectorDVLeafFieldData(context.reader(), fieldName);
+        return new KNNVectorDVLeafFieldData(context.reader(), fieldName, vectorDataType);
     }
 
     @Override
@@ -71,14 +73,17 @@ public class KNNVectorIndexFieldData implements IndexFieldData<KNNVectorDVLeafFi
         private final String name;
         private final ValuesSourceType valuesSourceType;
 
-        public Builder(String name, ValuesSourceType valuesSourceType) {
+        private final String vectorDataType;
+
+        public Builder(String name, ValuesSourceType valuesSourceType, String vectorDataType) {
             this.name = name;
             this.valuesSourceType = valuesSourceType;
+            this.vectorDataType = vectorDataType;
         }
 
         @Override
         public IndexFieldData<?> build(IndexFieldDataCache cache, CircuitBreakerService breakerService) {
-            return new KNNVectorIndexFieldData(name, valuesSourceType);
+            return new KNNVectorIndexFieldData(name, valuesSourceType, vectorDataType);
         }
     }
 }

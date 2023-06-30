@@ -55,6 +55,10 @@ public interface KNNScoringSpace {
             }
 
             this.processedQuery = parseToFloatArray(query, ((KNNVectorFieldMapper.KNNVectorFieldType) fieldType).getDimension());
+            if (((KNNVectorFieldMapper.KNNVectorFieldType) fieldType).getVectorDataType().equals("byte")) {
+                // TODO : Add Validation checks for decimal values and byte range [-128 to 127]
+
+            }
             this.scoringMethod = (float[] q, float[] v) -> 1 / (1 + KNNScoringUtil.l2Squared(q, v));
         }
 

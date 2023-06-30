@@ -368,8 +368,8 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
             int B = 256;
             byteVector = new byte[vector.length];
             for (int i = 0; i < vector.length; i++) {
-                // byteVector[i] = (byte) vector[i];
-                byteVector[i] = normalizeQuery(vector[i], min, max, B);
+                byteVector[i] = (byte) vector[i];
+                // byteVector[i] = normalizeQuery(vector[i], min, max, B);
             }
 
             if (byteVector == null) {

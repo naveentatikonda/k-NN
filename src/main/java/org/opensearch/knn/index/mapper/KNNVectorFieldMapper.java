@@ -304,7 +304,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
             return new LegacyFieldMapper(
                 name,
-                new KNNVectorFieldType(buildFullName(context), metaValue, dimension.getValue()),
+                new KNNVectorFieldType(buildFullName(context), metaValue, dimension.getValue(), vectorDataType.getValue()),
                 multiFieldsBuilder,
                 copyToBuilder,
                 ignoreMalformed,
@@ -375,8 +375,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         String modelId;
         KNNMethodContext knnMethodContext;
 
-        public KNNVectorFieldType(String name, Map<String, String> meta, int dimension) {
-            this(name, meta, dimension, "float", null, null);
+        public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, String vectorDataType) {
+            this(name, meta, dimension, vectorDataType, null, null);
         }
 
         public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext) {
@@ -448,7 +448,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         @Override
         public IndexFieldData.Builder fielddataBuilder(String fullyQualifiedIndexName, Supplier<SearchLookup> searchLookup) {
             failIfNoDocValues();
-            return new KNNVectorIndexFieldData.Builder(name(), CoreValuesSourceType.BYTES);
+            return new KNNVectorIndexFieldData.Builder(name(), CoreValuesSourceType.BYTES, this.vectorDataType);
         }
     }
 
@@ -501,18 +501,30 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
         validateIfKNNPluginEnabled();
         validateIfCircuitBreakerIsNotTriggered();
+        if (vectorDataType.equals("byte")) {
+            Optional<byte[]> arrayOptional = getBytesFromContext(context, dimension);
 
-        Optional<float[]> arrayOptional = getFloatsFromContext(context, dimension);
+            if (!arrayOptional.isPresent()) {
+                return;
+            }
+            final byte[] array = arrayOptional.get();
+            VectorField point = new VectorField(name(), array, fieldType);
+            context.doc().add(point);
+            if (fieldType.stored()) {
+                context.doc().add(new StoredField(name(), point.toString()));
+            }
+        } else {
+            Optional<float[]> arrayOptional = getFloatsFromContext(context, dimension);
 
-        if (!arrayOptional.isPresent()) {
-            return;
-        }
-        final float[] array = arrayOptional.get();
-        VectorField point = new VectorField(name(), array, fieldType);
-
-        context.doc().add(point);
-        if (fieldType.stored()) {
-            context.doc().add(new StoredField(name(), point.toString()));
+            if (!arrayOptional.isPresent()) {
+                return;
+            }
+            final float[] array = arrayOptional.get();
+            VectorField point = new VectorField(name(), array, fieldType);
+            context.doc().add(point);
+            if (fieldType.stored()) {
+                context.doc().add(new StoredField(name(), point.toString()));
+            }
         }
         context.path().remove();
     }
@@ -599,8 +611,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                     throw new IllegalArgumentException("KNN vector values cannot be infinity");
                 }
                 // byte b = ((Float)value).byteValue();
-                // vector.add((byte) value);
-                vector.add(normalize(value, min, max, B));
+                vector.add((byte) value);
+                // vector.add(normalize(value, min, max, B));
                 token = context.parser().nextToken();
             }
         } else if (token == XContentParser.Token.VALUE_NUMBER) {
