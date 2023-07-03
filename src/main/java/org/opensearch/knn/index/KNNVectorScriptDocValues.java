@@ -5,6 +5,7 @@
 
 package org.opensearch.knn.index;
 
+import lombok.Getter;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.ExceptionsHelper;
@@ -19,11 +20,14 @@ public final class KNNVectorScriptDocValues extends ScriptDocValues<float[]> {
 
     private final BinaryDocValues binaryDocValues;
     private final String fieldName;
+    @Getter
+    private final VectorDataType vectorDataType;
     private boolean docExists;
 
-    public KNNVectorScriptDocValues(BinaryDocValues binaryDocValues, String fieldName) {
+    public KNNVectorScriptDocValues(BinaryDocValues binaryDocValues, String fieldName, VectorDataType vectorDataType) {
         this.binaryDocValues = binaryDocValues;
         this.fieldName = fieldName;
+        this.vectorDataType = vectorDataType;
     }
 
     @Override
@@ -48,10 +52,23 @@ public final class KNNVectorScriptDocValues extends ScriptDocValues<float[]> {
         }
         try {
             BytesRef value = binaryDocValues.binaryValue();
-            ByteArrayInputStream byteStream = new ByteArrayInputStream(value.bytes, value.offset, value.length);
-            final KNNVectorSerializer vectorSerializer = KNNVectorSerializerFactory.getSerializerByStreamContent(byteStream);
-            final float[] vector = vectorSerializer.byteToFloatArray(byteStream);
-            return vector;
+            if (VectorDataType.BYTE.equals(vectorDataType)) {
+                float[] vector = new float[value.length];
+                int i = 0;
+                int j = value.offset;
+
+                while (i < value.length) {
+                    vector[i++] = value.bytes[j++];
+                }
+                return vector;
+            } else if (VectorDataType.FLOAT.equals(vectorDataType)) {
+                ByteArrayInputStream byteStream = new ByteArrayInputStream(value.bytes, value.offset, value.length);
+                final KNNVectorSerializer vectorSerializer = KNNVectorSerializerFactory.getSerializerByStreamContent(byteStream);
+                final float[] vector = vectorSerializer.byteToFloatArray(byteStream);
+                return vector;
+            } else {
+                throw new IllegalArgumentException("Invalid data_type provided");
+            }
         } catch (IOException e) {
             throw ExceptionsHelper.convertToOpenSearchException(e);
         }
