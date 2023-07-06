@@ -20,6 +20,7 @@ import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.knn.KNNRestTestCase;
 import org.opensearch.knn.KNNResult;
 import org.opensearch.knn.common.KNNConstants;
+import org.opensearch.knn.index.query.KNNQueryBuilder;
 import org.opensearch.knn.index.util.KNNEngine;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.script.Script;
@@ -89,6 +90,73 @@ public class VectorDataTypeIT extends KNNRestTestCase {
         refreshAllIndices();
 
         assertEquals(0, getDocCount(INDEX_NAME));
+    }
+
+    @SneakyThrows
+    public void testSearchWithByteVector() {
+        createKnnIndexMappingWithLuceneEngine(2, SpaceType.L2, VectorDataType.BYTE.getValue());
+        ingestL2ByteTestData();
+
+        Byte[] queryVector = { 1, 1 };
+        Response response = searchKNNIndex(INDEX_NAME, new KNNQueryBuilder(FIELD_NAME, convertByteToFloatArray(queryVector), 4), 4);
+
+        validateL2SearchResults(response);
+    }
+
+    @SneakyThrows
+    public void testSearchWithInvalidByteVector() {
+        createKnnIndexMappingWithLuceneEngine(2, SpaceType.L2, VectorDataType.BYTE.getValue());
+        ingestL2ByteTestData();
+
+        // Validate search with floats instead of byte vectors
+        float[] queryVector = { -10.76f, 15.89f };
+        ResponseException ex = expectThrows(
+            ResponseException.class,
+            () -> searchKNNIndex(INDEX_NAME, new KNNQueryBuilder(FIELD_NAME, queryVector, 4), 4)
+        );
+        assertTrue(
+            ex.getMessage()
+                .contains(
+                    String.format(
+                        Locale.ROOT,
+                        "[%s] field was set as [%s] in index mapping. But, KNN vector values are floats instead of byte integers",
+                        VECTOR_DATA_TYPE_FIELD,
+                        VectorDataType.BYTE.getValue()
+                    )
+                )
+        );
+
+        // validate search with search vectors outside of byte range
+        float[] queryVector1 = { -1000.0f, 200.0f };
+        ResponseException ex1 = expectThrows(
+            ResponseException.class,
+            () -> searchKNNIndex(INDEX_NAME, new KNNQueryBuilder(FIELD_NAME, queryVector1, 4), 4)
+        );
+
+        assertTrue(
+            ex1.getMessage()
+                .contains(
+                    String.format(
+                        Locale.ROOT,
+                        "[%s] field was set as [%s] in index mapping. But, KNN vector values are not within in the byte range [%d, %d]",
+                        VECTOR_DATA_TYPE_FIELD,
+                        VectorDataType.BYTE.getValue(),
+                        Byte.MIN_VALUE,
+                        Byte.MAX_VALUE
+                    )
+                )
+        );
+    }
+
+    @SneakyThrows
+    public void testSearchWithFloatVectorDataType() {
+        createKnnIndexMappingWithLuceneEngine(2, SpaceType.L2, VectorDataType.FLOAT.getValue());
+        ingestL2FloatTestData();
+
+        float[] queryVector = { 1.0f, 1.0f };
+        Response response = searchKNNIndex(INDEX_NAME, new KNNQueryBuilder(FIELD_NAME, queryVector, 4), 4);
+
+        validateL2SearchResults(response);
     }
 
     // Set an invalid value for data_type field while creating the index which should throw an exception
@@ -465,5 +533,13 @@ public class VectorDataTypeIT extends KNNRestTestCase {
         for (int i = 0; i < results.size(); i++) {
             assertEquals(expectedDocIDs[i], results.get(i).getDocId());
         }
+    }
+
+    private float[] convertByteToFloatArray(Byte[] arr) {
+        float[] floatArray = new float[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            floatArray[i] = arr[i];
+        }
+        return floatArray;
     }
 }
