@@ -109,7 +109,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
          * data_type which defines the datatype of the vector values. This is an optional parameter and
          * this is right now only relevant for lucene engine. The default value is float.
          */
-        private final Parameter<VectorDataType> vectorDataType = new Parameter<>(
+        protected final Parameter<VectorDataType> vectorDataType = new Parameter<>(
             VECTOR_DATA_TYPE_FIELD,
             false,
             () -> DEFAULT_VECTOR_DATA_TYPE_FIELD,
