@@ -84,6 +84,7 @@ public class KNNStats {
         addEngineStats(builder);
         addScriptStats(builder);
         addModelStats(builder);
+        addVectorDataTypeStats(builder);
         return builder.build();
     }
 
@@ -127,6 +128,10 @@ public class KNNStats {
             .put(StatNames.GRAPH_INDEX_ERRORS.getName(), new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.GRAPH_INDEX_ERRORS)))
             .put(StatNames.GRAPH_INDEX_REQUESTS.getName(), new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.GRAPH_INDEX_REQUESTS)))
             .put(StatNames.CIRCUIT_BREAKER_TRIGGERED.getName(), new KNNStat<>(true, new KNNCircuitBreakerSupplier()));
+    }
+
+    private void addVectorDataTypeStats(ImmutableMap.Builder<String, KNNStat<?>> builder) {
+        builder.put(StatNames.BYTE_VECTOR_INDICES.getName(), new KNNStat<>(false, new KNNCounterSupplier(KNNCounter.BYTE_VECTOR_INDICES)));
     }
 
     private void addEngineStats(ImmutableMap.Builder<String, KNNStat<?>> builder) {

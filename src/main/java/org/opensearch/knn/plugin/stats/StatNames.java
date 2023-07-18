@@ -28,6 +28,7 @@ public enum StatNames {
     NMSLIB_LOADED("nmslib_initialized"),
     LUCENE_LOADED("lucene_initialized"),
     INDEXING_FROM_MODEL_DEGRADED("indexing_from_model_degraded"),
+    BYTE_VECTOR_INDICES(KNNCounter.BYTE_VECTOR_INDICES.getName()),
     GRAPH_QUERY_ERRORS(KNNCounter.GRAPH_QUERY_ERRORS.getName()),
     GRAPH_QUERY_REQUESTS(KNNCounter.GRAPH_QUERY_REQUESTS.getName()),
     GRAPH_INDEX_ERRORS(KNNCounter.GRAPH_INDEX_ERRORS.getName()),

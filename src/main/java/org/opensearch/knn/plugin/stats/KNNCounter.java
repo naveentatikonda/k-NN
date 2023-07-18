@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Contains a map of counters to keep track of different values
  */
 public enum KNNCounter {
+    BYTE_VECTOR_INDICES("byte_vector_indices"),
     GRAPH_QUERY_ERRORS("graph_query_errors"),
     GRAPH_QUERY_REQUESTS("graph_query_requests"),
     GRAPH_INDEX_ERRORS("graph_index_errors"),

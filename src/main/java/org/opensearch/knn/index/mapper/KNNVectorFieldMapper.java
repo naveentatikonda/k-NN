@@ -469,6 +469,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         this.dimension = mappedFieldType.getDimension();
         this.vectorDataType = mappedFieldType.getVectorDataType();
         updateEngineStats();
+        this.vectorDataType.updateVectorDataTypeStats();
     }
 
     public KNNVectorFieldMapper clone() {

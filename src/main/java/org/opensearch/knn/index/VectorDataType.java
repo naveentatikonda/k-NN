@@ -14,6 +14,7 @@ import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.knn.index.codec.util.KNNVectorSerializer;
 import org.opensearch.knn.index.codec.util.KNNVectorSerializerFactory;
+import org.opensearch.knn.plugin.stats.KNNCounter;
 
 import java.io.ByteArrayInputStream;
 import java.util.Arrays;
@@ -47,6 +48,11 @@ public enum VectorDataType {
             }
             return vector;
         }
+
+        @Override
+        public void updateVectorDataTypeStats() {
+            KNNCounter.BYTE_VECTOR_INDICES.increment();
+        }
     },
     FLOAT("float") {
 
@@ -61,6 +67,9 @@ public enum VectorDataType {
             final KNNVectorSerializer vectorSerializer = KNNVectorSerializerFactory.getSerializerByStreamContent(byteStream);
             return vectorSerializer.byteToFloatArray(byteStream);
         }
+
+        @Override
+        public void updateVectorDataTypeStats() {}
 
     };
 
@@ -87,6 +96,8 @@ public enum VectorDataType {
      * @return float vector deserialized from binary value
      */
     public abstract float[] getVectorFromDocValues(BytesRef binaryValue);
+
+    public abstract void updateVectorDataTypeStats();
 
     /**
      * Validates if given VectorDataType is in the list of supported data types.
