@@ -162,6 +162,23 @@ class ClearCacheStep(OpenSearchStep):
     def _get_measures(self) -> List[str]:
         return ['took']
 
+class WarmupStep(OpenSearchStep):
+    """See base class."""
+
+    label = 'warmup_operation'
+
+    def __init__(self, step_config: StepConfig):
+        super().__init__(step_config)
+        self.index_name = parse_string_param('index_name', step_config.config, {},
+                                           None)
+
+    def _action(self):
+        """Performs warmup operation on an index."""
+        warmup_operation(self.endpoint, self.port, self.index_name)
+        return {}
+
+    def _get_measures(self) -> List[str]:
+        return ['took']
 
 class TrainModelStep(OpenSearchStep):
     """See base class."""
@@ -686,6 +703,23 @@ def delete_model(endpoint, port, model_id):
     """
     response = requests.delete('http://' + endpoint + ':' + str(port) +
                                '/_plugins/_knn/models/' + model_id,
+                               headers={'content-type': 'application/json'})
+    return response.json()
+
+
+def warmup_operation(endpoint, port, index):
+    """
+    Performs warmup operation on index to load native library files
+    of that index to reduce query latencies.
+    Args:
+        endpoint: Endpoint OpenSearch is running on
+        port: Port OpenSearch is running on
+        index: index name
+    Returns:
+        Deleted model response
+    """
+    response = requests.get('http://' + endpoint + ':' + str(port) +
+                               '/_plugins/_knn/warmup/' + index,
                                headers={'content-type': 'application/json'})
     return response.json()
 
