@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+//#include <cstdint>
 
 
 void knn_jni::JNIUtil::Initialize(JNIEnv *env) {
@@ -276,7 +277,8 @@ std::vector<int64_t> knn_jni::JNIUtil::ConvertJavaIntArrayToCppIntVector(JNIEnv 
     for(int i = 0; i < numElements; ++i) {
         vectorCpp.push_back(arrayCpp[i]);
     }
-    env->ReleaseIntArrayElements(arrayJ, arrayCpp, JNI_ABORT);
+//    env->ReleaseIntArrayElements(arrayJ, (jint*)arrayCpp, JNI_ABORT);
+env->ReleaseIntArrayElements(arrayJ, arrayCpp, JNI_ABORT);
     return vectorCpp;
 }
 
