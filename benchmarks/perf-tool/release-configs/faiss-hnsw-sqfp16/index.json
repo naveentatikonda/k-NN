@@ -3,7 +3,7 @@
     "index": {
       "knn": true,
       "number_of_shards": 24,
-      "number_of_replicas": 1
+      "number_of_replicas": 0
     }
   },
   "mappings": {

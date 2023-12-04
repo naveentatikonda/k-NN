@@ -111,7 +111,7 @@ void knn_jni::faiss_wrapper::CreateIndex(knn_jni::JNIUtilInterface * jniUtil, JN
     jniUtil->DeleteLocalRef(env, parametersJ);
 
     // TODO: Add a condition to set it true for sq encoder based on index description
-//    indexWriter->is_trained = true;
+    indexWriter->is_trained = true;
 
     // Check that the index does not need to be trained
     if(!indexWriter->is_trained) {

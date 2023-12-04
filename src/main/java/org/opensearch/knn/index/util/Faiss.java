@@ -30,7 +30,6 @@ import static org.opensearch.knn.common.KNNConstants.ENCODER_PARAMETER_PQ_M;
 import static org.opensearch.knn.common.KNNConstants.FAISS_HNSW_DESCRIPTION;
 import static org.opensearch.knn.common.KNNConstants.FAISS_IVF_DESCRIPTION;
 import static org.opensearch.knn.common.KNNConstants.FAISS_PQ_DESCRIPTION;
-import static org.opensearch.knn.common.KNNConstants.FAISS_SQFP16_DESCRIPTION;
 import static org.opensearch.knn.common.KNNConstants.METHOD_ENCODER_PARAMETER;
 import static org.opensearch.knn.common.KNNConstants.METHOD_HNSW;
 import static org.opensearch.knn.common.KNNConstants.METHOD_IVF;
@@ -78,71 +77,71 @@ class Faiss extends NativeLibrary {
                 ).build())
             )
             .build(),
-                    KNNConstants.ENCODER_SQFP16,
+        KNNConstants.ENCODER_SQFP16,
         MethodComponent.Builder.builder(KNNConstants.ENCODER_SQFP16)
-                .setRequiresTraining(false)
-                .setMapGenerator(
-                        ((methodComponent, methodComponentContext) -> MethodAsMapBuilder.builder(
-                                KNNConstants.FAISS_SQFP16_DESCRIPTION,
-                                methodComponent,
-                                methodComponentContext
-                        ).build())
-                )
-                .build(),
-//            KNNConstants.ENCODER_SQFP16,
-//            MethodComponent.Builder.builder(KNNConstants.ENCODER_SQFP16)
-//                    .addParameter(
-//                            ENCODER_PARAMETER_PQ_M,
-//                            new Parameter.IntegerParameter(
-//                                    ENCODER_PARAMETER_PQ_M,
-//                                    ENCODER_PARAMETER_PQ_CODE_COUNT_DEFAULT,
-//                                    v -> v > 0 && v < ENCODER_PARAMETER_PQ_CODE_COUNT_LIMIT
-//                            )
-//                    )
-//                    .addParameter(
-//                            ENCODER_PARAMETER_PQ_CODE_SIZE,
-//                            new Parameter.IntegerParameter(
-//                                    ENCODER_PARAMETER_PQ_CODE_SIZE,
-//                                    ENCODER_PARAMETER_PQ_CODE_SIZE_DEFAULT,
-//                                    v -> v > 0 && v < ENCODER_PARAMETER_PQ_CODE_SIZE_LIMIT
-//                            )
-//                    )
-//                    .setRequiresTraining(true)
-//                    .setMapGenerator(
-//                            ((methodComponent, methodComponentContext) -> MethodAsMapBuilder.builder(
-//                                            FAISS_SQFP16_DESCRIPTION,
-//                                            methodComponent,
-//                                            methodComponentContext
-//                                    )
-//                                    //.addParameter(ENCODER_PARAMETER_PQ_M, "", "").addParameter(ENCODER_PARAMETER_PQ_CODE_SIZE, "", "")
-//                                    .build())
-//                    )
-//                    .setOverheadInKBEstimator((methodComponent, methodComponentContext, dimension) -> {
-//                        // Size estimate formula: (4 * d * 2^code_size) / 1024 + 1
-//
-//                        // Get value of code size passed in by user
-//                        Object codeSizeObject = methodComponentContext.getParameters().get(ENCODER_PARAMETER_PQ_CODE_SIZE);
-//
-//                        // If not specified, get default value of code size
-//                        if (codeSizeObject == null) {
-//                            Parameter<?> codeSizeParameter = methodComponent.getParameters().get(ENCODER_PARAMETER_PQ_CODE_SIZE);
-//                            if (codeSizeParameter == null) {
-//                                throw new IllegalStateException(
-//                                        String.format("%s  is not a valid parameter. This is a bug.", ENCODER_PARAMETER_PQ_CODE_SIZE)
-//                                );
-//                            }
-//
-//                            codeSizeObject = codeSizeParameter.getDefaultValue();
-//                        }
-//
-//                        if (!(codeSizeObject instanceof Integer)) {
-//                            throw new IllegalStateException(String.format("%s must be an integer.", ENCODER_PARAMETER_PQ_CODE_SIZE));
-//                        }
-//
-//                        int codeSize = (Integer) codeSizeObject;
-//                        return ((4L * (1L << codeSize) * dimension) / BYTES_PER_KILOBYTES) + 1;
-//                    })
-//                    .build(),
+            .setRequiresTraining(false)
+            .setMapGenerator(
+                ((methodComponent, methodComponentContext) -> MethodAsMapBuilder.builder(
+                    KNNConstants.FAISS_SQFP16_DESCRIPTION,
+                    methodComponent,
+                    methodComponentContext
+                ).build())
+            )
+            .build(),
+        // KNNConstants.ENCODER_SQFP16,
+        // MethodComponent.Builder.builder(KNNConstants.ENCODER_SQFP16)
+        // .addParameter(
+        // ENCODER_PARAMETER_PQ_M,
+        // new Parameter.IntegerParameter(
+        // ENCODER_PARAMETER_PQ_M,
+        // ENCODER_PARAMETER_PQ_CODE_COUNT_DEFAULT,
+        // v -> v > 0 && v < ENCODER_PARAMETER_PQ_CODE_COUNT_LIMIT
+        // )
+        // )
+        // .addParameter(
+        // ENCODER_PARAMETER_PQ_CODE_SIZE,
+        // new Parameter.IntegerParameter(
+        // ENCODER_PARAMETER_PQ_CODE_SIZE,
+        // ENCODER_PARAMETER_PQ_CODE_SIZE_DEFAULT,
+        // v -> v > 0 && v < ENCODER_PARAMETER_PQ_CODE_SIZE_LIMIT
+        // )
+        // )
+        // .setRequiresTraining(true)
+        // .setMapGenerator(
+        // ((methodComponent, methodComponentContext) -> MethodAsMapBuilder.builder(
+        // FAISS_SQFP16_DESCRIPTION,
+        // methodComponent,
+        // methodComponentContext
+        // )
+        // //.addParameter(ENCODER_PARAMETER_PQ_M, "", "").addParameter(ENCODER_PARAMETER_PQ_CODE_SIZE, "", "")
+        // .build())
+        // )
+        // .setOverheadInKBEstimator((methodComponent, methodComponentContext, dimension) -> {
+        // // Size estimate formula: (4 * d * 2^code_size) / 1024 + 1
+        //
+        // // Get value of code size passed in by user
+        // Object codeSizeObject = methodComponentContext.getParameters().get(ENCODER_PARAMETER_PQ_CODE_SIZE);
+        //
+        // // If not specified, get default value of code size
+        // if (codeSizeObject == null) {
+        // Parameter<?> codeSizeParameter = methodComponent.getParameters().get(ENCODER_PARAMETER_PQ_CODE_SIZE);
+        // if (codeSizeParameter == null) {
+        // throw new IllegalStateException(
+        // String.format("%s is not a valid parameter. This is a bug.", ENCODER_PARAMETER_PQ_CODE_SIZE)
+        // );
+        // }
+        //
+        // codeSizeObject = codeSizeParameter.getDefaultValue();
+        // }
+        //
+        // if (!(codeSizeObject instanceof Integer)) {
+        // throw new IllegalStateException(String.format("%s must be an integer.", ENCODER_PARAMETER_PQ_CODE_SIZE));
+        // }
+        //
+        // int codeSize = (Integer) codeSizeObject;
+        // return ((4L * (1L << codeSize) * dimension) / BYTES_PER_KILOBYTES) + 1;
+        // })
+        // .build(),
         KNNConstants.ENCODER_PQ,
         MethodComponent.Builder.builder(KNNConstants.ENCODER_PQ)
             .addParameter(

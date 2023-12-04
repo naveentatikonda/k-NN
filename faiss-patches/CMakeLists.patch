@@ -1,0 +1,12 @@
+diff --git a/faiss/CMakeLists.txt b/faiss/CMakeLists.txt
+index 5e635a53..46434056 100644
+--- a/faiss/CMakeLists.txt
++++ b/faiss/CMakeLists.txt
+@@ -184,6 +184,7 @@ set(FAISS_HEADERS
+   utils/extra_distances-inl.h
+   utils/extra_distances.h
+   utils/fp16-fp16c.h
++  utils/fp16-fp16.h
+   utils/fp16-inl.h
+   utils/fp16.h
+   utils/hamming-inl.h

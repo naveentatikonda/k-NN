@@ -247,6 +247,90 @@ TEST(FaissInitLibraryTest, BasicAssertions) {
     knn_jni::faiss_wrapper::InitLibrary();
 }
 
+/*
+#include "faiss/impl/ScalarQuantizer.h"
+
+TEST(FaissSQComputeDistanceTest, BasicAssertions) {
+
+
+    faiss::idx_t numIds = 2;
+    std::vector<std::vector<float>> vectors;
+    int dim = 8;
+        for (int64_t i = 0; i < numIds; ++i) {
+            // ids.push_back(i);
+            std::cout << "\nVector " << i << ": " << std::flush;
+            std::vector<float> vect;
+            vect.reserve(dim);
+            for (int j = 0; j < dim; ++j) {
+            float f = test_util::RandomFloat(-500.0, 500.0);
+            std::cout <<  f << ", " << std::flush;
+            vect.push_back(f);
+	    }
+	    vectors.push_back(vect);
+        }
+    uint8_t codes;
+    faiss::ScalarQuantizer * sq = new faiss::ScalarQuantizer(dim, faiss::ScalarQuantizer::QT_fp16);
+    sq->compute_codes(&vectors[0][0], &codes, numIds);
+}*/
+
+#include "faiss/impl/ScalarQuantizer.h"
+#include <cstring>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+TEST(FaissSQComputeDistanceTest, BasicAssertions) {
+	faiss::idx_t numIds = 20;
+	std::vector<std::vector<float>> vectors;
+	int dim = 8;
+	std::ifstream MyReadFile("/home/ec2-user/k-NN/test_vectors.txt");
+
+	while(!MyReadFile.eof()){
+		string text, T;
+		getline(MyReadFile, text);
+		    stringstream X(text);
+		    std::vector<float> vect;
+		     vect.reserve(dim);
+		     int j = 0;
+		     while (std::getline(X, T, ',')) {
+			     if (j < dim) {
+				     float f = std::stof(T);
+				     vect.push_back(f);
+				     j++;
+			     }
+		     }
+		     vectors.push_back(vect);
+	}
+
+	std::ifstream MyReadFile1("/home/ec2-user/k-NN/query_vectors.txt");
+	std::vector<std::vector<float>> query_vectors;
+	while(!MyReadFile1.eof()) {
+		string text, T;
+		getline(MyReadFile1, text);
+		stringstream X(text);
+		std::vector<float> vect;
+		vect.reserve(dim);
+		int j = 0;
+		while (std::getline(X, T, ',')) {
+			if (j < dim) {
+				float f = std::stof(T);
+				vect.push_back(f);
+				j++;
+			}
+		}
+		query_vectors.push_back(vect);
+	}
+	uint8_t codes;
+	    faiss::ScalarQuantizer * sq = new faiss::ScalarQuantizer(dim, faiss::ScalarQuantizer::QT_fp16);
+	        sq->compute_codes(&vectors[0][0], &codes, numIds);
+		    faiss::ScalarQuantizer::SQDistanceComputer * sqdc = sq -> get_distance_computer(faiss::METRIC_L2);
+		    for(int i=0; i<1; i++) {
+			        sqdc->set_query(&query_vectors[i][0]);
+				        sqdc->query_to_code(&(codes));
+					    }
+}
+
+
 TEST(FaissTrainIndexTest, BasicAssertions) {
     // Define the index configuration
     int dim = 2;
