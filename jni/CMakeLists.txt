@@ -111,7 +111,7 @@ endif ()
 if (${CONFIG_FAISS} STREQUAL ON OR ${CONFIG_ALL} STREQUAL ON OR ${CONFIG_TEST} STREQUAL ON)
     set(BUILD_TESTING OFF)          # Avoid building faiss tests
     set(BLA_STATIC ON)              # Statically link BLAS
-    set(FAISS_OPT_LEVEL generic)    # Keep optimization level generic
+    set(FAISS_OPT_LEVEL avx2)       # Keep optimization level as avx2 to improve performance
 
     if (${CMAKE_SYSTEM_NAME} STREQUAL Darwin)
         if(CMAKE_C_COMPILER_ID MATCHES "Clang\$")
@@ -147,7 +147,7 @@ if (${CONFIG_FAISS} STREQUAL ON OR ${CONFIG_ALL} STREQUAL ON OR ${CONFIG_TEST} S
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/faiss EXCLUDE_FROM_ALL)
 
     add_library(${TARGET_LIB_FAISS} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/src/org_opensearch_knn_jni_FaissService.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/faiss_wrapper.cpp)
-    target_link_libraries(${TARGET_LIB_FAISS} faiss ${TARGET_LIB_COMMON} OpenMP::OpenMP_CXX)
+    target_link_libraries(${TARGET_LIB_FAISS} faiss_avx2 ${TARGET_LIB_COMMON} OpenMP::OpenMP_CXX)
     target_include_directories(${TARGET_LIB_FAISS} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include $ENV{JAVA_HOME}/include $ENV{JAVA_HOME}/include/${JVM_OS_TYPE} ${CMAKE_CURRENT_SOURCE_DIR}/external/faiss)
     set_target_properties(${TARGET_LIB_FAISS} PROPERTIES SUFFIX ${LIB_EXT})
     set_target_properties(${TARGET_LIB_FAISS} PROPERTIES POSITION_INDEPENDENT_CODE ON)
