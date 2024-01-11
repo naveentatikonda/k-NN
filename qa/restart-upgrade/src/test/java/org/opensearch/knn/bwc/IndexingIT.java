@@ -6,9 +6,16 @@
 package org.opensearch.knn.bwc;
 
 import org.junit.Assert;
+import org.junit.Ignore;
+import org.junit.Test;
 import org.opensearch.common.xcontent.XContentFactory;
+import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.index.SpaceType;
+import org.opensearch.knn.index.VectorDataType;
+import org.opensearch.knn.index.util.KNNEngine;
 
+import java.io.IOException;
 import java.util.Map;
 
 import static org.opensearch.knn.TestUtils.KNN_ALGO_PARAM_EF_CONSTRUCTION_MIN_VALUE;
@@ -21,6 +28,7 @@ import static org.opensearch.knn.common.KNNConstants.DIMENSION;
 import static org.opensearch.knn.common.KNNConstants.FAISS_NAME;
 import static org.opensearch.knn.common.KNNConstants.KNN_ENGINE;
 import static org.opensearch.knn.common.KNNConstants.KNN_METHOD;
+import static org.opensearch.knn.common.KNNConstants.LUCENE_NAME;
 import static org.opensearch.knn.common.KNNConstants.METHOD_HNSW;
 import static org.opensearch.knn.common.KNNConstants.METHOD_PARAMETER_EF_CONSTRUCTION;
 import static org.opensearch.knn.common.KNNConstants.METHOD_PARAMETER_EF_SEARCH;
@@ -28,6 +36,7 @@ import static org.opensearch.knn.common.KNNConstants.METHOD_PARAMETER_M;
 import static org.opensearch.knn.common.KNNConstants.METHOD_PARAMETER_SPACE_TYPE;
 import static org.opensearch.knn.common.KNNConstants.NAME;
 import static org.opensearch.knn.common.KNNConstants.PARAMETERS;
+import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 
 public class IndexingIT extends AbstractRestartUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
@@ -208,4 +217,102 @@ public class IndexingIT extends AbstractRestartUpgradeTestCase {
         validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, QUERY_COUNT, K);
         deleteKNNIndex(testIndex);
     }
+
+    @Test
+    @Ignore
+    public void testKNNOldCodecs() throws Exception {
+        if (isRunningAgainstOldCluster()) {
+            createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKNNIndexMethodFieldMapping(TEST_FIELD, DIMENSIONS));
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, DOC_ID, NUM_DOCS);
+            validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, 10);
+        } else {
+            validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, 10);
+            // deleteKnnDoc(testIndex, String.valueOf(NUM_DOCS - 1));
+            // deleteKnnDoc(testIndex, String.valueOf(NUM_DOCS - 2));
+            deleteKnnDoc(testIndex, String.valueOf(9));
+            deleteKnnDoc(testIndex, String.valueOf(8));
+            forceMergeKnnIndex(testIndex);
+            validateKNNSearchOldCodecs(testIndex, TEST_FIELD, DIMENSIONS, 8, 8);
+
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 8, 2);
+            validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, 10);
+            deleteKNNIndex(testIndex);
+        }
+    }
+
+    @Test
+    public void testKNNOldCodecsWithLucene() throws Exception {
+        if (isRunningAgainstOldCluster()) {
+            createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKNNIndexMethodFieldMappingLucene(TEST_FIELD, DIMENSIONS));
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, DOC_ID, NUM_DOCS);
+            validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, 10);
+        } else {
+            validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, 10);
+            // deleteKnnDoc(testIndex, String.valueOf(NUM_DOCS - 1));
+            // deleteKnnDoc(testIndex, String.valueOf(NUM_DOCS - 2));
+            deleteKnnDoc(testIndex, String.valueOf(9));
+            deleteKnnDoc(testIndex, String.valueOf(8));
+            forceMergeKnnIndex(testIndex);
+            validateKNNSearchOldCodecs(testIndex, TEST_FIELD, DIMENSIONS, 8, 8);
+
+            addKNNDocs(testIndex, TEST_FIELD, DIMENSIONS, 8, 2);
+            validateKNNSearch(testIndex, TEST_FIELD, DIMENSIONS, 10, 10);
+            deleteKNNIndex(testIndex);
+        }
+    }
+
+    public String createKNNIndexMethodFieldMappingLucene(String fieldName, Integer dimensions) throws IOException {
+        return XContentFactory.jsonBuilder()
+            .startObject()
+            .startObject(PROPERTIES)
+            .startObject(fieldName)
+            .field(VECTOR_TYPE, KNN_VECTOR)
+            .field(DIMENSION, dimensions.toString())
+            .startObject(KNN_METHOD)
+            .field(NAME, METHOD_HNSW)
+            .field(KNN_ENGINE, LUCENE_NAME)
+            .endObject()
+            .endObject()
+            .endObject()
+            .endObject()
+            .toString();
+    }
+
+//    private void createKnnIndexMappingWithLuceneEngine(int dimension, SpaceType spaceType, VectorDataType vectorDataType) throws Exception {
+//        XContentBuilder builder = XContentFactory.jsonBuilder()
+//                .startObject()
+//                .startObject("properties")
+//                .startObject(FIELD_NAME)
+//                .field(VECTOR_TYPE, KNN_VECTOR_TYPE)
+//                .field(DIMENSION_FIELD_NAME, dimension)
+//                .field(VECTOR_DATA_TYPE_FIELD, vectorDataType)
+//                .startObject(KNNConstants.KNN_METHOD)
+//                .field(KNNConstants.NAME, KNNEngine.LUCENE.getMethod(METHOD_HNSW).getMethodComponent().getName())
+//                .field(KNNConstants.METHOD_PARAMETER_SPACE_TYPE, spaceType.getValue())
+//                .field(KNNConstants.KNN_ENGINE, KNNEngine.LUCENE.getName())
+//                .startObject(KNNConstants.PARAMETERS)
+//                .field(KNNConstants.METHOD_PARAMETER_M, M)
+//                .field(KNNConstants.METHOD_PARAMETER_EF_CONSTRUCTION, EF_CONSTRUCTION)
+//                .endObject()
+//                .endObject()
+//                .endObject()
+//                .endObject()
+//                .endObject();
+//
+//        String mapping = builder.toString();
+//        createKnnIndex(INDEX_NAME, mapping);
+//    }
+
+    // public void validateKNNSearchOldCodecs(String testIndex, String testField, int dimension, int numDocs, int k) throws Exception {
+    // float[] queryVector = new float[dimension];
+    // Arrays.fill(queryVector, (float) numDocs);
+    //
+    // Response searchResponse = searchKNNIndex(testIndex, new KNNQueryBuilder(testField, queryVector, k), k);
+    // List<KNNResult> results = parseSearchResponse(EntityUtils.toString(searchResponse.getEntity()), testField);
+    //
+    // assertEquals(k, results.size());
+    // for (int i = 0; i < k; i++) {
+    // assertEquals(numDocs - i - 1, Integer.parseInt(results.get(i).getDocId()));
+    // }
+    // }
 }

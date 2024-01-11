@@ -1068,6 +1068,22 @@ public class KNNRestTestCase extends ODFERestTestCase {
         }
     }
 
+    public void validateKNNSearchOldCodecs(String testIndex, String testField, int dimension, int numDocs, int k) throws Exception {
+        float[] queryVector = new float[dimension];
+        Arrays.fill(queryVector, (float) numDocs);
+
+        Response searchResponse = searchKNNIndex(testIndex, new KNNQueryBuilder(testField, queryVector, k), k);
+        List<KNNResult> results = parseSearchResponse(EntityUtils.toString(searchResponse.getEntity()), testField);
+
+        for (int i = 0; i < results.size(); i++) {
+            System.out.println("DocID is: " + results.get(i).getDocId());
+        }
+        assertEquals(k, results.size());
+        for (int i = 0; i < k; i++) {
+            assertEquals(numDocs - i - 1, Integer.parseInt(results.get(i).getDocId()));
+        }
+    }
+
     protected Settings createKNNIndexCustomLegacyFieldMappingSettings(SpaceType spaceType, Integer m, Integer ef_construction) {
         return Settings.builder()
             .put(NUMBER_OF_SHARDS, 1)
