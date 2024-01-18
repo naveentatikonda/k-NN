@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [Unreleased 2.x](https://github.com/opensearch-project/k-NN/compare/2.12...2.x)
 ### Features
 * Add parent join support for lucene knn [#1182](https://github.com/opensearch-project/k-NN/pull/1182)
+* Add Support for Faiss SQFP16 and enable Faiss AVX2 Optimization [#1389](https://github.com/opensearch-project/k-NN/pull/1389)
 ### Enhancements
 * Increase Lucene max dimension limit to 16,000 [#1346](https://github.com/opensearch-project/k-NN/pull/1346)
 * Tuned default values for ef_search and ef_construction for better indexing and search performance for vector search [#1353](https://github.com/opensearch-project/k-NN/pull/1353)
