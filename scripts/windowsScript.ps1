@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+
 git submodule update --init -- jni/external/nmslib
 git submodule update --init -- jni/external/faiss
 
