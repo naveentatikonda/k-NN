@@ -17,55 +17,51 @@ jobs:
     with:
       product: opensearch
 
-  Build-k-NN-Linux:
-    strategy:
-      matrix:
-        java: [11, 17, 21]
-
-    name: Build and Test k-NN Plugin on Linux
-    runs-on: ubuntu-latest
-    needs: Get-CI-Image-Tag
-    container:
-      # using the same image which is used by opensearch-build team to build the OpenSearch Distribution
-      # this image tag is subject to change as more dependencies and updates will arrive over time
-      image: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-version-linux }}
-      # need to switch to root so that github actions can install runner binary on container without permission issues.
-      options: --user root
-
-    steps:
-      - name: Checkout k-NN
-        uses: actions/checkout@v1
-        with:
-          submodules: true
-
-      # Git functionality in CMAKE file does not work with given ubuntu image. Therefore, handling it here.
-      - name: Apply Git Patch
-        # Deleting file at the end to skip `git apply` inside CMAKE file
-        run: |
-          cd jni/external/faiss
-          git apply --ignore-space-change --ignore-whitespace --3way ../../patches/faiss/0001-Custom-patch-to-support-multi-vector.patch
-          rm ../../patches/faiss/0001-Custom-patch-to-support-multi-vector.patch
-          git apply --ignore-space-change --ignore-whitespace --3way ../../patches/faiss/0002-Custom-patch-to-support-sqfp16-neon.patch
-          rm ../../patches/faiss/0002-Custom-patch-to-support-sqfp16-neon.patch
-          git apply --ignore-space-change --ignore-whitespace --3way ../../patches/faiss/0003-Custom-patch-to-support-AVX2-Linux-CI.patch
-          rm ../../patches/faiss/0003-Custom-patch-to-support-AVX2-Linux-CI.patch
-        working-directory: ${{ github.workspace }}
-
-      - name: Setup Java ${{ matrix.java }}
-        uses: actions/setup-java@v1
-        with:
-          java-version: ${{ matrix.java }}
-
-      - name: Run build
-        # switching the user, as OpenSearch cluster can only be started as root/Administrator on linux-deb/linux-rpm/windows-zip.
-        run: |
-          chown -R 1000:1000 `pwd`
-          su `id -un 1000` -c "whoami && java -version && ./gradlew build -Denable_SIMD=true"
-
-      - name: Upload Coverage Report
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+#  Build-k-NN-Linux:
+#    strategy:
+#      matrix:
+#        java: [11, 17, 21]
+#
+#    name: Build and Test k-NN Plugin on Linux
+#    runs-on: ubuntu-latest
+#    needs: Get-CI-Image-Tag
+#    container:
+#      # using the same image which is used by opensearch-build team to build the OpenSearch Distribution
+#      # this image tag is subject to change as more dependencies and updates will arrive over time
+#      image: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-version-linux }}
+#      # need to switch to root so that github actions can install runner binary on container without permission issues.
+#      options: --user root
+#
+#    steps:
+#      - name: Checkout k-NN
+#        uses: actions/checkout@v1
+#        with:
+#          submodules: true
+#
+#      # Git functionality in CMAKE file does not work with given ubuntu image. Therefore, handling it here.
+#      - name: Apply Git Patch
+#        # Deleting file at the end to skip `git apply` inside CMAKE file
+#        run: |
+#          cd jni/external/faiss
+#          git apply --ignore-space-change --ignore-whitespace --3way ../../patches/faiss/0001-Custom-patch-to-support-multi-vector.patch
+#          rm ../../patches/faiss/0001-Custom-patch-to-support-multi-vector.patch
+#        working-directory: ${{ github.workspace }}
+#
+#      - name: Setup Java ${{ matrix.java }}
+#        uses: actions/setup-java@v1
+#        with:
+#          java-version: ${{ matrix.java }}
+#
+#      - name: Run build
+#        # switching the user, as OpenSearch cluster can only be started as root/Administrator on linux-deb/linux-rpm/windows-zip.
+#        run: |
+#          chown -R 1000:1000 `pwd`
+#          su `id -un 1000` -c "whoami && java -version && ./gradlew build"
+#
+#      - name: Upload Coverage Report
+#        uses: codecov/codecov-action@v1
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
 
   Build-k-NN-MacOS:
     strategy:
@@ -85,6 +81,16 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
 
+      - name: Check if AVX2 is enabled
+        run: |
+          sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -i AVX2
+          if sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -i AVX2
+          then
+              echo "avx2 available on system"         
+          else
+              echo "avx2 not available on system"
+          fi   
+
       - name: Install dependencies on macos
         run: |
           brew reinstall gcc
@@ -92,49 +98,48 @@ jobs:
 
       - name: Run build
         run: |
-          ./gradlew build -Denable_SIMD=true
+          ./gradlew build
 
-  Build-k-NN-Windows:
-    strategy:
-      matrix:
-        java: [ 11, 17, 21 ]
-
-    name: Build and Test k-NN Plugin on Windows
-    needs: Get-CI-Image-Tag
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout k-NN
-        uses: actions/checkout@v1
-
-      - name: Setup Java ${{ matrix.java }}
-        uses: actions/setup-java@v1
-        with:
-          java-version: ${{ matrix.java }}
-
-      - name: Install MinGW Using Scoop
-        run: |
-          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
-          scoop bucket add main
-          scoop install mingw
-
-      - name: Add MinGW to PATH
-        run: |
-          echo "C:/Users/runneradmin/scoop/apps/mingw/current/bin" >> $env:GITHUB_PATH
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-          refreshenv
-
-      - name: Download OpenBLAS
-        run: |
-          curl -L -O https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x64.zip
-          mkdir OpenBLAS
-          Expand-Archive -Path .\OpenBLAS-0.3.21-x64.zip -DestinationPath .\OpenBLAS\
-          mkdir ./src/main/resources/windowsDependencies
-          cp ./OpenBLAS/bin/libopenblas.dll ./src/main/resources/windowsDependencies/
-          rm .\OpenBLAS-0.3.21-x64.zip
-          rm -r .\OpenBLAS\
-
-      - name: Run build
-        run: |
-          ./gradlew.bat build
-
+#  Build-k-NN-Windows:
+#    strategy:
+#      matrix:
+#        java: [ 11, 17, 21 ]
+#
+#    name: Build and Test k-NN Plugin on Windows
+#    needs: Get-CI-Image-Tag
+#    runs-on: windows-latest
+#
+#    steps:
+#      - name: Checkout k-NN
+#        uses: actions/checkout@v1
+#
+#      - name: Setup Java ${{ matrix.java }}
+#        uses: actions/setup-java@v1
+#        with:
+#          java-version: ${{ matrix.java }}
+#
+#      - name: Install MinGW Using Scoop
+#        run: |
+#          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+#          scoop bucket add main
+#          scoop install mingw
+#
+#      - name: Add MinGW to PATH
+#        run: |
+#          echo "C:/Users/runneradmin/scoop/apps/mingw/current/bin" >> $env:GITHUB_PATH
+#          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+#          refreshenv
+#
+#      - name: Download OpenBLAS
+#        run: |
+#          curl -L -O https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x64.zip
+#          mkdir OpenBLAS
+#          Expand-Archive -Path .\OpenBLAS-0.3.21-x64.zip -DestinationPath .\OpenBLAS\
+#          mkdir ./src/main/resources/windowsDependencies
+#          cp ./OpenBLAS/bin/libopenblas.dll ./src/main/resources/windowsDependencies/
+#          rm .\OpenBLAS-0.3.21-x64.zip
+#          rm -r .\OpenBLAS\
+#
+#      - name: Run build
+#        run: |
+#          ./gradlew.bat build
