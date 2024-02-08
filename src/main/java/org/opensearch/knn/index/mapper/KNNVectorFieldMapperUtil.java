@@ -219,7 +219,7 @@ public class KNNVectorFieldMapperUtil {
 
         if (modelId == null) {
             throw new IllegalArgumentException(
-                String.format("Field '%s' does not have model.", knnVectorField.getKnnMethodContext().getMethodComponentContext().getName())
+                    String.format("Field '%s' does not have model.", knnVectorField.getKnnMethodContext().getMethodComponentContext().getName())
             );
         }
 
@@ -228,5 +228,29 @@ public class KNNVectorFieldMapperUtil {
             throw new IllegalArgumentException(String.format("Model ID '%s' is not created.", modelId));
         }
         return modelMetadata;
+    }
+
+    public static void validateQuantizeDataWithEngineAndVectorDataType(
+        ParametrizedFieldMapper.Parameter<java.lang.Boolean> quantizeData,
+        ParametrizedFieldMapper.Parameter<VectorDataType> vectorDataType,
+        KNNEngine knnEngine
+    ) {
+        if (quantizeData.get() && VectorDataType.FLOAT != vectorDataType.getValue()) {
+            throw new IllegalArgumentException(
+                String.format(
+                    Locale.ROOT,
+                    "[%s] field with value [true] is only supported for [%s] field with [%s]",
+                    "quantize_data",
+                    VECTOR_DATA_TYPE_FIELD,
+                    VectorDataType.FLOAT.getValue()
+                )
+            );
+        }
+
+        if (quantizeData.get() && KNNEngine.LUCENE != knnEngine) {
+            throw new IllegalArgumentException(
+                String.format(Locale.ROOT, "[%s] field with value [true] is only supported for [%s]", "quantize_data", LUCENE_NAME)
+            );
+        }
     }
 }

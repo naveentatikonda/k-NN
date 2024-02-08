@@ -127,5 +127,6 @@ public class LuceneFieldMapper extends KNNVectorFieldMapper {
         VectorDataType vectorDataType;
         @NonNull
         KNNMethodContext knnMethodContext;
+        boolean quantizeData;
     }
 }

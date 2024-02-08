@@ -44,6 +44,7 @@ public class Lucene extends JVMLibrary {
                         v -> v > 0
                     )
                 )
+                .addParameter("confidence_interval", new Parameter.DoubleParameter("confidence_interval", null, v -> 0.9 <= v && v <= 1.0))
                 .build()
         ).addSpaces(SpaceType.L2, SpaceType.COSINESIMIL, SpaceType.INNER_PRODUCT).build()
     );
