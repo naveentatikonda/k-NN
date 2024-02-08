@@ -121,6 +121,35 @@ public abstract class Parameter<T> {
     }
 
     /**
+     * Double method parameter
+     */
+    public static class DoubleParameter extends Parameter<Double> {
+        public DoubleParameter(String name, Double defaultValue, Predicate<Double> validator) {
+            super(name, defaultValue, validator);
+        }
+
+        @Override
+        public ValidationException validate(Object value) {
+            ValidationException validationException = null;
+            if (!(value instanceof Double)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(
+                    String.format("Value not of type Double for Double " + "parameter \"%s\".", getName())
+                );
+                return validationException;
+            }
+
+            if (!validator.test((Double) value)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(
+                    String.format("Parameter validation failed for Double " + "parameter \"%s\".", getName())
+                );
+            }
+            return validationException;
+        }
+    }
+
+    /**
      * String method parameter
      */
     public static class StringParameter extends Parameter<String> {
