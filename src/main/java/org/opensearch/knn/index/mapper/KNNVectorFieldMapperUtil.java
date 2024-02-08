@@ -161,4 +161,28 @@ public class KNNVectorFieldMapperUtil {
             context.doc().add(new StoredField(mapperName, vectorFieldAsString));
         }
     }
+
+    public static void validateQuantizeDataWithEngineAndVectorDataType(
+        ParametrizedFieldMapper.Parameter<java.lang.Boolean> quantizeData,
+        ParametrizedFieldMapper.Parameter<VectorDataType> vectorDataType,
+        KNNEngine knnEngine
+    ) {
+        if (quantizeData.get() && VectorDataType.FLOAT != vectorDataType.getValue()) {
+            throw new IllegalArgumentException(
+                String.format(
+                    Locale.ROOT,
+                    "[%s] field with value [true] is only supported for [%s] field with [%s]",
+                    "quantize_data",
+                    VECTOR_DATA_TYPE_FIELD,
+                    VectorDataType.FLOAT.getValue()
+                )
+            );
+        }
+
+        if (quantizeData.get() && KNNEngine.LUCENE != knnEngine) {
+            throw new IllegalArgumentException(
+                String.format(Locale.ROOT, "[%s] field with value [true] is only supported for [%s]", "quantize_data", LUCENE_NAME)
+            );
+        }
+    }
 }

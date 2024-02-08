@@ -55,6 +55,7 @@ import static org.opensearch.knn.common.KNNConstants.DEFAULT_VECTOR_DATA_TYPE_FI
 import static org.opensearch.knn.common.KNNConstants.KNN_METHOD;
 import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 import static org.opensearch.knn.index.KNNSettings.KNN_INDEX;
+import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateQuantizeDataWithEngineAndVectorDataType;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateVectorDataTypeWithEngine;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateVectorDataTypeWithKnnIndexSetting;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.addStoredFieldForVectorField;
@@ -122,6 +123,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             (n, c, o) -> VectorDataType.get((String) o),
             m -> toType(m).vectorDataType
         );
+
+        private final Parameter<Boolean> quantizeData = Parameter.boolParam("quantize_data", false, m -> toType(m).quantizeData, false);
 
         /**
          * modelId provides a way for a user to generate the underlying library indices from an already serialized
@@ -199,7 +202,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
         @Override
         protected List<Parameter<?>> getParameters() {
-            return Arrays.asList(stored, hasDocValues, dimension, vectorDataType, meta, knnMethodContext, modelId);
+            return Arrays.asList(stored, hasDocValues, dimension, vectorDataType, quantizeData, meta, knnMethodContext, modelId);
         }
 
         protected Explicit<Boolean> ignoreMalformed(BuilderContext context) {
@@ -236,8 +239,11 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                     metaValue,
                     dimension.getValue(),
                     knnMethodContext,
-                    vectorDataType.getValue()
+                    vectorDataType.getValue(),
+                    quantizeData.get()
                 );
+
+                validateQuantizeDataWithEngineAndVectorDataType(quantizeData, vectorDataType, knnMethodContext.getKnnEngine());
                 if (knnMethodContext.getKnnEngine() == KNNEngine.LUCENE) {
                     log.debug(String.format("Use [LuceneFieldMapper] mapper for field [%s]", name));
                     LuceneFieldMapper.CreateLuceneFieldMapperInput createLuceneFieldMapperInput =
@@ -250,6 +256,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                             .stored(stored.get())
                             .hasDocValues(hasDocValues.get())
                             .vectorDataType(vectorDataType.getValue())
+                            .quantizeData(quantizeData.get())
                             .knnMethodContext(knnMethodContext)
                             .build();
                     return new LuceneFieldMapper(createLuceneFieldMapperInput);
@@ -313,7 +320,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
             return new LegacyFieldMapper(
                 name,
-                new KNNVectorFieldType(buildFullName(context), metaValue, dimension.getValue(), vectorDataType.getValue()),
+                new KNNVectorFieldType(buildFullName(context), metaValue, dimension.getValue(), vectorDataType.getValue(), false),
                 multiFieldsBuilder,
                 copyToBuilder,
                 ignoreMalformed,
@@ -384,17 +391,24 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         String modelId;
         KNNMethodContext knnMethodContext;
         VectorDataType vectorDataType;
+        Boolean quantizeData;
 
-        public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, VectorDataType vectorDataType) {
-            this(name, meta, dimension, null, null, vectorDataType);
+        public KNNVectorFieldType(
+            String name,
+            Map<String, String> meta,
+            int dimension,
+            VectorDataType vectorDataType,
+            Boolean quantizeData
+        ) {
+            this(name, meta, dimension, null, null, vectorDataType, quantizeData);
         }
 
         public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext) {
-            this(name, meta, dimension, knnMethodContext, null, DEFAULT_VECTOR_DATA_TYPE_FIELD);
+            this(name, meta, dimension, knnMethodContext, null, DEFAULT_VECTOR_DATA_TYPE_FIELD, false);
         }
 
         public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext, String modelId) {
-            this(name, meta, dimension, knnMethodContext, modelId, DEFAULT_VECTOR_DATA_TYPE_FIELD);
+            this(name, meta, dimension, knnMethodContext, modelId, DEFAULT_VECTOR_DATA_TYPE_FIELD, false);
         }
 
         public KNNVectorFieldType(
@@ -402,9 +416,10 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             Map<String, String> meta,
             int dimension,
             KNNMethodContext knnMethodContext,
-            VectorDataType vectorDataType
+            VectorDataType vectorDataType,
+            Boolean quantizeData
         ) {
-            this(name, meta, dimension, knnMethodContext, null, vectorDataType);
+            this(name, meta, dimension, knnMethodContext, null, vectorDataType, quantizeData);
         }
 
         public KNNVectorFieldType(
@@ -413,13 +428,15 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             int dimension,
             KNNMethodContext knnMethodContext,
             String modelId,
-            VectorDataType vectorDataType
+            VectorDataType vectorDataType,
+            Boolean quantizeData
         ) {
             super(name, false, false, true, TextSearchInfo.NONE, meta);
             this.dimension = dimension;
             this.modelId = modelId;
             this.knnMethodContext = knnMethodContext;
             this.vectorDataType = vectorDataType;
+            this.quantizeData = quantizeData;
         }
 
         @Override
@@ -458,6 +475,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
     protected Integer dimension;
     protected VectorDataType vectorDataType;
     protected ModelDao modelDao;
+    protected boolean quantizeData;
 
     // These members map to parameters in the builder. They need to be declared in the abstract class due to the
     // "toType" function used in the builder. So, when adding a parameter, it needs to be added here, but set in a
@@ -481,6 +499,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         this.hasDocValues = hasDocValues;
         this.dimension = mappedFieldType.getDimension();
         this.vectorDataType = mappedFieldType.getVectorDataType();
+        this.quantizeData = mappedFieldType.getQuantizeData();
         updateEngineStats();
         this.indexCreatedVersion = indexCreatedVersion;
     }
