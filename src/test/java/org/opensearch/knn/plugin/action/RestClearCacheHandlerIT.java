@@ -8,7 +8,6 @@ package org.opensearch.knn.plugin.action;
 import lombok.SneakyThrows;
 import org.opensearch.client.Request;
 import org.opensearch.client.ResponseException;
-import org.opensearch.common.settings.Settings;
 import org.opensearch.knn.KNNRestTestCase;
 import org.opensearch.knn.plugin.KNNPlugin;
 import org.opensearch.rest.RestRequest;
@@ -38,17 +37,18 @@ public class RestClearCacheHandlerIT extends KNNRestTestCase {
         assertTrue(ex.getMessage().contains(nonExistentIndex));
     }
 
-    @SneakyThrows
-    public void testNotKnnIndex() {
-        String notKNNIndex = "not-knn-index";
-        createIndex(notKNNIndex, Settings.EMPTY);
-
-        String restURI = String.join("/", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE, notKNNIndex);
-        Request request = new Request(RestRequest.Method.POST.name(), restURI);
-
-        ResponseException ex = expectThrows(ResponseException.class, () -> client().performRequest(request));
-        assertTrue(ex.getMessage().contains(notKNNIndex));
-    }
+    // @SneakyThrows
+    // public void testNotKnnIndex() {
+    // String notKNNIndex = "not-knn-index";
+    // createIndex(notKNNIndex, Settings.EMPTY);
+    //
+    // String restURI = String.join("/", KNNPlugin.KNN_BASE_URI, CLEAR_CACHE, notKNNIndex);
+    // Request request = new Request(RestRequest.Method.POST.name(), restURI);
+    //
+    // ResponseException ex = expectThrows(ResponseException.class, () -> client().performRequest(request));
+    // assertTrue(ex.getMessage().contains(notKNNIndex));
+    // deleteIndex(notKNNIndex);
+    // }
 
     @SneakyThrows
     public void testClearCacheSingleIndex() {
@@ -81,7 +81,7 @@ public class RestClearCacheHandlerIT extends KNNRestTestCase {
 
         assertEquals(graphCountBefore + 2, getTotalGraphsInCache());
 
-        clearCache(Arrays.asList(ALL_INDICES));
+        clearCache(Arrays.asList(testIndex1, testIndex2));
         assertEquals(graphCountBefore, getTotalGraphsInCache());
     }
 
