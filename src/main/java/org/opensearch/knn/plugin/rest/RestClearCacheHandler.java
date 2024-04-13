@@ -89,6 +89,9 @@ public class RestClearCacheHandler extends BaseRestHandler {
             .collect(Collectors.toList());
 
         if (!invalidIndexNames.isEmpty()) {
+            System.out.println("Naveen: Printing Invalid Indices");
+            log.info(String.join("\n", invalidIndexNames));
+            System.out.print(String.join("\n", invalidIndexNames));
             throw new KNNInvalidIndicesException(
                 invalidIndexNames,
                 "ClearCache request rejected. One or more indices have 'index.knn' set to false."
