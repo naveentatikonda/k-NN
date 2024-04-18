@@ -29,6 +29,8 @@ public class KNN990PerFieldKnnVectorsFormat extends BasePerFieldKnnVectorsFormat
                 maxConnm,
                 beamWidth,
                 1,
+                8,
+                false,
                 confidenceInterval,
                 null
             )
