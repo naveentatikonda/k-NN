@@ -653,7 +653,8 @@ public class KNNScriptScoringIT extends KNNRestTestCase {
             Collections.emptyMap(),
             queryVector.length,
             VectorDataType.FLOAT,
-            null
+            spaceType,
+            false
         );
         List<Float> target = new ArrayList<>(queryVector.length);
         for (float f : queryVector) {

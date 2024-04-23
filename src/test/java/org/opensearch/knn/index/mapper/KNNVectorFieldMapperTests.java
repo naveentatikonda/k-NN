@@ -1057,7 +1057,8 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
             Collections.emptyMap(),
             TEST_DIMENSION,
             knnMethodContext,
-            vectorDataType
+            vectorDataType,
+            false
         );
 
         return LuceneFieldMapper.CreateLuceneFieldMapperInput.builder()
