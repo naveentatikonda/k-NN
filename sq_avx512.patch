@@ -1,0 +1,307 @@
+diff --git a/faiss/impl/ScalarQuantizer.cpp b/faiss/impl/ScalarQuantizer.cpp
+index 07d77d56..07f47bcd 100644
+--- a/faiss/impl/ScalarQuantizer.cpp
++++ b/faiss/impl/ScalarQuantizer.cpp
+@@ -25,6 +25,7 @@
+ #include <faiss/impl/IDSelector.h>
+ #include <faiss/utils/fp16.h>
+ #include <faiss/utils/utils.h>
++#include <iostream>
+ 
+ namespace faiss {
+ 
+@@ -360,6 +361,21 @@ struct QuantizerTemplate<Codec, true, 8> : QuantizerTemplate<Codec, true, 1> {
+ 
+ #endif
+ 
++#ifdef __AVX512F__
++
++template <class Codec>
++struct QuantizerTemplate<Codec, true, 16> : QuantizerTemplate<Codec, true, 1> {
++    QuantizerTemplate(size_t d, const std::vector<float>& trained)
++            : QuantizerTemplate<Codec, true, 1>(d, trained) {}
++
++    FAISS_ALWAYS_INLINE __m512
++    reconstruct_16_components(const uint8_t* code, int i) const {
++        return _mm512_setzero_ps();
++    }
++};
++
++#endif
++
+ template <class Codec>
+ struct QuantizerTemplate<Codec, false, 1> : ScalarQuantizer::SQuantizer {
+     const size_t d;
+@@ -440,6 +456,20 @@ struct QuantizerTemplate<Codec, false, 8> : QuantizerTemplate<Codec, false, 1> {
+ 
+ #endif
+ 
++#ifdef __AVX512F__
++
++template <class Codec>
++struct QuantizerTemplate<Codec, false, 16> : QuantizerTemplate<Codec, false, 1> {
++    QuantizerTemplate(size_t d, const std::vector<float>& trained)
++            : QuantizerTemplate<Codec, false, 1>(d, trained) {}
++
++    FAISS_ALWAYS_INLINE __m512
++    reconstruct_16_components(const uint8_t* code, int i) const {
++       return _mm512_setzero_ps();
++    }
++};
++#endif
++
+ /*******************************************************************
+  * FP16 quantizer
+  *******************************************************************/
+@@ -504,6 +534,23 @@ struct QuantizerFP16<8> : QuantizerFP16<1> {
+ };
+ #endif
+ 
++#ifdef __AVX512F__
++
++template <>
++struct QuantizerFP16<16> : QuantizerFP16<1> {
++    QuantizerFP16(size_t d, const std::vector<float>& trained)
++            : QuantizerFP16<1>(d, trained) {}
++
++    FAISS_ALWAYS_INLINE __m512
++    reconstruct_16_components(const uint8_t* code, int i) const {
++        // std::cout << "\n Naveen: reconstruct_16_components: " << std::flush;
++        __m256i codei = _mm256_loadu_epi16((const __m256i*)(code + 2 * i));
++        return _mm512_cvtph_ps(codei);
++    }
++};
++
++#endif
++
+ /*******************************************************************
+  * 8bit_direct quantizer
+  *******************************************************************/
+@@ -575,6 +622,21 @@ struct Quantizer8bitDirect<8> : Quantizer8bitDirect<1> {
+ 
+ #endif
+ 
++#ifdef __AVX512F__
++
++template <>
++struct Quantizer8bitDirect<16> : Quantizer8bitDirect<1> {
++    Quantizer8bitDirect(size_t d, const std::vector<float>& trained)
++            : Quantizer8bitDirect<1>(d, trained) {}
++
++    FAISS_ALWAYS_INLINE __m512
++    reconstruct_16_components(const uint8_t* code, int i) const {
++        return _mm512_setzero_ps();
++    }
++};
++
++#endif
++
+ template <int SIMDWIDTH>
+ ScalarQuantizer::SQuantizer* select_quantizer_1(
+         QuantizerType qtype,
+@@ -910,6 +972,49 @@ struct SimilarityL2<8> {
+ };
+ #endif
+ 
++#ifdef __AVX512F__
++template <>
++struct SimilarityL2<16> {
++    static constexpr int simdwidth = 16;
++    static constexpr MetricType metric_type = METRIC_L2;
++
++    const float *y, *yi;
++
++    explicit SimilarityL2(const float* y) : y(y) {}
++    __m512 accu8;
++
++    FAISS_ALWAYS_INLINE void begin_16() {
++        accu8 = _mm512_setzero_ps();
++        yi = y;
++    }
++
++    FAISS_ALWAYS_INLINE void add_16_components(__m512 x) {
++        __m512 yiv = _mm512_loadu_ps(yi);
++        yi += 16;
++        __m512 tmp = _mm512_sub_ps(yiv, x);
++        accu8 = _mm512_fmadd_ps(tmp, tmp, accu8);
++    }
++
++    FAISS_ALWAYS_INLINE void add_16_components_2(__m512 x, __m512 y_2) {
++        __m512 tmp = _mm512_sub_ps(y_2, x);
++        accu8 = _mm512_fmadd_ps(tmp, tmp, accu8);
++    }
++
++    FAISS_ALWAYS_INLINE float result_16() {
++        // std::cout << "\n Naveen: result_16: " << std::flush;
++        // const __m128 sum = _mm_add_ps(
++        //         _mm256_castps256_ps128(accu8), _mm256_extractf128_ps(accu8, 1));
++        // const __m128 v0 = _mm_shuffle_ps(sum, sum, _MM_SHUFFLE(0, 0, 3, 2));
++        // const __m128 v1 = _mm_add_ps(sum, v0);
++        // __m128 v2 = _mm_shuffle_ps(v1, v1, _MM_SHUFFLE(0, 0, 0, 1));
++        // const __m128 v3 = _mm_add_ps(v1, v2);
++        // return _mm_cvtss_f32(v3);
++        return _mm512_reduce_add_ps(accu8);
++    }
++};
++
++#endif
++
+ template <int SIMDWIDTH>
+ struct SimilarityIP {};
+ 
+@@ -1182,6 +1287,56 @@ struct DCTemplate<Quantizer, Similarity, 8> : SQDistanceComputer {
+ };
+ #endif
+ 
++#ifdef __AVX512F__
++
++template <class Quantizer, class Similarity>
++struct DCTemplate<Quantizer, Similarity, 16> : SQDistanceComputer {
++    using Sim = Similarity;
++
++    Quantizer quant;
++
++    DCTemplate(size_t d, const std::vector<float>& trained)
++            : quant(d, trained) {}
++
++    float compute_distance(const float* x, const uint8_t* code) const {
++        // std::cout << "\n Naveen: compute_distance_16: " << std::flush;
++        Similarity sim(x);
++        sim.begin_16();
++        for (size_t i = 0; i < quant.d; i += 16) {
++            __m512 xi = quant.reconstruct_16_components(code, i);
++            sim.add_16_components(xi);
++        }
++        return sim.result_16();
++    }
++
++    float compute_code_distance(const uint8_t* code1, const uint8_t* code2)
++            const {
++        Similarity sim(nullptr);
++        sim.begin_16();
++        for (size_t i = 0; i < quant.d; i += 16) {
++            __m512 x1 = quant.reconstruct_16_components(code1, i);
++            __m512 x2 = quant.reconstruct_16_components(code2, i);
++            sim.add_16_components_2(x1, x2);
++        }
++        return sim.result_16();
++    }
++
++    void set_query(const float* x) final {
++        q = x;
++    }
++
++    float symmetric_dis(idx_t i, idx_t j) override {
++        return compute_code_distance(
++                codes + i * code_size, codes + j * code_size);
++    }
++
++    float query_to_code(const uint8_t* code) const final {
++        return compute_distance(q, code);
++    }
++};
++
++#endif
++
+ /*******************************************************************
+  * DistanceComputerByte: computes distances in the integer domain
+  *******************************************************************/
+@@ -1346,6 +1501,72 @@ struct DistanceComputerByte<Similarity, 8> : SQDistanceComputer {
+ 
+ #endif
+ 
++#ifdef __AVX512F__
++
++template <class Similarity>
++struct DistanceComputerByte<Similarity, 16> : SQDistanceComputer {
++    using Sim = Similarity;
++
++    int d;
++    std::vector<uint8_t> tmp;
++
++    DistanceComputerByte(int d, const std::vector<float>&) : d(d), tmp(d) {}
++
++    int compute_code_distance(const uint8_t* code1, const uint8_t* code2)
++            const {
++        // // __m256i accu = _mm256_setzero_ps ();
++        // __m256i accu = _mm256_setzero_si256();
++        // for (int i = 0; i < d; i += 16) {
++        //     // load 16 bytes, convert to 16 uint16_t
++        //     __m256i c1 = _mm256_cvtepu8_epi16(
++        //             _mm_loadu_si128((__m128i*)(code1 + i)));
++        //     __m256i c2 = _mm256_cvtepu8_epi16(
++        //             _mm_loadu_si128((__m128i*)(code2 + i)));
++        //     __m256i prod32;
++        //     if (Sim::metric_type == METRIC_INNER_PRODUCT) {
++        //         prod32 = _mm256_madd_epi16(c1, c2);
++        //     } else {
++        //         __m256i diff = _mm256_sub_epi16(c1, c2);
++        //         prod32 = _mm256_madd_epi16(diff, diff);
++        //     }
++        //     accu = _mm256_add_epi32(accu, prod32);
++        // }
++        // __m128i sum = _mm256_extractf128_si256(accu, 0);
++        // sum = _mm_add_epi32(sum, _mm256_extractf128_si256(accu, 1));
++        // sum = _mm_hadd_epi32(sum, sum);
++        // sum = _mm_hadd_epi32(sum, sum);
++        // return _mm_cvtsi128_si32(sum);
++        return 0;
++    }
++
++    void set_query(const float* x) final {
++        /*
++        for (int i = 0; i < d; i += 8) {
++            __m256 xi = _mm256_loadu_ps (x + i);
++            __m256i ci = _mm256_cvtps_epi32(xi);
++        */
++        for (int i = 0; i < d; i++) {
++            tmp[i] = int(x[i]);
++        }
++    }
++
++    int compute_distance(const float* x, const uint8_t* code) {
++        set_query(x);
++        return compute_code_distance(tmp.data(), code);
++    }
++
++    float symmetric_dis(idx_t i, idx_t j) override {
++        return compute_code_distance(
++                codes + i * code_size, codes + j * code_size);
++    }
++
++    float query_to_code(const uint8_t* code) const final {
++        return compute_code_distance(tmp.data(), code);
++    }
++};
++
++#endif
++
+ /*******************************************************************
+  * select_distance_computer: runtime selection of template
+  * specialization
+@@ -1482,6 +1703,12 @@ void ScalarQuantizer::train(size_t n, const float* x) {
+ }
+ 
+ ScalarQuantizer::SQuantizer* ScalarQuantizer::select_quantizer() const {
++#if defined(__AVX512F__)
++    if (d % 16 == 0 && qtype == QT_fp16) {
++        return select_quantizer_1<16>(qtype, d, trained);
++    }
++#endif
++
+ #if defined(USE_F16C) || defined(__aarch64__)
+     if (d % 8 == 0) {
+         return select_quantizer_1<8>(qtype, d, trained);
+@@ -1513,6 +1740,12 @@ void ScalarQuantizer::decode(const uint8_t* codes, float* x, size_t n) const {
+ SQDistanceComputer* ScalarQuantizer::get_distance_computer(
+         MetricType metric) const {
+     FAISS_THROW_IF_NOT(metric == METRIC_L2 || metric == METRIC_INNER_PRODUCT);
++#if defined(__AVX512F__)
++    if (d % 16 == 0 && metric == METRIC_L2 && qtype == QT_fp16) {
++        return select_distance_computer<SimilarityL2<16>>(qtype, d, trained);
++    }
++#endif
++
+ #if defined(USE_F16C) || defined(__aarch64__)
+     if (d % 8 == 0) {
+         if (metric == METRIC_L2) {

@@ -61,9 +61,9 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL Windows OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "a
     set(FAISS_OPT_LEVEL generic)    # Keep optimization level as generic on Windows OS as it is not supported due to MINGW64 compiler issue. Also, on aarch64 avx2 is not supported.
     set(TARGET_LINK_FAISS_LIB faiss)
 else()
-    set(FAISS_OPT_LEVEL avx2)       # Keep optimization level as avx2 to improve performance on Linux and Mac.
-    set(TARGET_LINK_FAISS_LIB faiss_avx2)
-    string(PREPEND LIB_EXT "_avx2") # Prepend "_avx2" to lib extension to create the library as "libopensearchknn_faiss_avx2.so" on linux and "libopensearchknn_faiss_avx2.jnilib" on mac
+    set(FAISS_OPT_LEVEL avx512)       # Keep optimization level as avx2 to improve performance on Linux and Mac.
+    set(TARGET_LINK_FAISS_LIB faiss_avx512)
+    string(PREPEND LIB_EXT "_avx512") # Prepend "_avx2" to lib extension to create the library as "libopensearchknn_faiss_avx2.so" on linux and "libopensearchknn_faiss_avx2.jnilib" on mac
 endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/faiss EXCLUDE_FROM_ALL)
