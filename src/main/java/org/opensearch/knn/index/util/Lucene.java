@@ -13,8 +13,11 @@ import org.opensearch.knn.index.MethodComponent;
 import org.opensearch.knn.index.Parameter;
 import org.opensearch.knn.index.SpaceType;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 import static org.opensearch.knn.common.KNNConstants.METHOD_HNSW;
@@ -44,7 +47,12 @@ public class Lucene extends JVMLibrary {
                         v -> v > 0
                     )
                 )
-                .addParameter("confidence_interval", new Parameter.DoubleParameter("confidence_interval", null, v -> 0.9 <= v && v <= 1.0))
+                .addParameter(
+                    "confidence_interval",
+                    new Parameter.DoubleParameter("confidence_interval", null, v -> (v == 0 || (0.9 <= v && v <= 1.0)))
+                )
+                .addParameter("bits", new Parameter.IntegerParameter("bits", 8, new ArrayList<>(Arrays.asList(4, 7, 8))::contains))
+                .addParameter("compress", new Parameter.BooleanParameter("compress", false, Objects::nonNull))
                 .build()
         ).addSpaces(SpaceType.UNDEFINED, SpaceType.L2, SpaceType.COSINESIMIL, SpaceType.INNER_PRODUCT).build()
     );

@@ -23,7 +23,7 @@ public class KNN920PerFieldKnnVectorsFormat extends BasePerFieldKnnVectorsFormat
             Lucene92HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
             () -> new Lucene92HnswVectorsFormat(),
             (maxConnm, beamWidth) -> new Lucene92HnswVectorsFormat(maxConnm, beamWidth),
-            (maxConnm, beamWidth, confidenceInterval) -> new Lucene92HnswVectorsFormat(maxConnm, beamWidth)
+            (maxConnm, beamWidth, confidenceInterval, bits, compress) -> new Lucene92HnswVectorsFormat(maxConnm, beamWidth)
         );
     }
 }

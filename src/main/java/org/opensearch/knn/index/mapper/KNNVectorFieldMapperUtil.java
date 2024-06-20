@@ -260,7 +260,7 @@ public class KNNVectorFieldMapperUtil {
 
         if (modelId == null) {
             throw new IllegalArgumentException(
-                    String.format("Field '%s' does not have model.", knnVectorField.getKnnMethodContext().getMethodComponentContext().getName())
+                String.format("Field '%s' does not have model.", knnVectorField.getKnnMethodContext().getMethodComponentContext().getName())
             );
         }
 

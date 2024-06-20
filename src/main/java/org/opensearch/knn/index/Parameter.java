@@ -212,9 +212,20 @@ public abstract class Parameter<T> {
             super(name, defaultValue, validator);
         }
 
+        public DoubleParameter(
+            String name,
+            Double defaultValue,
+            Predicate<Double> validator,
+            BiFunction<Double, VectorSpaceInfo, Boolean> validatorWithData
+        ) {
+            super(name, defaultValue, validator, validatorWithData);
+        }
+
         @Override
         public ValidationException validate(Object value) {
             ValidationException validationException = null;
+            if (value.equals(0)) value = 0.0;
+
             if (!(value instanceof Double)) {
                 validationException = new ValidationException();
                 validationException.addValidationError(
@@ -229,6 +240,90 @@ public abstract class Parameter<T> {
                     String.format("Parameter validation failed for Double " + "parameter \"%s\".", getName())
                 );
             }
+            return validationException;
+        }
+
+        @Override
+        public ValidationException validateWithData(Object value, VectorSpaceInfo vectorSpaceInfo) {
+            ValidationException validationException = null;
+            if (!(value instanceof Double)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(
+                    String.format("value is not an instance of Double for Double parameter [%s].", getName())
+                );
+                return validationException;
+            }
+
+            if (validatorWithData == null) {
+                return null;
+            }
+
+            if (!validatorWithData.apply((Double) value, vectorSpaceInfo)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(String.format("parameter validation failed for Double parameter [%s].", getName()));
+            }
+
+            return validationException;
+        }
+    }
+
+    /**
+     * Float method parameter
+     */
+    public static class FloatParameter extends Parameter<Float> {
+        public FloatParameter(String name, Float defaultValue, Predicate<Float> validator) {
+            super(name, defaultValue, validator);
+        }
+
+        public FloatParameter(
+            String name,
+            Float defaultValue,
+            Predicate<Float> validator,
+            BiFunction<Float, VectorSpaceInfo, Boolean> validatorWithData
+        ) {
+            super(name, defaultValue, validator, validatorWithData);
+        }
+
+        @Override
+        public ValidationException validate(Object value) {
+            ValidationException validationException = null;
+            if (!(value instanceof Float)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(
+                    String.format("Value not of type Float for Float " + "parameter \"%s\".", getName())
+                );
+                return validationException;
+            }
+
+            if (!validator.test((Float) value)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(
+                    String.format("Parameter validation failed for Float " + "parameter \"%s\".", getName())
+                );
+            }
+            return validationException;
+        }
+
+        @Override
+        public ValidationException validateWithData(Object value, VectorSpaceInfo vectorSpaceInfo) {
+            ValidationException validationException = null;
+            if (!(value instanceof Float)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(
+                    String.format("value is not an instance of Float for Float parameter [%s].", getName())
+                );
+                return validationException;
+            }
+
+            if (validatorWithData == null) {
+                return null;
+            }
+
+            if (!validatorWithData.apply((Float) value, vectorSpaceInfo)) {
+                validationException = new ValidationException();
+                validationException.addValidationError(String.format("parameter validation failed for Double parameter [%s].", getName()));
+            }
+
             return validationException;
         }
     }
