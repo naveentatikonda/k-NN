@@ -25,10 +25,12 @@ public class KNN990PerFieldKnnVectorsFormat extends BasePerFieldKnnVectorsFormat
             Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH,
             () -> new Lucene99HnswVectorsFormat(),
             (maxConnm, beamWidth) -> new Lucene99HnswVectorsFormat(maxConnm, beamWidth),
-            (maxConnm, beamWidth, confidenceInterval) -> new Lucene99HnswScalarQuantizedVectorsFormat(
+            (maxConnm, beamWidth, confidenceInterval, bits, compress) -> new Lucene99HnswScalarQuantizedVectorsFormat(
                 maxConnm,
                 beamWidth,
                 1,
+                bits,
+                compress,
                 confidenceInterval,
                 null
             )

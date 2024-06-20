@@ -9,7 +9,6 @@ import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
-import org.opensearch.common.TriFunction;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.index.mapper.KNNVectorFieldMapper;
@@ -31,7 +30,8 @@ public abstract class BasePerFieldKnnVectorsFormat extends PerFieldKnnVectorsFor
     private final int defaultBeamWidth;
     private final Supplier<KnnVectorsFormat> defaultFormatSupplier;
     private final BiFunction<Integer, Integer, KnnVectorsFormat> formatSupplier;
-    private final TriFunction<Integer, Integer, Float, KnnVectorsFormat> quantizedVectorsFormatSupplier;
+    // private final TriFunction<Integer, Integer, Float, KnnVectorsFormat> quantizedVectorsFormatSupplier;
+    private final Function5Arity<Integer, Integer, Float, Integer, Boolean, KnnVectorsFormat> quantizedVectorsFormatSupplier;
 
     @Override
     public KnnVectorsFormat getKnnVectorsFormatForField(final String field) {
@@ -51,6 +51,9 @@ public abstract class BasePerFieldKnnVectorsFormat extends PerFieldKnnVectorsFor
         ).fieldType(field);
         var params = type.getKnnMethodContext().getMethodComponentContext().getParameters();
         Float confidenceInterval = getConfidenceInterval(params);
+        int bits = getBits(params);
+        boolean compressFlag = getCompressFlag(params);
+
         int maxConnections = getMaxConnections(params);
         int beamWidth = getBeamWidth(params);
         if (type.getQuantizeData()) {
@@ -70,7 +73,7 @@ public abstract class BasePerFieldKnnVectorsFormat extends PerFieldKnnVectorsFor
                     beamWidth
                 );
             }
-            return quantizedVectorsFormatSupplier.apply(maxConnections, beamWidth, confidenceInterval);
+            return quantizedVectorsFormatSupplier.apply(maxConnections, beamWidth, confidenceInterval, bits, compressFlag);
         }
         log.debug(
             "Initialize KNN vector format for field [{}] with params [max_connections] = \"{}\" and [beam_width] = \"{}\"",
@@ -106,11 +109,27 @@ public abstract class BasePerFieldKnnVectorsFormat extends PerFieldKnnVectorsFor
 
     private Float getConfidenceInterval(final Map<String, Object> params) {
         if (params != null && params.containsKey("confidence_interval")) {
+            if (params.get("confidence_interval").equals(0)) return Float.valueOf(0);
+
             return ((Double) params.get("confidence_interval")).floatValue();
 
             // Double confidenceInterval = (Double) params.get("confidence_interval");
             // return confidenceInterval.floatValue();
         }
         return null;
+    }
+
+    private int getBits(final Map<String, Object> params) {
+        if (params != null && params.containsKey("bits")) {
+            return (int) params.get("bits");
+        }
+        return 8;
+    }
+
+    private boolean getCompressFlag(final Map<String, Object> params) {
+        if (params != null && params.containsKey("compress")) {
+            return (boolean) params.get("compress");
+        }
+        return false;
     }
 }
