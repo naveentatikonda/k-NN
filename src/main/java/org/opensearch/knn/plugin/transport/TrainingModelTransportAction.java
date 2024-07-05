@@ -11,11 +11,16 @@
 
 package org.opensearch.knn.plugin.transport;
 
+import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.metadata.IndexMetadata;
+import org.opensearch.cluster.metadata.MappingMetadata;
+import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.inject.Inject;
+import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.memory.NativeMemoryCacheManager;
 import org.opensearch.knn.index.memory.NativeMemoryEntryContext;
 import org.opensearch.knn.index.memory.NativeMemoryLoadStrategy;
@@ -26,7 +31,10 @@ import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
+
+import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 
 /**
  * Transport action that trains a model and serializes it to model system index
@@ -44,6 +52,8 @@ public class TrainingModelTransportAction extends HandledTransportAction<Trainin
     @Override
     protected void doExecute(Task task, TrainingModelRequest request, ActionListener<TrainingModelResponse> listener) {
 
+        VectorDataType vectorDataType = getVectorDataType(clusterService, request);
+
         NativeMemoryEntryContext.TrainingDataEntryContext trainingDataEntryContext = new NativeMemoryEntryContext.TrainingDataEntryContext(
             request.getTrainingDataSizeInKB(),
             request.getTrainingIndex(),
@@ -51,7 +61,8 @@ public class TrainingModelTransportAction extends HandledTransportAction<Trainin
             NativeMemoryLoadStrategy.TrainingLoadStrategy.getInstance(),
             clusterService,
             request.getMaximumVectorCount(),
-            request.getSearchSize()
+            request.getSearchSize(),
+            vectorDataType
         );
 
         // Allocation representing size model will occupy in memory during training
@@ -89,5 +100,26 @@ public class TrainingModelTransportAction extends HandledTransportAction<Trainin
         } catch (IOException | ExecutionException | InterruptedException e) {
             wrappedListener.onFailure(e);
         }
+    }
+
+    private VectorDataType getVectorDataType(ClusterService clusterService, TrainingModelRequest request) {
+        ClusterState clusterState = clusterService.state();
+        Metadata metadata = clusterState.getMetadata();
+        IndexMetadata indexMetadata = metadata.index(request.getTrainingIndex());
+        MappingMetadata mappingMetadata = indexMetadata.mapping();
+        Map<String, Object> mapping = mappingMetadata.getSourceAsMap();
+
+        if (mapping.containsKey("properties")
+            && ((Map<String, Object>) mapping.get("properties")).containsKey(request.getTrainingField())
+            && ((Map<String, Object>) ((Map<String, Object>) mapping.get("properties")).get(request.getTrainingField())).containsKey(
+                VECTOR_DATA_TYPE_FIELD
+            )) {
+            return VectorDataType.valueOf(
+                (String) ((Map<String, Object>) ((Map<String, Object>) mapping.get("properties")).get(request.getTrainingField())).get(
+                    VECTOR_DATA_TYPE_FIELD
+                )
+            );
+        }
+        return VectorDataType.FLOAT;
     }
 }
