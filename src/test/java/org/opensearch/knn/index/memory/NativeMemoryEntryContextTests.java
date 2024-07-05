@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableMap;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.knn.KNNTestCase;
 import org.opensearch.knn.index.IndexUtil;
+import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.util.KNNEngine;
 
 import java.io.BufferedOutputStream;
@@ -122,7 +123,8 @@ public class NativeMemoryEntryContextTests extends KNNTestCase {
             trainingLoadStrategy,
             null,
             0,
-            0
+            0,
+            VectorDataType.FLOAT
         );
 
         NativeMemoryAllocation.TrainingDataAllocation trainingDataAllocation = new NativeMemoryAllocation.TrainingDataAllocation(
@@ -145,7 +147,8 @@ public class NativeMemoryEntryContextTests extends KNNTestCase {
             null,
             null,
             0,
-            0
+            0,
+            VectorDataType.FLOAT
         );
 
         assertEquals(trainIndexName, trainingDataEntryContext.getTrainIndexName());
@@ -160,7 +163,8 @@ public class NativeMemoryEntryContextTests extends KNNTestCase {
             null,
             null,
             0,
-            0
+            0,
+            VectorDataType.FLOAT
         );
 
         assertEquals(trainFieldName, trainingDataEntryContext.getTrainFieldName());
@@ -175,7 +179,8 @@ public class NativeMemoryEntryContextTests extends KNNTestCase {
             null,
             null,
             maxVectorCount,
-            0
+            0,
+            VectorDataType.FLOAT
         );
 
         assertEquals(maxVectorCount, trainingDataEntryContext.getMaxVectorCount());
@@ -190,7 +195,8 @@ public class NativeMemoryEntryContextTests extends KNNTestCase {
             null,
             null,
             0,
-            searchSize
+            searchSize,
+            VectorDataType.FLOAT
         );
 
         assertEquals(searchSize, trainingDataEntryContext.getSearchSize());
@@ -205,7 +211,8 @@ public class NativeMemoryEntryContextTests extends KNNTestCase {
             null,
             clusterService,
             0,
-            0
+            0,
+            VectorDataType.FLOAT
         );
 
         assertEquals(clusterService, trainingDataEntryContext.getClusterService());

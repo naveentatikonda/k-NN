@@ -110,7 +110,8 @@ class KNN80DocValuesConsumer extends DocValuesConsumer implements Closeable {
         throws IOException {
         // Get values to be indexed
         BinaryDocValues values = valuesProducer.getBinary(field);
-        KNNCodecUtil.Pair pair = KNNCodecUtil.getFloats(values);
+        // KNNCodecUtil.Pair pair = KNNCodecUtil.getFloats(values);
+        KNNCodecUtil.Pair pair = KNNCodecUtil.getFloatsFromByte(values);
         if (pair.getVectorAddress() == 0 || pair.docs.length == 0) {
             logger.info("Skipping engine index creation as there are no vectors or docs in the segment");
             return;

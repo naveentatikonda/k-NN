@@ -574,10 +574,14 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
 
         byte[] byteVector = new byte[0];
         if (VectorDataType.BYTE == vectorDataType) {
-            byteVector = new byte[vector.length];
+            if (KNNEngine.LUCENE.equals(knnEngine)) {
+                byteVector = new byte[vector.length];
+            }
             for (int i = 0; i < vector.length; i++) {
                 validateByteVectorValue(vector[i]);
-                byteVector[i] = (byte) vector[i];
+                if (KNNEngine.LUCENE.equals(knnEngine)) {
+                    byteVector[i] = (byte) vector[i];
+                }
             }
             spaceType.validateVector(byteVector);
         } else {
@@ -597,8 +601,12 @@ public class KNNQueryBuilder extends AbstractQueryBuilder<KNNQueryBuilder> {
                 .knnEngine(knnEngine)
                 .indexName(indexName)
                 .fieldName(this.fieldName)
-                .vector(VectorDataType.FLOAT == vectorDataType ? this.vector : null)
-                .byteVector(VectorDataType.BYTE == vectorDataType ? byteVector : null)
+                .vector(
+                    (VectorDataType.FLOAT == vectorDataType) || (VectorDataType.BYTE == vectorDataType && KNNEngine.FAISS == knnEngine)
+                        ? this.vector
+                        : null
+                )
+                .byteVector(VectorDataType.BYTE == vectorDataType && KNNEngine.LUCENE == knnEngine ? byteVector : null)
                 .vectorDataType(vectorDataType)
                 .k(this.k)
                 .methodParameters(this.methodParameters)

@@ -67,14 +67,11 @@ import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 import static org.opensearch.knn.common.KNNValidationUtil.validateByteVectorValue;
 import static org.opensearch.knn.common.KNNValidationUtil.validateFloatVectorValue;
 import static org.opensearch.knn.common.KNNValidationUtil.validateVectorDimension;
-import static org.opensearch.knn.index.KNNSettings.KNN_INDEX;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.createStoredFieldForByteVector;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.createStoredFieldForFloatVector;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.clipVectorValueToFP16Range;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.deserializeStoredVector;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateFP16VectorValue;
-import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateVectorDataTypeWithEngine;
-import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateVectorDataTypeWithKnnIndexSetting;
 
 /**
  * Field Mapper for KNN vector type. Implementations of this class define what needs to be stored in Lucene's fieldType.
@@ -240,6 +237,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             final Map<String, String> metaValue = meta.getValue();
 
             if (knnMethodContext != null) {
+                // TODO - Add a validation check for byte datatype to work only with lucene and faiss engines after rebasing
                 knnMethodContext.getMethodComponentContext().setIndexVersion(indexCreatedVersion);
                 final KNNVectorFieldType mappedFieldType = new KNNVectorFieldType(
                     buildFullName(context),
@@ -268,7 +266,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                 // Validates and throws exception if data_type field is set in the index mapping
                 // using any VectorDataType (other than float, which is default) because other
                 // VectorDataTypes are only supported for lucene engine.
-                validateVectorDataTypeWithEngine(vectorDataType);
+                // validateVectorDataTypeWithEngine(vectorDataType);
 
                 return new MethodFieldMapper(
                     name,
@@ -278,7 +276,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
                     ignoreMalformed,
                     stored.get(),
                     hasDocValues.get(),
-                    knnMethodContext
+                    knnMethodContext,
+                    vectorDataType.getValue()
                 );
             }
 
@@ -291,7 +290,14 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
                 return new ModelFieldMapper(
                     name,
-                    new KNNVectorFieldType(buildFullName(context), metaValue, -1, knnMethodContext, modelIdAsString),
+                    new KNNVectorFieldType(
+                        buildFullName(context),
+                        metaValue,
+                        -1,
+                        knnMethodContext,
+                        modelIdAsString,
+                        vectorDataType.getValue()
+                    ),
                     multiFieldsBuilder,
                     copyToBuilder,
                     ignoreMalformed,
@@ -315,11 +321,6 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             if (this.efConstruction == null) {
                 this.efConstruction = LegacyFieldMapper.getEfConstruction(context.indexSettings(), indexCreatedVersion);
             }
-
-            // Validates and throws exception if index.knn is set to true in the index settings
-            // using any VectorDataType (other than float, which is default) because we are using NMSLIB engine for LegacyFieldMapper
-            // and it only supports float VectorDataType
-            validateVectorDataTypeWithKnnIndexSetting(context.indexSettings().getAsBoolean(KNN_INDEX, false), vectorDataType);
 
             return new LegacyFieldMapper(
                 name,
@@ -416,8 +417,15 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             this(name, meta, dimension, knnMethodContext, null, DEFAULT_VECTOR_DATA_TYPE_FIELD, knnMethodContext.getSpaceType());
         }
 
-        public KNNVectorFieldType(String name, Map<String, String> meta, int dimension, KNNMethodContext knnMethodContext, String modelId) {
-            this(name, meta, dimension, knnMethodContext, modelId, DEFAULT_VECTOR_DATA_TYPE_FIELD, null);
+        public KNNVectorFieldType(
+            String name,
+            Map<String, String> meta,
+            int dimension,
+            KNNMethodContext knnMethodContext,
+            String modelId,
+            VectorDataType vectorDataType
+        ) {
+            this(name, meta, dimension, knnMethodContext, modelId, vectorDataType, null);
         }
 
         public KNNVectorFieldType(
@@ -578,7 +586,9 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
         validateIfKNNPluginEnabled();
         validateIfCircuitBreakerIsNotTriggered();
+        // KNNEngine engine = fieldType().getKnnMethodContext().getKnnEngine();
 
+        // if (VectorDataType.BYTE == vectorDataType && KNNEngine.LUCENE == engine) {
         if (VectorDataType.BYTE == vectorDataType) {
             Optional<byte[]> bytesArrayOptional = getBytesFromContext(context, dimension);
 
@@ -588,6 +598,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             final byte[] array = bytesArrayOptional.get();
             spaceType.validateVector(array);
             context.doc().addAll(getFieldsForByteVector(array, fieldType));
+            // } else if (VectorDataType.FLOAT == vectorDataType || (VectorDataType.BYTE == vectorDataType && KNNEngine.FAISS == engine)) {
         } else if (VectorDataType.FLOAT == vectorDataType) {
             Optional<float[]> floatsArrayOptional = getFloatsFromContext(context, dimension, methodComponentContext);
 
