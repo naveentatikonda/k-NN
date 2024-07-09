@@ -15,6 +15,7 @@ import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.util.KNNEngine;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.opensearch.knn.common.KNNConstants.DIMENSION;
@@ -73,7 +74,15 @@ public class MethodFieldMapper extends KNNVectorFieldMapper {
                         METHOD_ENCODER_PARAMETER
                     );
                     if (!ENCODER_FLAT.equals(encoderMethodComponentContext.getName())) {
-                        throw new MapperParsingException("Encoder cannot be used with byte vector datatype");
+                        throw new MapperParsingException(
+                            String.format(
+                                Locale.ROOT,
+                                "[%s] cannot be used when [%s] is set to [%s]",
+                                METHOD_ENCODER_PARAMETER,
+                                VECTOR_DATA_TYPE_FIELD,
+                                VectorDataType.BYTE.getValue()
+                            )
+                        );
 
                     }
                 }
@@ -85,7 +94,7 @@ public class MethodFieldMapper extends KNNVectorFieldMapper {
             if (VectorDataType.BYTE.equals(vectorDataType) && methodParamsMap.containsKey(INDEX_DESCRIPTION_PARAMETER)) {
                 String indexDescriptionValue = (String) methodParamsMap.get(INDEX_DESCRIPTION_PARAMETER);
                 // String updatedIndexDescription = indexDescriptionValue.split(",")[0] + ",SQ8_direct_signed";
-                String updatedIndexDescription = indexDescriptionValue.split(",")[0] + ",SQfp16";
+                String updatedIndexDescription = indexDescriptionValue.split(",")[0] + ",SQ8_direct_signed";
                 methodParamsMap.replace(INDEX_DESCRIPTION_PARAMETER, updatedIndexDescription);
             }
             ((Map<String, Object>) methodParamsMap.get("parameters")).remove("encoder");
