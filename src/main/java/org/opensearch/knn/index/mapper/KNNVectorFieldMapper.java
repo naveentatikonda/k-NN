@@ -67,11 +67,14 @@ import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 import static org.opensearch.knn.common.KNNValidationUtil.validateByteVectorValue;
 import static org.opensearch.knn.common.KNNValidationUtil.validateFloatVectorValue;
 import static org.opensearch.knn.common.KNNValidationUtil.validateVectorDimension;
+import static org.opensearch.knn.index.KNNSettings.KNN_INDEX;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.createStoredFieldForByteVector;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.createStoredFieldForFloatVector;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.clipVectorValueToFP16Range;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.deserializeStoredVector;
 import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateFP16VectorValue;
+import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateVectorDataTypeWithEngine;
+import static org.opensearch.knn.index.mapper.KNNVectorFieldMapperUtil.validateVectorDataTypeWithKnnIndexSetting;
 
 /**
  * Field Mapper for KNN vector type. Implementations of this class define what needs to be stored in Lucene's fieldType.
@@ -265,8 +268,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
 
                 // Validates and throws exception if data_type field is set in the index mapping
                 // using any VectorDataType (other than float, which is default) because other
-                // VectorDataTypes are only supported for lucene engine.
-                // validateVectorDataTypeWithEngine(vectorDataType);
+                // VectorDataTypes are only supported for lucene and faiss engines.
+                validateVectorDataTypeWithEngine(vectorDataType, knnMethodContext.getKnnEngine());
 
                 return new MethodFieldMapper(
                     name,
@@ -321,6 +324,11 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             if (this.efConstruction == null) {
                 this.efConstruction = LegacyFieldMapper.getEfConstruction(context.indexSettings(), indexCreatedVersion);
             }
+
+            // Validates and throws exception if index.knn is set to true in the index settings
+            // using any VectorDataType (other than float, which is default) because we are using NMSLIB engine for LegacyFieldMapper
+            // and it only supports float VectorDataType
+            validateVectorDataTypeWithKnnIndexSetting(context.indexSettings().getAsBoolean(KNN_INDEX, false), vectorDataType);
 
             return new LegacyFieldMapper(
                 name,

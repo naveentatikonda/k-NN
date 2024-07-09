@@ -96,17 +96,25 @@ public class KNNVectorFieldMapperUtil {
      *
      * @param vectorDataType VectorDataType Parameter
      */
-    public static void validateVectorDataTypeWithEngine(ParametrizedFieldMapper.Parameter<VectorDataType> vectorDataType) {
+    public static void validateVectorDataTypeWithEngine(
+        ParametrizedFieldMapper.Parameter<VectorDataType> vectorDataType,
+        KNNEngine engine
+    ) {
         if (VectorDataType.FLOAT == vectorDataType.getValue()) {
             return;
         }
+
+        if (VectorDataType.BYTE == vectorDataType.getValue() && KNNEngine.FAISS == engine) {
+            return;
+        }
+
         throw new IllegalArgumentException(
             String.format(
                 Locale.ROOT,
-                "[%s] field with value [%s] is only supported for [%s] engine",
+                "[%s] field with value [%s] is not supported for [%s] engine",
                 VECTOR_DATA_TYPE_FIELD,
                 vectorDataType.getValue().getValue(),
-                LUCENE_NAME
+                engine.getName()
             )
         );
     }

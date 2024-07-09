@@ -107,7 +107,8 @@ public class KNNCodecUtil {
         for (int doc = values.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = values.nextDoc()) {
             BytesRef bytesref = values.binaryValue();
             try (ByteArrayInputStream byteStream = new ByteArrayInputStream(bytesref.bytes, bytesref.offset, bytesref.length)) {
-                serializationMode = KNNVectorSerializerFactory.serializerModeFromStream(byteStream);
+                // serializationMode = KNNVectorSerializerFactory.serializerModeFromStream(byteStream);
+
                 // final KNNVectorSerializer vectorSerializer = KNNVectorSerializerFactory.getSerializerByStreamContent(byteStream);
                 // final float[] vector = vectorSerializer.byteToFloatArray(byteStream);
                 // final float[] vector = (new KNNVectorAsArraySerializer()).byteToFloatArray(byteStream);
