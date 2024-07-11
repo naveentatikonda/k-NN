@@ -31,13 +31,13 @@ import org.opensearch.common.io.PathUtils;
 import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.index.KNNSettings;
 import org.opensearch.knn.index.SpaceType;
+import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.memory.NativeMemoryAllocation;
 import org.opensearch.knn.index.memory.NativeMemoryCacheManager;
 import org.opensearch.knn.index.memory.NativeMemoryEntryContext;
 import org.opensearch.knn.index.memory.NativeMemoryLoadStrategy;
 import org.opensearch.knn.index.query.filtered.FilteredIdsKNNIterator;
 import org.opensearch.knn.index.query.filtered.NestedFilteredIdsKNNIterator;
-import org.opensearch.knn.index.util.FieldInfoExtractor;
 import org.opensearch.knn.index.util.KNNEngine;
 import org.opensearch.knn.indices.ModelDao;
 import org.opensearch.knn.indices.ModelMetadata;
@@ -59,6 +59,7 @@ import java.util.stream.Collectors;
 import static org.opensearch.knn.common.KNNConstants.KNN_ENGINE;
 import static org.opensearch.knn.common.KNNConstants.MODEL_ID;
 import static org.opensearch.knn.common.KNNConstants.SPACE_TYPE;
+import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 import static org.opensearch.knn.index.IndexUtil.getParametersAtLoading;
 import static org.opensearch.knn.plugin.stats.KNNCounter.GRAPH_QUERY_ERRORS;
 
@@ -209,6 +210,7 @@ public class KNNWeight extends Weight {
 
         KNNEngine knnEngine;
         SpaceType spaceType;
+        VectorDataType vectorDataType;
 
         // Check if a modelId exists. If so, the space type and engine will need to be picked up from the model's
         // metadata.
@@ -221,11 +223,15 @@ public class KNNWeight extends Weight {
 
             knnEngine = modelMetadata.getKnnEngine();
             spaceType = modelMetadata.getSpaceType();
+            vectorDataType = modelMetadata.getVectorDataType();
         } else {
             String engineName = fieldInfo.attributes().getOrDefault(KNN_ENGINE, KNNEngine.NMSLIB.getName());
             knnEngine = KNNEngine.getEngine(engineName);
             String spaceTypeName = fieldInfo.attributes().getOrDefault(SPACE_TYPE, SpaceType.L2.getValue());
             spaceType = SpaceType.getSpace(spaceTypeName);
+            vectorDataType = VectorDataType.get(
+                fieldInfo.attributes().getOrDefault(VECTOR_DATA_TYPE_FIELD, VectorDataType.FLOAT.getValue())
+            );
         }
 
         /*
@@ -257,12 +263,7 @@ public class KNNWeight extends Weight {
                 new NativeMemoryEntryContext.IndexEntryContext(
                     indexPath.toString(),
                     NativeMemoryLoadStrategy.IndexLoadStrategy.getInstance(),
-                    getParametersAtLoading(
-                        spaceType,
-                        knnEngine,
-                        knnQuery.getIndexName(),
-                        FieldInfoExtractor.getIndexDescription(fieldInfo)
-                    ),
+                    getParametersAtLoading(spaceType, knnEngine, knnQuery.getIndexName(), vectorDataType),
                     knnQuery.getIndexName(),
                     modelId
                 ),

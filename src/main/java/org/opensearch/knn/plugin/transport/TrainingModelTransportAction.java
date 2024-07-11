@@ -52,7 +52,7 @@ public class TrainingModelTransportAction extends HandledTransportAction<Trainin
     @Override
     protected void doExecute(Task task, TrainingModelRequest request, ActionListener<TrainingModelResponse> listener) {
 
-        VectorDataType vectorDataType = getVectorDataType(clusterService, request);
+        // VectorDataType vectorDataType = getVectorDataType(clusterService, request);
 
         NativeMemoryEntryContext.TrainingDataEntryContext trainingDataEntryContext = new NativeMemoryEntryContext.TrainingDataEntryContext(
             request.getTrainingDataSizeInKB(),
@@ -61,8 +61,7 @@ public class TrainingModelTransportAction extends HandledTransportAction<Trainin
             NativeMemoryLoadStrategy.TrainingLoadStrategy.getInstance(),
             clusterService,
             request.getMaximumVectorCount(),
-            request.getSearchSize(),
-            vectorDataType
+            request.getSearchSize()
         );
 
         // Allocation representing size model will occupy in memory during training
@@ -79,7 +78,8 @@ public class TrainingModelTransportAction extends HandledTransportAction<Trainin
             modelAnonymousEntryContext,
             request.getDimension(),
             request.getDescription(),
-            clusterService.localNode().getEphemeralId()
+            clusterService.localNode().getEphemeralId(),
+            request.getVectorDataType()
         );
 
         KNNCounter.TRAINING_REQUESTS.increment();

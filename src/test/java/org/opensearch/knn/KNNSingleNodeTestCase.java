@@ -201,7 +201,8 @@ public class KNNSingleNodeTestCase extends OpenSearchSingleNodeTestCase {
             .field(MODEL_STATE, modelMetadata.getState().getName())
             .field(MODEL_TIMESTAMP, modelMetadata.getTimestamp().toString())
             .field(MODEL_DESCRIPTION, modelMetadata.getDescription())
-            .field(MODEL_ERROR, modelMetadata.getError());
+            .field(MODEL_ERROR, modelMetadata.getError())
+            .field(VECTOR_DATA_TYPE_FIELD, modelMetadata.getVectorDataType().getValue());
 
         if (model.getModelBlob() != null) {
             builder.field(MODEL_BLOB_PARAMETER, Base64.getEncoder().encodeToString(model.getModelBlob()));

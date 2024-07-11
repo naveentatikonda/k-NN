@@ -35,8 +35,8 @@ import java.util.Map;
 
 import static org.opensearch.knn.common.KNNConstants.BYTES_PER_KILOBYTES;
 import static org.opensearch.knn.common.KNNConstants.HNSW_ALGO_EF_SEARCH;
-import static org.opensearch.knn.common.KNNConstants.INDEX_DESCRIPTION_PARAMETER;
 import static org.opensearch.knn.common.KNNConstants.SPACE_TYPE;
+import static org.opensearch.knn.common.KNNConstants.VECTOR_DATA_TYPE_FIELD;
 
 public class IndexUtil {
 
@@ -48,6 +48,7 @@ public class IndexUtil {
     private static final Version MINIMAL_SUPPORTED_VERSION_FOR_MODEL_METHOD_COMPONENT_CONTEXT = Version.V_2_13_0;
     private static final Version MINIMAL_SUPPORTED_VERSION_FOR_RADIAL_SEARCH = Version.V_2_14_0;
     private static final Version MINIMAL_SUPPORTED_VERSION_FOR_METHOD_PARAMETERS = Version.V_2_16_0;
+    private static final Version MINIMAL_SUPPORTED_VERSION_FOR_MODEL_VECTOR_DATA_TYPE = Version.V_2_16_0;
     // public so neural search can access it
     public static final Map<String, Version> minimalRequiredVersionMap = initializeMinimalRequiredVersionMap();
 
@@ -59,6 +60,7 @@ public class IndexUtil {
                 put(MODEL_METHOD_COMPONENT_CONTEXT_KEY, MINIMAL_SUPPORTED_VERSION_FOR_MODEL_METHOD_COMPONENT_CONTEXT);
                 put(KNNConstants.RADIAL_SEARCH_KEY, MINIMAL_SUPPORTED_VERSION_FOR_RADIAL_SEARCH);
                 put(KNNConstants.METHOD_PARAMETER, MINIMAL_SUPPORTED_VERSION_FOR_METHOD_PARAMETERS);
+                put(KNNConstants.MODEL_VECTOR_DATA_TYPE_KEY, MINIMAL_SUPPORTED_VERSION_FOR_MODEL_VECTOR_DATA_TYPE);
             }
         };
 
@@ -257,14 +259,14 @@ public class IndexUtil {
      * @param spaceType Space for this particular segment
      * @param knnEngine Engine used for the native library indices being loaded in
      * @param indexName Name of OpenSearch index that the segment files belong to
-     * @param indexDescription Index description of OpenSearch index with faiss that the segment files belong to
+     * @param vectorDataType Vector data type for this particular segment
      * @return load parameters that will be passed to the JNI.
      */
     public static Map<String, Object> getParametersAtLoading(
         SpaceType spaceType,
         KNNEngine knnEngine,
         String indexName,
-        String indexDescription
+        VectorDataType vectorDataType
     ) {
         Map<String, Object> loadParameters = Maps.newHashMap(ImmutableMap.of(SPACE_TYPE, spaceType.getValue()));
 
@@ -273,10 +275,7 @@ public class IndexUtil {
         if (KNNEngine.NMSLIB.equals(knnEngine)) {
             loadParameters.put(HNSW_ALGO_EF_SEARCH, KNNSettings.getEfSearchParam(indexName));
         }
-        if (KNNEngine.FAISS.equals(knnEngine)) {
-            loadParameters.put(INDEX_DESCRIPTION_PARAMETER, indexDescription);
-        }
-
+        loadParameters.put(VECTOR_DATA_TYPE_FIELD, vectorDataType.getValue());
         return Collections.unmodifiableMap(loadParameters);
     }
 

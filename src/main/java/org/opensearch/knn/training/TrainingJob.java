@@ -69,7 +69,8 @@ public class TrainingJob implements Runnable {
         NativeMemoryEntryContext.AnonymousEntryContext modelAnonymousEntryContext,
         int dimension,
         String description,
-        String nodeAssignment
+        String nodeAssignment,
+        VectorDataType vectorDataType
     ) {
         // Generate random base64 string if one is not provided
         this.modelId = StringUtils.isNotBlank(modelId) ? modelId : UUIDs.randomBase64UUID();
@@ -87,7 +88,8 @@ public class TrainingJob implements Runnable {
                 description,
                 "",
                 nodeAssignment,
-                knnMethodContext.getMethodComponentContext()
+                knnMethodContext.getMethodComponentContext(),
+                vectorDataType
             ),
             null,
             this.modelId
@@ -185,10 +187,10 @@ public class TrainingJob implements Runnable {
                 KNNSettings.state().getSettingValue(KNNSettings.KNN_ALGO_PARAM_INDEX_THREAD_QTY)
             );
 
-            if (trainingDataEntryContext.getVectorDataType() == VectorDataType.BYTE
+            if (VectorDataType.BYTE.equals(model.getModelMetadata().getVectorDataType())
                 && trainParameters.containsKey(INDEX_DESCRIPTION_PARAMETER)) {
                 String indexDescriptionValue = (String) trainParameters.get(INDEX_DESCRIPTION_PARAMETER);
-                String updatedIndexDescription = indexDescriptionValue.split(",")[0] + ",SQfp16";
+                String updatedIndexDescription = indexDescriptionValue.split(",")[0] + ",SQ8_direct_signed";
                 trainParameters.replace(INDEX_DESCRIPTION_PARAMETER, updatedIndexDescription);
             }
 

@@ -546,7 +546,8 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             context,
             fieldType().getDimension(),
             fieldType().getSpaceType(),
-            getMethodComponentContext(fieldType().getKnnMethodContext())
+            getMethodComponentContext(fieldType().getKnnMethodContext()),
+            fieldType().getVectorDataType()
         );
     }
 
@@ -589,8 +590,13 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
         return fields;
     }
 
-    protected void parseCreateField(ParseContext context, int dimension, SpaceType spaceType, MethodComponentContext methodComponentContext)
-        throws IOException {
+    protected void parseCreateField(
+        ParseContext context,
+        int dimension,
+        SpaceType spaceType,
+        MethodComponentContext methodComponentContext,
+        VectorDataType vectorDataType
+    ) throws IOException {
 
         validateIfKNNPluginEnabled();
         validateIfCircuitBreakerIsNotTriggered();

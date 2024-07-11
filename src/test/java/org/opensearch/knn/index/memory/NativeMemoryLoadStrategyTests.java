@@ -16,7 +16,6 @@ import org.opensearch.core.action.ActionListener;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.knn.KNNTestCase;
 import org.opensearch.knn.common.KNNConstants;
-import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.jni.JNICommons;
 import org.opensearch.knn.jni.JNIService;
 import org.opensearch.knn.index.query.KNNQueryResult;
@@ -117,8 +116,7 @@ public class NativeMemoryLoadStrategyTests extends KNNTestCase {
             NativeMemoryLoadStrategy.TrainingLoadStrategy.getInstance(),
             null,
             0,
-            0,
-            VectorDataType.FLOAT
+            0
         );
 
         // Load the allocation. Initially, the memory address should be 0. However, after the readlock is obtained,
