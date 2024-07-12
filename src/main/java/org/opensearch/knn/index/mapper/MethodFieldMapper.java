@@ -9,11 +9,15 @@ import org.apache.lucene.document.FieldType;
 import org.opensearch.common.Explicit;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.knn.index.KNNMethodContext;
+import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.util.KNNEngine;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static org.opensearch.knn.common.KNNConstants.DIMENSION;
+import static org.opensearch.knn.common.KNNConstants.FAISS_SIGNED_BYTE_SQ;
+import static org.opensearch.knn.common.KNNConstants.INDEX_DESCRIPTION_PARAMETER;
 import static org.opensearch.knn.common.KNNConstants.KNN_ENGINE;
 import static org.opensearch.knn.common.KNNConstants.PARAMETERS;
 import static org.opensearch.knn.common.KNNConstants.SPACE_TYPE;
@@ -58,10 +62,16 @@ public class MethodFieldMapper extends KNNVectorFieldMapper {
         this.fieldType.putAttribute(KNN_ENGINE, knnEngine.getName());
 
         try {
-            this.fieldType.putAttribute(
-                PARAMETERS,
-                XContentFactory.jsonBuilder().map(knnEngine.getMethodAsMap(knnMethodContext)).toString()
-            );
+            Map<String, Object> methodParamsMap = knnEngine.getMethodAsMap(knnMethodContext);
+
+            // If VectorDataType is Byte using Faiss engine then manipulate Index Description to use "SQ8_direct_signed" scalar quantizer
+            // For example, Index Description "HNSW16,Flat" will be updated as "HNSW16,SQ8_direct_signed"
+            if (VectorDataType.BYTE.equals(vectorDataType) && methodParamsMap.containsKey(INDEX_DESCRIPTION_PARAMETER)) {
+                String indexDescriptionValue = (String) methodParamsMap.get(INDEX_DESCRIPTION_PARAMETER);
+                String updatedIndexDescription = indexDescriptionValue.split(",")[0] + "," + FAISS_SIGNED_BYTE_SQ;
+                methodParamsMap.replace(INDEX_DESCRIPTION_PARAMETER, updatedIndexDescription);
+            }
+            this.fieldType.putAttribute(PARAMETERS, XContentFactory.jsonBuilder().map(methodParamsMap).toString());
         } catch (IOException ioe) {
             throw new RuntimeException(String.format("Unable to create KNNVectorFieldMapper: %s", ioe));
         }
