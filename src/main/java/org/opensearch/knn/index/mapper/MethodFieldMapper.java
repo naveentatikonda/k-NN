@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.opensearch.knn.common.KNNConstants.DIMENSION;
+import static org.opensearch.knn.common.KNNConstants.FAISS_SIGNED_BYTE_SQ;
+import static org.opensearch.knn.common.KNNConstants.INDEX_DESCRIPTION_PARAMETER;
 import static org.opensearch.knn.common.KNNConstants.KNN_ENGINE;
 import static org.opensearch.knn.common.KNNConstants.PARAMETERS;
 import static org.opensearch.knn.common.KNNConstants.SPACE_TYPE;
@@ -119,10 +121,16 @@ public class MethodFieldMapper extends KNNVectorFieldMapper {
             knnMethodConfigContext
         );
         try {
-            this.fieldType.putAttribute(
-                PARAMETERS,
-                XContentFactory.jsonBuilder().map(knnLibraryIndexingContext.getLibraryParameters()).toString()
-            );
+            Map<String, Object> libParams = knnLibraryIndexingContext.getLibraryParameters();
+
+            // If VectorDataType is Byte using Faiss engine then manipulate Index Description to use "SQ8_direct_signed" scalar quantizer
+            // For example, Index Description "HNSW16,Flat" will be updated as "HNSW16,SQ8_direct_signed"
+            if (VectorDataType.BYTE.equals(vectorDataType) && libParams.containsKey(INDEX_DESCRIPTION_PARAMETER)) {
+                String indexDescriptionValue = (String) libParams.get(INDEX_DESCRIPTION_PARAMETER);
+                String updatedIndexDescription = indexDescriptionValue.split(",")[0] + "," + FAISS_SIGNED_BYTE_SQ;
+                libParams.replace(INDEX_DESCRIPTION_PARAMETER, updatedIndexDescription);
+            }
+            this.fieldType.putAttribute(PARAMETERS, XContentFactory.jsonBuilder().map(libParams).toString());
         } catch (IOException ioe) {
             throw new RuntimeException(String.format("Unable to create KNNVectorFieldMapper: %s", ioe));
         }
