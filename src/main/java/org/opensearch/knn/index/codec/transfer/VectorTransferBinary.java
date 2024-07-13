@@ -13,12 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Vector transfer for byte
+ * Vector transfer for binary
  */
-public class VectorTransferByte extends VectorTransfer {
+public class VectorTransferBinary extends VectorTransfer {
     private List<byte[]> vectorList;
 
-    public VectorTransferByte(final long vectorsStreamingMemoryLimit) {
+    public VectorTransferBinary(final long vectorsStreamingMemoryLimit) {
         super(vectorsStreamingMemoryLimit);
         vectorList = new ArrayList<>();
     }
@@ -32,7 +32,7 @@ public class VectorTransferByte extends VectorTransfer {
     @Override
     public void transfer(final ByteArrayInputStream byteStream) {
         final byte[] vector = byteStream.readAllBytes();
-        dimension = vector.length;
+        dimension = vector.length * 8;
         if (vectorsPerTransfer == Integer.MIN_VALUE) {
             vectorsPerTransfer = (vector.length * totalLiveDocs) / vectorsStreamingMemoryLimit;
             // This condition comes if vectorsStreamingMemoryLimit is higher than total number floats to transfer
@@ -59,12 +59,8 @@ public class VectorTransferByte extends VectorTransfer {
     }
 
     private void transfer() {
-        int lengthOfVector = dimension;
-        vectorAddress = JNICommons.storeSignedByteVectorData(
-            vectorAddress,
-            vectorList.toArray(new byte[][] {}),
-            totalLiveDocs * lengthOfVector
-        );
+        int lengthOfVector = dimension / 8;
+        vectorAddress = JNICommons.storeByteVectorData(vectorAddress, vectorList.toArray(new byte[][] {}), totalLiveDocs * lengthOfVector);
         vectorList.clear();
     }
 }

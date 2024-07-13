@@ -18,8 +18,8 @@ import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.knn.index.KNNSettings;
 import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.codec.transfer.VectorTransfer;
+import org.opensearch.knn.index.codec.transfer.VectorTransferBinary;
 import org.opensearch.knn.index.codec.transfer.VectorTransferByte;
-import org.opensearch.knn.index.codec.transfer.VectorTransferByteToFloat;
 import org.opensearch.knn.index.codec.transfer.VectorTransferFloat;
 import org.opensearch.knn.jni.JNIService;
 import org.opensearch.knn.index.SpaceType;
@@ -113,14 +113,20 @@ class KNN80DocValuesConsumer extends DocValuesConsumer implements Closeable {
     }
 
     private VectorTransfer getVectorTransfer(FieldInfo field) {
-        if (VectorDataType.BINARY.getValue().equalsIgnoreCase(field.attributes().get(KNNConstants.VECTOR_DATA_TYPE_FIELD))) {
-            return new VectorTransferByte(KNNSettings.getVectorStreamingMemoryLimit().getBytes());
+        String vectorDataType = field.attributes().getOrDefault(KNNConstants.VECTOR_DATA_TYPE_FIELD, VectorDataType.FLOAT.getValue());
+        String knnEngine = field.attributes().get(KNNConstants.KNN_ENGINE);
+        long memoryLimit = KNNSettings.getVectorStreamingMemoryLimit().getBytes();
+
+        switch (vectorDataType.toLowerCase()) {
+            case "binary":
+                return new VectorTransferBinary(memoryLimit);
+            case "byte":
+                if (KNNEngine.FAISS.getName().equalsIgnoreCase(knnEngine)) {
+                    return new VectorTransferByte(memoryLimit);
+                }
+            default:
+                return new VectorTransferFloat(memoryLimit);
         }
-        if (VectorDataType.BYTE.getValue().equalsIgnoreCase(field.attributes().get(KNNConstants.VECTOR_DATA_TYPE_FIELD))
-            && KNNEngine.FAISS.getName().equalsIgnoreCase(field.attributes().get(KNNConstants.KNN_ENGINE))) {
-            return new VectorTransferByteToFloat(KNNSettings.getVectorStreamingMemoryLimit().getBytes());
-        }
-        return new VectorTransferFloat(KNNSettings.getVectorStreamingMemoryLimit().getBytes());
     }
 
     public void addKNNBinaryField(FieldInfo field, DocValuesProducer valuesProducer, boolean isMerge, boolean isRefresh)

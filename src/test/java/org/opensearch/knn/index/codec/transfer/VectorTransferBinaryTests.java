@@ -11,17 +11,17 @@ import org.opensearch.knn.index.codec.util.SerializationMode;
 import org.opensearch.knn.jni.JNICommons;
 
 import java.io.ByteArrayInputStream;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.IntStream;
+import java.io.IOException;
+import java.util.Random;
 
 import static org.junit.Assert.assertNotEquals;
 
-public class VectorTransferByteToFloatTests extends TestCase {
+public class VectorTransferBinaryTests extends TestCase {
     @SneakyThrows
     public void testTransfer_whenCalled_thenAdded() {
         final ByteArrayInputStream bais1 = getByteArrayOfVectors(20);
         final ByteArrayInputStream bais2 = getByteArrayOfVectors(20);
-        VectorTransferByteToFloat vectorTransfer = new VectorTransferByteToFloat(1000);
+        VectorTransferBinary vectorTransfer = new VectorTransferBinary(1000);
         try {
             vectorTransfer.init(2);
 
@@ -42,15 +42,15 @@ public class VectorTransferByteToFloatTests extends TestCase {
     @SneakyThrows
     public void testSerializationMode_whenCalled_thenReturn() {
         final ByteArrayInputStream bais = getByteArrayOfVectors(20);
-        VectorTransferByteToFloat vectorTransfer = new VectorTransferByteToFloat(1000);
+        VectorTransferBinary vectorTransfer = new VectorTransferBinary(1000);
 
         // Verify
-        assertEquals(SerializationMode.COLLECTION_OF_FLOATS, vectorTransfer.getSerializationMode(bais));
+        assertEquals(SerializationMode.COLLECTIONS_OF_BYTES, vectorTransfer.getSerializationMode(bais));
     }
 
-    private ByteArrayInputStream getByteArrayOfVectors(int vectorLength) {
+    private ByteArrayInputStream getByteArrayOfVectors(int vectorLength) throws IOException {
         byte[] vector = new byte[vectorLength];
-        IntStream.range(0, vectorLength).forEach(index -> vector[index] = (byte) ThreadLocalRandom.current().nextInt(-128, 127));
+        new Random().nextBytes(vector);
         return new ByteArrayInputStream(vector);
     }
 }

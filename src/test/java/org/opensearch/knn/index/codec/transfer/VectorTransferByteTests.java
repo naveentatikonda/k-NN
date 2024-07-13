@@ -11,8 +11,8 @@ import org.opensearch.knn.index.codec.util.SerializationMode;
 import org.opensearch.knn.jni.JNICommons;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertNotEquals;
 
@@ -48,9 +48,9 @@ public class VectorTransferByteTests extends TestCase {
         assertEquals(SerializationMode.COLLECTIONS_OF_BYTES, vectorTransfer.getSerializationMode(bais));
     }
 
-    private ByteArrayInputStream getByteArrayOfVectors(int vectorLength) throws IOException {
+    private ByteArrayInputStream getByteArrayOfVectors(int vectorLength) {
         byte[] vector = new byte[vectorLength];
-        new Random().nextBytes(vector);
+        IntStream.range(0, vectorLength).forEach(index -> vector[index] = (byte) ThreadLocalRandom.current().nextInt(-128, 127));
         return new ByteArrayInputStream(vector);
     }
 }
