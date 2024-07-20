@@ -209,7 +209,8 @@ public class KNNScoringSpaceTests extends KNNTestCase {
             Collections.emptyMap(),
             8 * arrayListQueryObject.size(),
             knnMethodContext,
-            VectorDataType.BINARY
+            VectorDataType.BINARY,
+            false
         );
         KNNScoringSpace.Hamming hamming = new KNNScoringSpace.Hamming(arrayListQueryObject, fieldType);
 

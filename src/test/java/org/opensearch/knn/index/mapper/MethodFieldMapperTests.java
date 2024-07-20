@@ -20,7 +20,8 @@ public class MethodFieldMapperTests extends TestCase {
             Collections.emptyMap(),
             1,
             VectorDataType.BINARY,
-            SpaceType.HAMMING
+            SpaceType.HAMMING,
+            false
         );
         MethodFieldMapper mappers = new MethodFieldMapper(
             "simpleName",
