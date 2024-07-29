@@ -5,6 +5,8 @@
 
 package org.opensearch.knn.plugin;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.cluster.NamedDiff;
 import org.opensearch.cluster.metadata.Metadata;
 import org.opensearch.core.ParseField;
@@ -159,6 +161,7 @@ public class KNNPlugin extends Plugin
 
     public static final String LEGACY_KNN_BASE_URI = "/_opendistro/_knn";
     public static final String KNN_BASE_URI = "/_plugins/_knn";
+    private static final Logger logger = LogManager.getLogger(KNNPlugin.class);
 
     private KNNStats knnStats;
     private ClusterService clusterService;
@@ -190,6 +193,7 @@ public class KNNPlugin extends Plugin
         IndexNameExpressionResolver indexNameExpressionResolver,
         Supplier<RepositoriesService> repositoriesServiceSupplier
     ) {
+        logger.info("Naveen: dummy logger");
         this.clusterService = clusterService;
 
         // Initialize Native Memory loading strategies

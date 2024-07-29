@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 public class PlatformUtils {
 
@@ -37,9 +38,12 @@ public class PlatformUtils {
      *    the flags contains 'avx2' and return true if it exists else false.
      */
     public static boolean isAVX2SupportedBySystem() {
+        logger.info("Naveen: Inside isAVX2SupportedBySystem");
         if (!Platform.isIntel()) {
+            logger.info("Naveen: Inside is not Intel");
             return false;
         }
+        logger.info("Naveen: Skipped Intel check");
 
         if (Platform.isMac()) {
 
@@ -58,6 +62,7 @@ public class PlatformUtils {
             }
 
         } else if (Platform.isLinux()) {
+            logger.info("Naveen: Inside isLinux");
 
             // The "/proc/cpuinfo" is a virtual file which identifies and provides the processor details used
             // by system. This info contains "flags" for each processor which determines the qualities of that processor
@@ -68,11 +73,19 @@ public class PlatformUtils {
             // https://ark.intel.com/content/www/us/en/ark/products/199285/intel-pentium-gold-g6600-processor-4m-cache-4-20-ghz.html
             String fileName = "/proc/cpuinfo";
             try {
-                return AccessController.doPrivileged(
-                    (PrivilegedExceptionAction<Boolean>) () -> (Boolean) Files.lines(Paths.get(fileName))
+                logger.info("Naveen: Fetching linux cpu flags");
+                return AccessController.doPrivileged((PrivilegedExceptionAction<Boolean>) () -> {
+                    String flags = Files.lines(Paths.get(fileName)).filter(s -> s.startsWith("flags")).collect(Collectors.joining());
+                    // logger.error("Naveen: Printing cpu flags: ");
+                    // logger.error(flags);
+                    // System.out.println("Naveen: Printing cpu flags: " + flags);
+                    logger.info("Naveen: Printing cpu flags: ");
+                    logger.info(flags);
+                    logger.info("Naveen: Returning boolean after parsing cpu flags");
+                    return (Boolean) Files.lines(Paths.get(fileName))
                         .filter(s -> s.startsWith("flags"))
-                        .anyMatch(s -> StringUtils.containsIgnoreCase(s, "avx2"))
-                );
+                        .anyMatch(s -> StringUtils.containsIgnoreCase(s, "avx2"));
+                });
 
             } catch (Exception e) {
                 logger.error("[KNN] Error reading file [{}]. [{}]", fileName, e.getMessage(), e);
