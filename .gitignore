@@ -18,7 +18,6 @@ jni/CMakeCache.txt
 jni/CMakeFiles
 jni/Makefile
 jni/cmake_install.cmake
-jni/release
 jni/packages
 jni/CTestTestfile.cmake
 jni/KNNPlugin_JNI.cbp
