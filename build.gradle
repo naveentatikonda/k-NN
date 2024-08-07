@@ -318,6 +318,7 @@ task cmakeJniLib(type:Exec) {
     args.add("-DSIMD_ENABLED=${simd_enabled}")
     args.add("-DCOMMIT_LIB_PATCHES=${commit_lib_patches}")
     args.add("-DAPPLY_LIB_PATCHES=${apply_lib_patches}")
+//    args.add("-DCMAKE_BUILD_TYPE=Release")
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         dependsOn windowsPatches
         args.add("-G")

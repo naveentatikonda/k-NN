@@ -80,6 +80,7 @@ find_package(LAPACK REQUIRED)
 set(BUILD_TESTING OFF)          # Avoid building faiss tests
 set(FAISS_ENABLE_GPU OFF)
 set(FAISS_ENABLE_PYTHON OFF)
+#set(CMAKE_BUILD_TYPE Release)
 
 if(NOT DEFINED SIMD_ENABLED)
     set(SIMD_ENABLED true)   # set default value as true if the argument is not set
