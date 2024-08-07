@@ -11,8 +11,6 @@
 
 package org.opensearch.knn.jni;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.index.query.KNNQueryResult;
 import org.opensearch.knn.index.util.KNNEngine;
@@ -33,18 +31,18 @@ import static org.opensearch.knn.jni.PlatformUtils.isAVX2SupportedBySystem;
  *      src/main/java/org/opensearch/knn/common/KNNConstants.java
  */
 class FaissService {
-    private static final Logger logger = LogManager.getLogger(FaissService.class);
+    // private static final Logger logger = LogManager.getLogger(FaissService.class);
 
     static {
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
 
             // Even if the underlying system supports AVX2, users can override and disable it by using the
             // 'knn.faiss.avx2.disabled' setting by setting it to true in the opensearch.yml configuration
-            logger.info("Naveen: Calling isFaissAVX2Disabled and isAVX2SupportedBySystem");
+            // logger.info("Naveen: Calling isFaissAVX2Disabled and isAVX2SupportedBySystem");
             if (!isFaissAVX2Disabled() && isAVX2SupportedBySystem()) {
                 System.loadLibrary(KNNConstants.FAISS_AVX2_JNI_LIBRARY_NAME);
             } else {
-                logger.info("Naveen: Inside else loading Faiss generic library");
+                // logger.info("Naveen: Inside else loading Faiss generic library");
                 System.loadLibrary(KNNConstants.FAISS_JNI_LIBRARY_NAME);
             }
 

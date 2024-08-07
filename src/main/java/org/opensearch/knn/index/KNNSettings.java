@@ -8,7 +8,6 @@ package org.opensearch.knn.index;
 import lombok.extern.log4j.Log4j2;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.message.Message;
 import org.opensearch.OpenSearchParseException;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.core.action.ActionListener;
@@ -412,9 +411,10 @@ public class KNNSettings {
 
     public static boolean isFaissAVX2Disabled() {
         try {
-            logger.info("Naveen: Inside isFaissAVX2Disabled");
-            logger.info((Message) KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED));
-            return KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED);
+            // logger.info("Naveen: Inside isFaissAVX2Disabled");
+            // logger.info((Message) KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED));
+            // return KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED);
+            return false;
         } catch (Exception e) {
             // In some UTs we identified that cluster setting is not set properly an leads to NPE. This check will avoid
             // those cases and will still return the default value.

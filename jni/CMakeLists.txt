@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.24.0)
 project(KNNPlugin_JNI)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/macros.cmake)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fassociative-math -fno-signed-zeros -fno-trapping-math")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fassociative-math -fno-signed-zeros -fno-trapping-math")
 
 # ---------------------------------- SETUP ----------------------------------
 # Target libraries to be compiled
