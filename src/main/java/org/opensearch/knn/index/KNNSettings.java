@@ -414,7 +414,7 @@ public class KNNSettings {
             // logger.info("Naveen: Inside isFaissAVX2Disabled");
             // logger.info((Message) KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED));
             // return KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED);
-            return false;
+            return true;
         } catch (Exception e) {
             // In some UTs we identified that cluster setting is not set properly an leads to NPE. This check will avoid
             // those cases and will still return the default value.
