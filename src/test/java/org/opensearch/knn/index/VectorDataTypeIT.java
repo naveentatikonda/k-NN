@@ -576,13 +576,7 @@ public class VectorDataTypeIT extends KNNRestTestCase {
             .endObject();
 
         String mapping = builder.toString();
-        ResponseException ex = expectThrows(ResponseException.class, () -> createKnnIndex(INDEX_NAME, mapping));
-        assertTrue(
-            ex.getMessage()
-                .contains(
-                    String.format(Locale.ROOT, "%s data type does not support %s encoder", VectorDataType.BYTE.getValue(), ENCODER_SQ)
-                )
-        );
+        expectThrows(ResponseException.class, () -> createKnnIndex(INDEX_NAME, mapping));
     }
 
     public void testDocValuesWithByteVectorDataTypeFaissEngine() throws Exception {

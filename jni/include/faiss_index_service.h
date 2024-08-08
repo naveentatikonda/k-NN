@@ -146,7 +146,7 @@ public:
     virtual ~ByteIndexService() = default;
 
 private:
-    virtual std::unique_ptr <faiss::Index> validate(
+    virtual std::unique_ptr <faiss::Index> generateIndex(
             knn_jni::JNIUtilInterface *jniUtil,
             JNIEnv *env,
             int vectorSize,
@@ -159,7 +159,7 @@ private:
     );
 
     virtual void addVectorsToIndex(
-            std::unique_ptr <faiss::Index> indexWriter,
+            faiss::Index* indexWriter,
             std::vector <int8_t> *inputVectors,
             int dim,
             std::vector <int64_t> ids,
