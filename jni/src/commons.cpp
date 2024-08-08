@@ -32,7 +32,7 @@ jlong knn_jni::commons::storeVectorData(knn_jni::JNIUtilInterface *jniUtil, JNIE
     return (jlong) vect;
 }
 
-jlong knn_jni::commons::storeByteVectorData(knn_jni::JNIUtilInterface *jniUtil, JNIEnv *env, jlong memoryAddressJ,
+jlong knn_jni::commons::storeBinaryVectorData(knn_jni::JNIUtilInterface *jniUtil, JNIEnv *env, jlong memoryAddressJ,
                                         jobjectArray dataJ, jlong initialCapacityJ) {
     std::vector<uint8_t> *vect;
     if ((long) memoryAddressJ == 0) {
@@ -42,22 +42,22 @@ jlong knn_jni::commons::storeByteVectorData(knn_jni::JNIUtilInterface *jniUtil, 
         vect = reinterpret_cast<std::vector<uint8_t>*>(memoryAddressJ);
     }
     int dim = jniUtil->GetInnerDimensionOf2dJavaByteArray(env, dataJ);
-    jniUtil->Convert2dJavaObjectArrayAndStoreToByteVector(env, dataJ, dim, vect);
+    jniUtil->Convert2dJavaObjectArrayAndStoreToBinaryVector(env, dataJ, dim, vect);
 
     return (jlong) vect;
 }
 
-jlong knn_jni::commons::storeSignedByteVectorData(knn_jni::JNIUtilInterface *jniUtil, JNIEnv *env, jlong memoryAddressJ,
+jlong knn_jni::commons::storeByteVectorData(knn_jni::JNIUtilInterface *jniUtil, JNIEnv *env, jlong memoryAddressJ,
                                         jobjectArray dataJ, jlong initialCapacityJ) {
     std::vector<int8_t> *vect;
-    if ((long) memoryAddressJ == 0) {
+    if (memoryAddressJ == 0) {
         vect = new std::vector<int8_t>();
-        vect->reserve((long)initialCapacityJ);
+        vect->reserve(static_cast<long>(initialCapacityJ));
     } else {
         vect = reinterpret_cast<std::vector<int8_t>*>(memoryAddressJ);
     }
     int dim = jniUtil->GetInnerDimensionOf2dJavaByteArray(env, dataJ);
-    jniUtil->Convert2dJavaObjectArrayAndStoreToSignedByteVector(env, dataJ, dim, vect);
+    jniUtil->Convert2dJavaObjectArrayAndStoreToByteVector(env, dataJ, dim, vect);
 
     return (jlong) vect;
 }
@@ -69,14 +69,14 @@ void knn_jni::commons::freeVectorData(jlong memoryAddressJ) {
     }
 }
 
-void knn_jni::commons::freeByteVectorData(jlong memoryAddressJ) {
+void knn_jni::commons::freeBinaryVectorData(jlong memoryAddressJ) {
     if (memoryAddressJ != 0) {
         auto *vect = reinterpret_cast<std::vector<uint8_t>*>(memoryAddressJ);
         delete vect;
     }
 }
 
-void knn_jni::commons::freeSignedByteVectorData(jlong memoryAddressJ) {
+void knn_jni::commons::freeByteVectorData(jlong memoryAddressJ) {
     if (memoryAddressJ != 0) {
         auto *vect = reinterpret_cast<std::vector<int8_t>*>(memoryAddressJ);
         delete vect;

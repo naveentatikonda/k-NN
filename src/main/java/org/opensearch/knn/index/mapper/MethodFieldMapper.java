@@ -126,8 +126,12 @@ public class MethodFieldMapper extends KNNVectorFieldMapper {
             if (VectorDataType.BYTE == vectorDataType && libParams.containsKey(INDEX_DESCRIPTION_PARAMETER)) {
                 String indexDescriptionValue = (String) libParams.get(INDEX_DESCRIPTION_PARAMETER);
                 if (indexDescriptionValue != null && indexDescriptionValue.isEmpty() == false) {
-                    String updatedIndexDescription = indexDescriptionValue.split(",")[0] + "," + FAISS_SIGNED_BYTE_SQ;
-                    libParams.replace(INDEX_DESCRIPTION_PARAMETER, updatedIndexDescription);
+                    StringBuilder indexDescriptionBuilder = new StringBuilder();
+                    indexDescriptionBuilder.append(indexDescriptionValue.split(",")[0]);
+                    indexDescriptionBuilder.append(",");
+                    indexDescriptionBuilder.append(FAISS_SIGNED_BYTE_SQ);
+
+                    libParams.replace(INDEX_DESCRIPTION_PARAMETER, indexDescriptionBuilder.toString());
                     libParams.put(KNNConstants.VECTOR_DATA_TYPE_FIELD, VectorDataType.BYTE.getValue());
                 }
             }
