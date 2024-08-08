@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased 2.x](https://github.com/opensearch-project/k-NN/compare/2.16...2.x)
 ### Features
-* Add HNSW changes to support Faiss byte vector [#1823](https://github.com/opensearch-project/k-NN/pull/1823)
+* Add support for byte vector with Faiss Engine HNSW algorith [#1823](https://github.com/opensearch-project/k-NN/pull/1823)
 ### Enhancements
 ### Bug Fixes
 ### Infrastructure

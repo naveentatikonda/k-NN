@@ -23,6 +23,7 @@
 #include <vector>
 #include <memory>
 #include <type_traits>
+#include <iostream>
 
 namespace knn_jni {
 namespace faiss_wrapper {
@@ -162,7 +163,7 @@ void BinaryIndexService::createIndex(
 
 ByteIndexService::ByteIndexService(std::unique_ptr<FaissMethods> faissMethods) : IndexService(std::move(faissMethods)) {}
 
-    std::unique_ptr <faiss::Index> ByteIndexService::validate(
+    std::unique_ptr <faiss::Index> ByteIndexService::generateIndex(
             knn_jni::JNIUtilInterface *jniUtil,
             JNIEnv *env,
             int vectorSize,
@@ -178,7 +179,7 @@ ByteIndexService::ByteIndexService(std::unique_ptr<FaissMethods> faissMethods) :
         }
 
         // The number of vectors can be int here because a lucene segment number of total docs never crosses INT_MAX value
-        int numVectors = (int) (vectorSize / (uint64_t) dim);
+        int numVectors = vectorSize / dim;
         if (numVectors == 0) {
             throw std::runtime_error("Number of vectors cannot be 0");
         }
@@ -204,48 +205,40 @@ ByteIndexService::ByteIndexService(std::unique_ptr<FaissMethods> faissMethods) :
         }
 
         return indexWriter;
-
     }
 
     void ByteIndexService::addVectorsToIndex(
-            std::unique_ptr <faiss::Index> indexWriter,
+            faiss::Index* indexWriter,
             std::vector <int8_t> *inputVectors,
             int dim,
             std::vector <int64_t> ids,
             std::string indexPath
     ) {
-        std::unique_ptr <faiss::IndexIDMap> idMap(faissMethods->indexIdMap(indexWriter.get()));
-        int numVectors = (int) (inputVectors->size() / (uint64_t) dim);
+        std::unique_ptr <faiss::IndexIDMap> idMap(faissMethods->indexIdMap(indexWriter));
+        int numVectors = inputVectors->size() / dim;
 
         int batchSize = 1000;
-        int totalNumVecs = numVectors;
-        auto *inputFloatVectors = new std::vector<float>();
-        std::vector <int64_t> floatVectorsIds;
+        std::vector <float> inputFloatVectors(batchSize * dim);
+        std::vector <int64_t> floatVectorsIds(batchSize);
         int id = 0;
-        std::vector<int8_t>::iterator iter = inputVectors->begin();
+        auto iter = inputVectors->begin();
 
-        while (id < numVectors) {
-            if (totalNumVecs < batchSize) {
-                batchSize = totalNumVecs;
+        for (int id = 0; id < numVectors; id += batchSize) {
+            if (numVectors - id < batchSize) {
+                batchSize = numVectors - id;
+                inputFloatVectors.resize(batchSize * dim);
+                floatVectorsIds.resize(batchSize);
             }
 
-            inputFloatVectors->reserve(batchSize * dim);
-            floatVectorsIds.reserve(batchSize);
-            for (int i = 0; i < batchSize; i++) {
-                floatVectorsIds.push_back(ids[id++]);
-                for (int j = 0; j < dim; j++) {
-                    inputFloatVectors->push_back((float) *iter);
-                    iter++;
+            for (int i = 0; i < batchSize; ++i) {
+                floatVectorsIds[i] = ids[id + i];
+                for (int j = 0; j < dim; ++j, ++iter) {
+                    inputFloatVectors[i * dim + j] = static_cast<float>(*iter);
                 }
             }
-            idMap->add_with_ids(batchSize, inputFloatVectors->data(), floatVectorsIds.data());
 
-            totalNumVecs = totalNumVecs - batchSize;
-            inputFloatVectors->clear();
-            floatVectorsIds.clear();
+            idMap->add_with_ids(batchSize, inputFloatVectors.data(), floatVectorsIds.data());
         }
-
-        delete inputFloatVectors;
 
         // Write the index to disk
         faissMethods->writeIndex(idMap.get(), indexPath.c_str());
@@ -269,8 +262,9 @@ ByteIndexService::ByteIndexService(std::unique_ptr<FaissMethods> faissMethods) :
         auto *inputVectors = reinterpret_cast<std::vector <int8_t> *>(vectorsAddress);
 
         addVectorsToIndex(
-                validate(jniUtil, env, inputVectors->size(), metric, indexDescription, dim, numIds, threadCount,
-                         parameters), inputVectors, dim, ids, indexPath);
+                generateIndex(jniUtil, env, inputVectors->size(), metric, indexDescription, dim, numIds, threadCount,
+                         parameters).get(), inputVectors, dim, ids, indexPath);
+
 
     }
 
