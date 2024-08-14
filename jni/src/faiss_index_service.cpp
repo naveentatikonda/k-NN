@@ -240,6 +240,20 @@ ByteIndexService::ByteIndexService(std::unique_ptr<FaissMethods> faissMethods) :
             idMap->add_with_ids(batchSize, inputFloatVectors.data(), floatVectorsIds.data());
         }
 
+//        std::vector <float> inputFloatVectors(dim);
+//        std::vector <int64_t> floatVectorsIds;
+//        auto iter = inputVectors->begin();
+//
+//        for (int id = 0; id < numVectors; id++) {
+//                floatVectorsIds.push_back(ids[id]);
+//                for (int j = 0; j < dim; ++j, ++iter) {
+//                    inputFloatVectors[j] = static_cast<float>(*iter);
+//                }
+//
+//            idMap->add_with_ids(1, inputFloatVectors.data(), &floatVectorsIds.back());
+//            floatVectorsIds.clear();
+//        }
+
         // Write the index to disk
         faissMethods->writeIndex(idMap.get(), indexPath.c_str());
 
