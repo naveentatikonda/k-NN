@@ -39,7 +39,11 @@ import static org.opensearch.knn.index.engine.faiss.Faiss.FAISS_BINARY_INDEX_DES
  */
 public class FaissIVFMethod extends AbstractFaissMethod {
 
-    private static final Set<VectorDataType> SUPPORTED_DATA_TYPES = ImmutableSet.of(VectorDataType.FLOAT, VectorDataType.BINARY);
+    private static final Set<VectorDataType> SUPPORTED_DATA_TYPES = ImmutableSet.of(
+        VectorDataType.FLOAT,
+        VectorDataType.BINARY,
+        VectorDataType.BYTE
+    );
 
     public final static List<SpaceType> SUPPORTED_SPACES = Arrays.asList(
         SpaceType.UNDEFINED,

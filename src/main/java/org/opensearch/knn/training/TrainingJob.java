@@ -18,6 +18,7 @@ import org.apache.logging.log4j.Logger;
 import org.opensearch.common.UUIDs;
 import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.index.KNNSettings;
+import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.engine.KNNMethodConfigContext;
 import org.opensearch.knn.jni.JNIService;
 import org.opensearch.knn.index.engine.KNNMethodContext;
@@ -33,6 +34,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Objects;
+
+import static org.opensearch.knn.common.KNNConstants.FAISS_SIGNED_BYTE_SQ;
+import static org.opensearch.knn.common.KNNConstants.INDEX_DESCRIPTION_PARAMETER;
 
 /**
  * Encapsulates all information required to generate and train a model.
@@ -171,6 +175,24 @@ public class TrainingJob implements Runnable {
                 KNNConstants.INDEX_THREAD_QTY,
                 KNNSettings.state().getSettingValue(KNNSettings.KNN_ALGO_PARAM_INDEX_THREAD_QTY)
             );
+
+            VectorDataType modelVectorDataType = model.getModelMetadata().getVectorDataType();
+
+            if (VectorDataType.BYTE == modelVectorDataType && trainParameters.containsKey(INDEX_DESCRIPTION_PARAMETER)) {
+                String indexDescriptionValue = (String) trainParameters.get(INDEX_DESCRIPTION_PARAMETER);
+                if (indexDescriptionValue != null && indexDescriptionValue.isEmpty() == false) {
+                    StringBuilder indexDescriptionBuilder = new StringBuilder();
+                    indexDescriptionBuilder.append(indexDescriptionValue.split(",")[0]);
+                    indexDescriptionBuilder.append(",");
+                    indexDescriptionBuilder.append(FAISS_SIGNED_BYTE_SQ);
+
+                    trainParameters.replace(INDEX_DESCRIPTION_PARAMETER, indexDescriptionBuilder.toString());
+                    trainParameters.put(KNNConstants.VECTOR_DATA_TYPE_FIELD, VectorDataType.BYTE.getValue());
+                }
+
+            }
+
+            // IndexUtil.updateVectorDataTypeToParameters(trainParameters, model.getModelMetadata().getVectorDataType());
 
             byte[] modelBlob = JNIService.trainIndex(
                 trainParameters,

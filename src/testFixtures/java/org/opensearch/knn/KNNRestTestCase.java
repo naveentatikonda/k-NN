@@ -5,6 +5,7 @@
 
 package org.opensearch.knn;
 
+import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import lombok.SneakyThrows;
@@ -1165,6 +1166,18 @@ public class KNNRestTestCase extends ODFERestTestCase {
 
             addKnnDoc(indexName, String.valueOf(i + 1), fieldName, Ints.asList(vector).toArray());
         }
+    }
+
+    public void bulkIngestRandomByteVectors(String indexName, String fieldName, int numVectors, int dimension) throws IOException {
+        for (int i = 0; i < numVectors; i++) {
+            byte[] vector = new byte[dimension];
+            for (int j = 0; j < dimension; j++) {
+                vector[j] = randomByte();
+            }
+
+            addKnnDoc(indexName, String.valueOf(i + 1), fieldName, Bytes.asList(vector).toArray());
+        }
+
     }
 
     /**
