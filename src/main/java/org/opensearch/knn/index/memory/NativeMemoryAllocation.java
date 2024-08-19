@@ -13,7 +13,6 @@ package org.opensearch.knn.index.memory;
 
 import lombok.Getter;
 import org.apache.lucene.index.LeafReaderContext;
-import org.opensearch.knn.index.util.IndexUtil;
 import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.query.KNNWeight;
 import org.opensearch.knn.jni.JNICommons;
@@ -299,10 +298,15 @@ public interface NativeMemoryAllocation {
             closed = true;
 
             if (this.memoryAddress != 0) {
-                if (IndexUtil.isBinaryIndex(vectorDataType)) {
-                    JNICommons.freeBinaryVectorData(this.memoryAddress);
-                } else {
-                    JNICommons.freeVectorData(this.memoryAddress);
+                switch (vectorDataType) {
+                    case BINARY:
+                        JNICommons.freeBinaryVectorData(this.memoryAddress);
+                        break;
+                    case BYTE:
+                        JNICommons.freeByteVectorData(this.memoryAddress);
+                        break;
+                    default:
+                        JNICommons.freeVectorData(this.memoryAddress);
                 }
             }
         }

@@ -34,6 +34,8 @@ import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.opensearch.knn.common.KNNConstants.FAISS_SIGNED_BYTE_SQ;
+import static org.opensearch.knn.common.KNNConstants.INDEX_DESCRIPTION_PARAMETER;
 import static org.opensearch.knn.index.engine.faiss.Faiss.FAISS_BINARY_INDEX_DESCRIPTION_PREFIX;
 
 /**
@@ -191,11 +193,27 @@ public class TrainingJob implements Runnable {
                 KNNSettings.state().getSettingValue(KNNSettings.KNN_ALGO_PARAM_INDEX_THREAD_QTY)
             );
 
-            if (VectorDataType.BINARY == model.getModelMetadata().getVectorDataType()) {
+            VectorDataType modelVectorDataType = model.getModelMetadata().getVectorDataType();
+
+            if (VectorDataType.BINARY == modelVectorDataType) {
                 trainParameters.put(
-                    KNNConstants.INDEX_DESCRIPTION_PARAMETER,
-                    FAISS_BINARY_INDEX_DESCRIPTION_PREFIX + trainParameters.get(KNNConstants.INDEX_DESCRIPTION_PARAMETER).toString()
+                    INDEX_DESCRIPTION_PARAMETER,
+                    FAISS_BINARY_INDEX_DESCRIPTION_PREFIX + trainParameters.get(INDEX_DESCRIPTION_PARAMETER).toString()
                 );
+            }
+
+            if (VectorDataType.BYTE == modelVectorDataType && trainParameters.containsKey(INDEX_DESCRIPTION_PARAMETER)) {
+                String indexDescriptionValue = (String) trainParameters.get(INDEX_DESCRIPTION_PARAMETER);
+                if (indexDescriptionValue != null && indexDescriptionValue.isEmpty() == false) {
+                    StringBuilder indexDescriptionBuilder = new StringBuilder();
+                    indexDescriptionBuilder.append(indexDescriptionValue.split(",")[0]);
+                    indexDescriptionBuilder.append(",");
+                    indexDescriptionBuilder.append(FAISS_SIGNED_BYTE_SQ);
+
+                    trainParameters.replace(INDEX_DESCRIPTION_PARAMETER, indexDescriptionBuilder.toString());
+                    trainParameters.put(KNNConstants.VECTOR_DATA_TYPE_FIELD, VectorDataType.BYTE.getValue());
+                }
+
             }
 
             IndexUtil.updateVectorDataTypeToParameters(trainParameters, model.getModelMetadata().getVectorDataType());

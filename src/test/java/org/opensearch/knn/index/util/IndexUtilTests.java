@@ -344,6 +344,6 @@ public class IndexUtilTests extends KNNTestCase {
 
         assert Objects.requireNonNull(e)
             .getMessage()
-            .matches("Validation Failed: 1: vector data type \"binary\" is not supported for pq encoder.;");
+            .matches("Validation Failed: 1: encoder is not supported for vector data type [binary];");
     }
 }
