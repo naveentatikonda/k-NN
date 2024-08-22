@@ -329,16 +329,21 @@ void ByteIndexService::insertToIndex(
 
     // Add vectors in batches by casting int8 vectors into float with a batch size of 1000
     int batchSize = 1000;
-    std::vector <float> inputFloatVectors(batchSize * dim);
-    std::vector <int64_t> floatVectorsIds(batchSize);
+//    std::vector <float> inputFloatVectors(batchSize * dim);
+//    std::vector <int64_t> floatVectorsIds(batchSize);
+//float inputFloatVectors[batchSize * dim];
+//int64_t floatVectorsIds[batchSize];
+float *inputFloatVectors = (float*)malloc(batchSize * dim * sizeof(float));
+int64_t *floatVectorsIds = (int64_t*)malloc(batchSize * sizeof(int64_t));
+
     int id = 0;
     auto iter = inputVectors->begin();
 
     for (int id = 0; id < numVectors; id += batchSize) {
         if (numVectors - id < batchSize) {
             batchSize = numVectors - id;
-            inputFloatVectors.resize(batchSize * dim);
-            floatVectorsIds.resize(batchSize);
+//            inputFloatVectors.resize(batchSize * dim);
+//            floatVectorsIds.resize(batchSize);
         }
 
         for (int i = 0; i < batchSize; ++i) {
@@ -347,8 +352,13 @@ void ByteIndexService::insertToIndex(
                 inputFloatVectors[i * dim + j] = static_cast<float>(*iter);
             }
         }
-        idMap->add_with_ids(batchSize, inputFloatVectors.data(), floatVectorsIds.data());
+//        idMap->add_with_ids(batchSize, inputFloatVectors.data(), floatVectorsIds.data());
+         idMap->add_with_ids(batchSize, inputFloatVectors, floatVectorsIds);
     }
+    free(inputFloatVectors);
+    free(floatVectorsIds);
+//    memset(inputFloatVectors, 0, batchSize * dim * sizeof(float));
+//    memset(floatVectorsIds, 0, batchSize * sizeof(int64_t));
 }
 
 void ByteIndexService::writeIndex(
