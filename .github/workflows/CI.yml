@@ -73,14 +73,17 @@ jobs:
         # switching the user, as OpenSearch cluster can only be started as root/Administrator on linux-deb/linux-rpm/windows-zip.
         run: |
           chown -R 1000:1000 `pwd`
-          if lscpu  | grep -i avx2
-          then
-            echo "avx2 available on system"
-            su `id -un 1000` -c "whoami && java -version && ./gradlew build"
-          else
-            echo "avx2 not available on system"
-            su `id -un 1000` -c "whoami && java -version && ./gradlew build -Dsimd.enabled=false"
-          fi  
+          echo "Printing nproc"
+          echo `nproc`
+          echo "Printed nproc"
+#          if lscpu  | grep -i avx2
+#          then
+#            echo "avx2 available on system"
+#            su `id -un 1000` -c "whoami && java -version && ./gradlew build -Dnproc.count=`nproc`"
+#          else
+#            echo "avx2 not available on system"
+#            su `id -un 1000` -c "whoami && java -version && ./gradlew build -Dsimd.enabled=false -Dnproc.count=`nproc`"
+#          fi
 
 
       - name: Upload Coverage Report
@@ -96,6 +99,8 @@ jobs:
     name: Build and Test k-NN Plugin on MacOS
     needs: Get-CI-Image-Tag
     runs-on: macos-12
+    env:
+      CPU_Cores: sysctl -n hw.ncpu
 
     steps:
       - name: Checkout k-NN
@@ -119,13 +124,16 @@ jobs:
 
       - name: Run build
         run: |
+          echo "Printing nproc"
+          nproc     
+          echo "Printed nproc"
           if sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -i AVX2
           then
               echo "avx2 available on system"
-              ./gradlew build 
+              ./gradlew build -Dnproc.count=nproc -xintegTest
           else
               echo "avx2 not available on system"
-              ./gradlew build -Dsimd.enabled=false
+              ./gradlew build -Dsimd.enabled=false -Dnproc.count=nproc -xintegTest
           fi
 
   Build-k-NN-Windows:
@@ -185,4 +193,7 @@ jobs:
 
       - name: Run build
         run: |
-          ./gradlew.bat build -D'simd.enabled=false'
+          echo "Printing nproc"
+          wmic cpu get NumberOfCores
+          echo "Printed nproc"
+          ./gradlew.bat build -D'simd.enabled=false' -D'nproc.count='''wmic cpu get NumberOfCores /value ^| find "="''''
