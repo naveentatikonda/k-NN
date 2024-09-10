@@ -86,12 +86,14 @@ public class KNNSettings {
     public static final String KNN_FAISS_AVX2_DISABLED = "knn.faiss.avx2.disabled";
     public static final String QUANTIZATION_STATE_CACHE_SIZE_LIMIT = "knn.quantization.cache.size.limit";
     public static final String QUANTIZATION_STATE_CACHE_EXPIRY_TIME_MINUTES = "knn.quantization.cache.expiry.minutes";
+    public static final String KNN_FAISS_AVX512_DISABLED = "knn.faiss.avx512.disabled";
 
     /**
      * Default setting values
      */
     public static final boolean KNN_DEFAULT_FAISS_AVX2_DISABLED_VALUE = false;
     public static final String INDEX_KNN_DEFAULT_SPACE_TYPE = "l2";
+    public static final boolean KNN_DEFAULT_FAISS_AVX512_DISABLED_VALUE = false;
     public static final String INDEX_KNN_DEFAULT_SPACE_TYPE_FOR_BINARY = "hamming";
     public static final Integer INDEX_KNN_DEFAULT_ALGO_PARAM_M = 16;
     public static final Integer INDEX_KNN_DEFAULT_ALGO_PARAM_EF_SEARCH = 100;
@@ -302,6 +304,12 @@ public class KNNSettings {
         Dynamic
     );
 
+    public static final Setting<Boolean> KNN_FAISS_AVX512_DISABLED_SETTING = Setting.boolSetting(
+        KNN_FAISS_AVX512_DISABLED,
+        KNN_DEFAULT_FAISS_AVX512_DISABLED_VALUE,
+        NodeScope
+    );
+
     /**
      * Dynamic settings
      */
@@ -429,6 +437,10 @@ public class KNNSettings {
             return KNN_FAISS_AVX2_DISABLED_SETTING;
         }
 
+        if (KNN_FAISS_AVX512_DISABLED.equals(key)) {
+            return KNN_FAISS_AVX512_DISABLED_SETTING;
+        }
+
         if (KNN_VECTOR_STREAMING_MEMORY_LIMIT_IN_MB.equals(key)) {
             return KNN_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING;
         }
@@ -461,7 +473,8 @@ public class KNNSettings {
             KNN_FAISS_AVX2_DISABLED_SETTING,
             KNN_VECTOR_STREAMING_MEMORY_LIMIT_PCT_SETTING,
             QUANTIZATION_STATE_CACHE_SIZE_LIMIT_SETTING,
-            QUANTIZATION_STATE_CACHE_EXPIRY_TIME_MINUTES_SETTING
+            QUANTIZATION_STATE_CACHE_EXPIRY_TIME_MINUTES_SETTING,
+            KNN_FAISS_AVX512_DISABLED_SETTING
         );
         return Stream.concat(settings.stream(), Stream.concat(getFeatureFlags().stream(), dynamicCacheSettings.values().stream()))
             .collect(Collectors.toList());
@@ -485,7 +498,8 @@ public class KNNSettings {
 
     public static boolean isFaissAVX2Disabled() {
         try {
-            return KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED);
+            // return KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX2_DISABLED);
+            return false;
         } catch (Exception e) {
             // In some UTs we identified that cluster setting is not set properly an leads to NPE. This check will avoid
             // those cases and will still return the default value.
@@ -495,7 +509,26 @@ public class KNNSettings {
                 KNN_DEFAULT_FAISS_AVX2_DISABLED_VALUE,
                 e
             );
-            return KNN_DEFAULT_FAISS_AVX2_DISABLED_VALUE;
+            // return KNN_DEFAULT_FAISS_AVX2_DISABLED_VALUE;
+            return false;
+        }
+    }
+
+    public static boolean isFaissAVX512Disabled() {
+        try {
+            // return KNNSettings.state().getSettingValue(KNNSettings.KNN_FAISS_AVX512_DISABLED);
+            return true;
+        } catch (Exception e) {
+            // In some UTs we identified that cluster setting is not set properly an leads to NPE. This check will avoid
+            // those cases and will still return the default value.
+            log.warn(
+                "Unable to get setting value {} from cluster settings. Using default value as {}",
+                KNN_FAISS_AVX512_DISABLED,
+                KNN_DEFAULT_FAISS_AVX512_DISABLED_VALUE,
+                e
+            );
+            // return KNN_DEFAULT_FAISS_AVX512_DISABLED_VALUE;
+            return true;
         }
     }
 

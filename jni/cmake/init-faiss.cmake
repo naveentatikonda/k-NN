@@ -20,6 +20,7 @@ if(NOT DEFINED APPLY_LIB_PATCHES OR "${APPLY_LIB_PATCHES}" STREQUAL true)
     list(APPEND PATCH_FILE_LIST "${CMAKE_CURRENT_SOURCE_DIR}/patches/faiss/0002-Enable-precomp-table-to-be-shared-ivfpq.patch")
     list(APPEND PATCH_FILE_LIST "${CMAKE_CURRENT_SOURCE_DIR}/patches/faiss/0003-Custom-patch-to-support-range-search-params.patch")
     list(APPEND PATCH_FILE_LIST "${CMAKE_CURRENT_SOURCE_DIR}/patches/faiss/0004-Custom-patch-to-support-binary-vector.patch")
+    list(APPEND PATCH_FILE_LIST "${CMAKE_CURRENT_SOURCE_DIR}/patches/faiss/0005-Custom-patch-to-support-avx512-sq.patch")
 
     # Get patch id of the last commit
     execute_process(COMMAND sh -c "git --no-pager show HEAD | git patch-id --stable" OUTPUT_VARIABLE PATCH_ID_OUTPUT_FROM_COMMIT WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external/faiss)
@@ -81,13 +82,21 @@ set(BUILD_TESTING OFF)          # Avoid building faiss tests
 set(FAISS_ENABLE_GPU OFF)
 set(FAISS_ENABLE_PYTHON OFF)
 
-if(NOT DEFINED SIMD_ENABLED)
-    set(SIMD_ENABLED true)   # set default value as true if the argument is not set
+if(NOT DEFINED AVX2_ENABLED)
+    set(AVX2_ENABLED true)   # set default value as true if the argument is not set
 endif()
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL Windows OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64" OR NOT ${SIMD_ENABLED})
+if(NOT DEFINED AVX512_ENABLED)
+    set(AVX512_ENABLED true)   # set default value as true if the argument is not set
+endif()
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL Windows OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64" OR ( NOT AVX2_ENABLED AND NOT AVX512_ENABLED))
     set(FAISS_OPT_LEVEL generic)    # Keep optimization level as generic on Windows OS as it is not supported due to MINGW64 compiler issue. Also, on aarch64 avx2 is not supported.
     set(TARGET_LINK_FAISS_LIB faiss)
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL Linux AND AVX512_ENABLED)
+    set(FAISS_OPT_LEVEL avx512)       # Keep optimization level as avx512 to improve performance on Linux. This is not present on mac systems, and presently not supported on Windows OS.
+    set(TARGET_LINK_FAISS_LIB faiss_avx512)
+    string(PREPEND LIB_EXT "_avx512") # Prepend "_avx512" to lib extension to create the library as "libopensearchknn_faiss_avx512.so" on linux
 else()
     set(FAISS_OPT_LEVEL avx2)       # Keep optimization level as avx2 to improve performance on Linux and Mac.
     set(TARGET_LINK_FAISS_LIB faiss_avx2)
