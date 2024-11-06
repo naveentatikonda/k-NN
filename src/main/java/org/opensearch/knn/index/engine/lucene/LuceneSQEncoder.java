@@ -31,7 +31,7 @@ import static org.opensearch.knn.common.KNNConstants.MINIMUM_CONFIDENCE_INTERVAL
 public class LuceneSQEncoder implements Encoder {
     private static final Set<VectorDataType> SUPPORTED_DATA_TYPES = ImmutableSet.of(VectorDataType.FLOAT);
 
-    private final static List<Integer> LUCENE_SQ_BITS_SUPPORTED = List.of(7);
+    private final static List<Integer> LUCENE_SQ_BITS_SUPPORTED = List.of(4, 7);
     private final static MethodComponent METHOD_COMPONENT = MethodComponent.Builder.builder(ENCODER_SQ)
         .addSupportedDataTypes(SUPPORTED_DATA_TYPES)
         .addParameter(
