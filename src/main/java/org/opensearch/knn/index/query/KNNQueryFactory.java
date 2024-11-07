@@ -102,7 +102,7 @@ public class KNNQueryFactory extends BaseQueryFactory {
         if (methodParameters != null && methodParameters.containsKey(METHOD_PARAMETER_EF_SEARCH)) {
             requestEfSearch = (Integer) methodParameters.get(METHOD_PARAMETER_EF_SEARCH);
         }
-        int luceneK = requestEfSearch == null ? k : Math.max(k, requestEfSearch);
+        int luceneK = requestEfSearch == null ? k : Math.max(k, 256);
         log.debug(String.format("Creating Lucene k-NN query for index: %s \"\", field: %s \"\", k: %d", indexName, fieldName, k));
         switch (vectorDataType) {
             case BYTE:

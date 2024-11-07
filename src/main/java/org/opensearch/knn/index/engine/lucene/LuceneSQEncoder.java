@@ -6,6 +6,7 @@
 package org.opensearch.knn.index.engine.lucene;
 
 import com.google.common.collect.ImmutableSet;
+import org.opensearch.common.ValidationException;
 import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.engine.Encoder;
 import org.opensearch.knn.index.engine.KNNMethodConfigContext;
@@ -58,7 +59,24 @@ public class LuceneSQEncoder implements Encoder {
         MethodComponentContext methodComponentContext,
         KNNMethodConfigContext knnMethodConfigContext
     ) {
-        // Hard coding to 4x for now, given thats all that is supported.
+        if (methodComponentContext.getParameters().containsKey(LUCENE_SQ_BITS) == false) {
+            return CompressionLevel.x4;
+        }
+
+        // Map the number of bits passed in, back to the compression level
+        Object value = methodComponentContext.getParameters().get(LUCENE_SQ_BITS);
+        ValidationException validationException = METHOD_COMPONENT.getParameters()
+            .get(LUCENE_SQ_BITS)
+            .validate(value, knnMethodConfigContext);
+        if (validationException != null) {
+            throw validationException;
+        }
+
+        Integer bitCount = (Integer) value;
+        if (bitCount == 4) {
+            return CompressionLevel.NOT_CONFIGURED;
+        }
+        // Return 4x compression for 7 bits
         return CompressionLevel.x4;
     }
 }
