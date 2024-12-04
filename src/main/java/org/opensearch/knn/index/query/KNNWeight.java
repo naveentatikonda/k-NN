@@ -422,9 +422,9 @@ public class KNNWeight extends Weight {
          * TODO we can have a different MAX_DISTANCE_COMPUTATIONS for binary index as computation cost for binary index
          * is cheaper than computation cost for non binary vector
          */
-        return KNNConstants.MAX_DISTANCE_COMPUTATIONS >= filterIdsCount * (knnQuery.getVectorDataType() == VectorDataType.FLOAT
-            ? knnQuery.getQueryVector().length
-            : knnQuery.getByteQueryVector().length);
+        return KNNConstants.MAX_DISTANCE_COMPUTATIONS >= filterIdsCount * (knnQuery.getVectorDataType() == VectorDataType.BINARY
+            ? knnQuery.getByteQueryVector().length
+            : knnQuery.getQueryVector().length);
     }
 
     /**
