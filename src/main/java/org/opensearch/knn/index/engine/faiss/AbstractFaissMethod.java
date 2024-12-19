@@ -21,7 +21,11 @@ import org.opensearch.knn.index.mapper.PerDimensionValidator;
 import java.util.Objects;
 import java.util.Set;
 
+import static org.opensearch.knn.common.KNNConstants.ENCODER_SQ;
 import static org.opensearch.knn.common.KNNConstants.FAISS_SIGNED_BYTE_SQ;
+import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_ENCODER_FP16;
+import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_ENCODER_INT8;
+import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_TYPE;
 import static org.opensearch.knn.common.KNNConstants.METHOD_ENCODER_PARAMETER;
 import static org.opensearch.knn.index.engine.faiss.Faiss.FAISS_BINARY_INDEX_DESCRIPTION_PREFIX;
 import static org.opensearch.knn.index.engine.faiss.FaissFP16Util.isFaissSQClipToFP16RangeEnabled;
@@ -105,7 +109,13 @@ public abstract class AbstractFaissMethod extends AbstractKNNMethod {
         if (knnMethodConfigContext.getVectorDataType() == VectorDataType.BINARY) {
             prefix = FAISS_BINARY_INDEX_DESCRIPTION_PREFIX;
         }
-        if (knnMethodConfigContext.getVectorDataType() == VectorDataType.BYTE) {
+        if (knnMethodConfigContext.getVectorDataType() == VectorDataType.BYTE
+            || (encoderContext != null
+                && Objects.equals(encoderContext.getName(), ENCODER_SQ)
+                && Objects.equals(
+                    encoderContext.getParameters().getOrDefault(FAISS_SQ_TYPE, FAISS_SQ_ENCODER_FP16),
+                    FAISS_SQ_ENCODER_INT8
+                ))) {
 
             // If VectorDataType is Byte using Faiss engine then manipulate Index Description to use "SQ8_direct_signed" scalar quantizer
             // For example, Index Description "HNSW16,Flat" will be updated as "HNSW16,SQ8_direct_signed"

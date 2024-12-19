@@ -6,6 +6,7 @@
 package org.opensearch.knn.index.engine.faiss;
 
 import com.google.common.collect.ImmutableSet;
+import org.opensearch.common.ValidationException;
 import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.engine.Encoder;
 import org.opensearch.knn.index.engine.KNNMethodConfigContext;
@@ -46,6 +47,27 @@ public class FaissSQEncoder implements Encoder {
                 knnMethodConfigContext
             ).addParameter(FAISS_SQ_TYPE, "", "").build())
         )
+        // .setKnnLibraryIndexingContextGenerator(((methodComponent, methodComponentContext, knnMethodConfigContext) -> {
+        // QuantizationConfig quantizationConfig = QuantizationConfig.EMPTY;
+        // String sqEncoderType = (String) methodComponentContext.getParameters().getOrDefault(FAISS_SQ_TYPE, FAISS_SQ_ENCODER_FP16);
+        // if(FAISS_SQ_ENCODER_FP16.equals(sqEncoderType)) {
+        // return MethodAsMapBuilder.builder(
+        // FAISS_SQ_DESCRIPTION,
+        // methodComponent,
+        // methodComponentContext,
+        // knnMethodConfigContext
+        // ).addParameter(FAISS_SQ_TYPE, "", "").build();
+        //
+        // }
+        // else if (FAISS_SQ_ENCODER_INT8.equals(sqEncoderType)) {
+        // quantizationConfig = QuantizationConfig.builder().quantizationType(ScalarQuantizationType.EIGHT_BIT).build();
+        // }
+        // return KNNLibraryIndexingContextImpl.builder().quantizationConfig(quantizationConfig).parameters(new HashMap<>() {
+        // {
+        // put(INDEX_DESCRIPTION_PARAMETER, FAISS_FLAT_DESCRIPTION);
+        // }
+        // }).build();
+        // }))
         .build();
 
     @Override
@@ -58,7 +80,24 @@ public class FaissSQEncoder implements Encoder {
         MethodComponentContext methodComponentContext,
         KNNMethodConfigContext knnMethodConfigContext
     ) {
-        // TODO: Hard code for now
-        return CompressionLevel.x2;
+        if (methodComponentContext.getParameters().containsKey(FAISS_SQ_TYPE) == false) {
+            return CompressionLevel.NOT_CONFIGURED;
+        }
+
+        // Map the number of bits passed in, back to the compression level
+        Object value = methodComponentContext.getParameters().get(FAISS_SQ_TYPE);
+        ValidationException validationException = METHOD_COMPONENT.getParameters()
+            .get(FAISS_SQ_TYPE)
+            .validate(value, knnMethodConfigContext);
+        if (validationException != null) {
+            throw validationException;
+        }
+
+        String SQEncoderType = (String) value;
+        if (FAISS_SQ_ENCODER_FP16.equals(SQEncoderType)) {
+            return CompressionLevel.x2;
+        }
+
+        return CompressionLevel.x4;
     }
 }

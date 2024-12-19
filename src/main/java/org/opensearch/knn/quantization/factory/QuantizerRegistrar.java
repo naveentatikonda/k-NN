@@ -42,5 +42,10 @@ final class QuantizerRegistrar {
             ScalarQuantizationParams.generateTypeIdentifier(ScalarQuantizationType.FOUR_BIT),
             new MultiBitScalarQuantizer(4)
         );
+
+        // QuantizerRegistry.register(
+        // ScalarQuantizationParams.generateTypeIdentifier(ScalarQuantizationType.EIGHT_BIT),
+        // new MultiBitScalarQuantizer(4)
+        // );
     }
 }
