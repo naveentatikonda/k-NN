@@ -15,6 +15,7 @@ import org.apache.lucene.store.IndexInput;
 import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.quantization.enums.ScalarQuantizationType;
 import org.opensearch.knn.quantization.models.quantizationParams.ScalarQuantizationParams;
+import org.opensearch.knn.quantization.models.quantizationState.ByteScalarQuantizationState;
 import org.opensearch.knn.quantization.models.quantizationState.MultiBitScalarQuantizationState;
 import org.opensearch.knn.quantization.models.quantizationState.OneBitScalarQuantizationState;
 import org.opensearch.knn.quantization.models.quantizationState.QuantizationState;
@@ -88,6 +89,8 @@ public final class KNN990QuantizationStateReader {
                 case TWO_BIT:
                 case FOUR_BIT:
                     return MultiBitScalarQuantizationState.fromByteArray(stateBytes);
+                case EIGHT_BIT:
+                    return ByteScalarQuantizationState.fromByteArray(stateBytes);
                 default:
                     throw new IllegalArgumentException(String.format("Unexpected scalar quantization type: %s", scalarQuantizationType));
             }

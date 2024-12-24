@@ -13,6 +13,7 @@ import org.opensearch.knn.index.SpaceType;
 import org.opensearch.knn.index.query.SegmentLevelQuantizationInfo;
 import org.opensearch.knn.index.query.SegmentLevelQuantizationUtil;
 import org.opensearch.knn.index.vectorvalues.KNNFloatVectorValues;
+import org.opensearch.knn.quantization.models.quantizationState.ByteScalarQuantizationState;
 
 import java.io.IOException;
 
@@ -92,6 +93,9 @@ public class VectorIdsKNNIterator implements KNNIterator {
         final float[] vector = knnFloatVectorValues.getVector();
         if (segmentLevelQuantizationInfo != null && quantizedQueryVector != null) {
             byte[] quantizedVector = SegmentLevelQuantizationUtil.quantizeVector(vector, segmentLevelQuantizationInfo);
+            if (segmentLevelQuantizationInfo.getQuantizationState() instanceof ByteScalarQuantizationState) {
+                return spaceType.getKnnVectorSimilarityFunction().compare(quantizedQueryVector, quantizedVector);
+            }
             return SpaceType.HAMMING.getKnnVectorSimilarityFunction().compare(quantizedQueryVector, quantizedVector);
         } else {
             // Calculates a similarity score between the two vectors with a specified function. Higher similarity

@@ -10,6 +10,7 @@ import lombok.experimental.UtilityClass;
 import oshi.util.tuples.Pair;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * Utility class providing common methods for quantizer operations, such as parameter validation and
@@ -104,5 +105,34 @@ class QuantizerHelper {
 
         // Return both arrays as a Pair
         return new Pair<>(meanArray, stdDevArray);
+    }
+
+    static Pair<float[], float[]> calculateMinAndMax(TrainingRequest<float[]> trainingRequest, int[] sampledIndices) throws IOException {
+        int totalSamples = sampledIndices.length;
+        float[] minArray = null;
+        float[] maxArray = null;
+        if (totalSamples > 0) {
+            float[] vector = trainingRequest.getVectorAtThePosition(sampledIndices[0]);
+            if (vector == null) {
+                throw new IllegalArgumentException("Vector at sampled index " + sampledIndices[0] + " is null.");
+            }
+            minArray = Arrays.copyOf(vector, vector.length);
+            maxArray = Arrays.copyOf(vector, vector.length);
+        }
+
+        for (int i = 1; i < totalSamples; i++) {
+            float[] vector = trainingRequest.getVectorAtThePosition(sampledIndices[i]);
+            if (vector == null) {
+                throw new IllegalArgumentException("Vector at sampled index " + sampledIndices[i] + " is null.");
+            }
+            int dimension = vector.length;
+            for (int j = 0; j < dimension; j++) {
+                minArray[j] = Math.min(minArray[j], vector[j]);
+                maxArray[j] = Math.max(maxArray[j], vector[j]);
+            }
+
+        }
+        // Return both arrays as a Pair
+        return new Pair<>(minArray, maxArray);
     }
 }
