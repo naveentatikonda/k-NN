@@ -11,8 +11,10 @@ import org.apache.lucene.index.FieldInfo;
 import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.engine.qframe.QuantizationConfig;
 import org.opensearch.knn.index.vectorvalues.KNNVectorValues;
+import org.opensearch.knn.quantization.enums.ScalarQuantizationType;
 import org.opensearch.knn.quantization.factory.QuantizerFactory;
 import org.opensearch.knn.quantization.models.quantizationOutput.BinaryQuantizationOutput;
+import org.opensearch.knn.quantization.models.quantizationOutput.ByteQuantizationOutput;
 import org.opensearch.knn.quantization.models.quantizationOutput.QuantizationOutput;
 import org.opensearch.knn.quantization.models.quantizationParams.QuantizationParams;
 import org.opensearch.knn.quantization.models.quantizationParams.ScalarQuantizationParams;
@@ -107,6 +109,10 @@ public final class QuantizationService<T, R> {
      */
     public VectorDataType getVectorDataTypeForTransfer(final FieldInfo fieldInfo) {
         QuantizationConfig quantizationConfig = extractQuantizationConfig(fieldInfo);
+        if (quantizationConfig != QuantizationConfig.EMPTY
+            && quantizationConfig.getQuantizationType() == ScalarQuantizationType.EIGHT_BIT) {
+            return VectorDataType.BYTE;
+        }
         if (quantizationConfig != QuantizationConfig.EMPTY && quantizationConfig.getQuantizationType() != null) {
             return VectorDataType.BINARY;
         }
@@ -124,6 +130,9 @@ public final class QuantizationService<T, R> {
     public QuantizationOutput<R> createQuantizationOutput(final QuantizationParams quantizationParams) {
         if (quantizationParams instanceof ScalarQuantizationParams) {
             ScalarQuantizationParams scalarParams = (ScalarQuantizationParams) quantizationParams;
+            if (scalarParams.getSqType() == ScalarQuantizationType.EIGHT_BIT) {
+                return (QuantizationOutput<R>) new ByteQuantizationOutput(scalarParams.getSqType().getId());
+            }
             return (QuantizationOutput<R>) new BinaryQuantizationOutput(scalarParams.getSqType().getId());
         }
         throw new IllegalArgumentException("Unsupported quantization parameters: " + quantizationParams.getClass().getName());

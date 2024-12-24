@@ -40,6 +40,7 @@ import org.opensearch.knn.indices.ModelMetadata;
 import org.opensearch.knn.indices.ModelUtil;
 import org.opensearch.knn.jni.JNIService;
 import org.opensearch.knn.plugin.stats.KNNCounter;
+import org.opensearch.knn.quantization.models.quantizationState.ByteScalarQuantizationState;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -301,7 +302,9 @@ public class KNNWeight extends Weight {
                         knnEngine,
                         knnQuery.getIndexName(),
                         // TODO: In the future, more vector data types will be supported with quantization
-                        quantizedVector == null ? vectorDataType : VectorDataType.BINARY
+                        quantizedVector == null
+                            ? vectorDataType
+                            : getVectorDataTypeofQuantizedVector(segmentLevelQuantizationInfo, vectorDataType)
                     ),
                     knnQuery.getIndexName(),
                     modelId
@@ -342,7 +345,7 @@ public class KNNWeight extends Weight {
                 } else {
                     results = JNIService.queryIndex(
                         indexAllocation.getMemoryAddress(),
-                        knnQuery.getQueryVector(),
+                        quantizedVector == null ? knnQuery.getQueryVector() : getQuantizedVectorasFloats(quantizedVector),
                         k,
                         knnQuery.getMethodParameters(),
                         knnEngine,
@@ -376,7 +379,8 @@ public class KNNWeight extends Weight {
             return Collections.emptyMap();
         }
 
-        if (quantizedVector != null) {
+        if (quantizedVector != null
+            && getVectorDataTypeofQuantizedVector(segmentLevelQuantizationInfo, vectorDataType) == VectorDataType.BINARY) {
             return Arrays.stream(results)
                 .collect(Collectors.toMap(KNNQueryResult::getId, result -> knnEngine.score(result.getScore(), SpaceType.HAMMING)));
         }
@@ -499,5 +503,27 @@ public class KNNWeight extends Weight {
             reader.getSegmentInfo().info
         );
         return engineFiles.isEmpty();
+    }
+
+    private VectorDataType getVectorDataTypeofQuantizedVector(
+        final SegmentLevelQuantizationInfo segmentLevelQuantizationInfo,
+        VectorDataType vectorDataType
+    ) {
+        if (segmentLevelQuantizationInfo == null) {
+            return vectorDataType;
+        }
+        if (segmentLevelQuantizationInfo.getQuantizationState() instanceof ByteScalarQuantizationState) {
+            return VectorDataType.BYTE;
+        }
+        return VectorDataType.BINARY;
+    }
+
+    private float[] getQuantizedVectorasFloats(byte[] quantizedVector) {
+        int dimension = quantizedVector.length;
+        float quantizedVectorFloat[] = new float[dimension];
+        for (int i = 0; i < dimension; i++) {
+            quantizedVectorFloat[i] = quantizedVector[i];
+        }
+        return quantizedVectorFloat;
     }
 }
