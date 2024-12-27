@@ -28,6 +28,7 @@ import org.opensearch.knn.index.memory.NativeMemoryCacheManager;
 import org.opensearch.knn.index.memory.NativeMemoryEntryContext;
 import org.opensearch.knn.index.memory.NativeMemoryLoadStrategy;
 import org.opensearch.knn.index.engine.KNNEngine;
+import org.opensearch.knn.quantization.enums.ScalarQuantizationType;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -195,6 +196,9 @@ public class KNNIndexShard {
                                 ? VectorDataType.get(
                                     fieldInfo.attributes().getOrDefault(VECTOR_DATA_TYPE_FIELD, VectorDataType.FLOAT.getValue())
                                 )
+                                : FieldInfoExtractor.extractQuantizationConfig(fieldInfo)
+                                    .getQuantizationType() == ScalarQuantizationType.EIGHT_BIT
+                                    ? VectorDataType.BYTE
                                 : VectorDataType.BINARY
                         )
                     );
