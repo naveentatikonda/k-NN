@@ -37,13 +37,23 @@ public class ByteScalarQuantizer implements Quantizer<float[], byte[]> {
         this.sampler = SamplingFactory.getSampler(SamplerType.RESERVOIR);
     }
 
+    // Train using min-max technique
+    // @Override
+    // public QuantizationState train(TrainingRequest<float[]> trainingRequest) throws IOException {
+    // int[] sampledIndices = sampler.sample(trainingRequest.getTotalNumberOfVectors(), samplingSize);
+    // Pair<float[], float[]> minAndMax = QuantizerHelper.calculateMinAndMax(trainingRequest, sampledIndices);
+    // float[] diff = calculateDiff(minAndMax.getA(), minAndMax.getB());
+    // ScalarQuantizationParams params = new ScalarQuantizationParams(ScalarQuantizationType.EIGHT_BIT);
+    // return new ByteScalarQuantizationState(params, minAndMax.getA(), diff);
+    // }
+
     @Override
     public QuantizationState train(TrainingRequest<float[]> trainingRequest) throws IOException {
         int[] sampledIndices = sampler.sample(trainingRequest.getTotalNumberOfVectors(), samplingSize);
-        Pair<float[], float[]> minAndMax = QuantizerHelper.calculateMinAndMax(trainingRequest, sampledIndices);
-        float[] diff = calculateDiff(minAndMax.getA(), minAndMax.getB());
+        Pair<float[], float[]> meanAndStdDev = QuantizerHelper.calculateMeanAndStdDev(trainingRequest, sampledIndices);
+        Pair<float[], float[]> minAndDiff = calculateMinAndDiff(meanAndStdDev.getA(), meanAndStdDev.getB());
         ScalarQuantizationParams params = new ScalarQuantizationParams(ScalarQuantizationType.EIGHT_BIT);
-        return new ByteScalarQuantizationState(params, minAndMax.getA(), diff);
+        return new ByteScalarQuantizationState(params, minAndDiff.getA(), minAndDiff.getB());
     }
 
     @Override
@@ -88,6 +98,40 @@ public class ByteScalarQuantizer implements Quantizer<float[], byte[]> {
         }
         return diffArray;
     }
+
+    private Pair<float[], float[]> calculateMinAndDiff(final float[] meanArray, final float[] stdArray) {
+        int dimension = meanArray.length;
+        float rs_arg = 1.0f;
+        float[] diffArray = new float[dimension];
+        float[] minArray = new float[dimension];
+
+        for (int i = 0; i < dimension; i++) {
+            minArray[i] = meanArray[i] - stdArray[i] * rs_arg;
+            float max = meanArray[i] + stdArray[i] * rs_arg;
+            diffArray[i] = max - minArray[i];
+        }
+        return new Pair<>(minArray, diffArray);
+    }
+
+    // private float[][] transposeVectors(TrainingRequest<float[]> trainingRequest, int[] sampledIndices) throws IOException {
+    // int totalSamples = sampledIndices.length;
+    // if (totalSamples > 0) {
+    // float[] vector = trainingRequest.getVectorAtThePosition(sampledIndices[0]);
+    // if (vector == null) {
+    // throw new IllegalArgumentException("Vector at sampled index " + sampledIndices[0] + " is null.");
+    // }
+    // }
+    // int dimension = trainingRequest.getVectorAtThePosition(sampledIndices[0]).length;
+    // float[][] transposedVec = new float[dimension][totalSamples];
+    //
+    // for(int i=0; i<totalSamples; i++) {
+    // float[] vector = trainingRequest.getVectorAtThePosition(sampledIndices[0]);
+    // for(int j=0; j<dimension;j++) {
+    // transposedVec[j][i] = vector[j];
+    // }
+    // }
+    // return transposedVec;
+    // }
 
     private void validateState(final QuantizationState state) {
         if (!(state instanceof ByteScalarQuantizationState)) {
