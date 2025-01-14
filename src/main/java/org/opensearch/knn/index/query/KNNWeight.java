@@ -459,6 +459,7 @@ public class KNNWeight extends Weight {
     private boolean isExactSearchRequire(final LeafReaderContext context, final int filterIdsCount, final int annResultCount) {
         if (annResultCount == 0 && isMissingNativeEngineFiles(context)) {
             log.debug("Perform exact search after approximate search since no native engine files are available");
+            log.info("Perform exact search after approximate search since no native engine files are available");
             return true;
         }
         if (isFilteredExactSearchRequireAfterANNSearch(filterIdsCount, annResultCount)) {

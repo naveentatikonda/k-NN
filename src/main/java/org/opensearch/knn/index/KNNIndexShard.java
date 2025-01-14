@@ -185,6 +185,7 @@ public class KNNIndexShard {
                     String spaceTypeName = fieldInfo.attributes().getOrDefault(SPACE_TYPE, SpaceType.L2.getValue());
                     SpaceType spaceType = SpaceType.getSpace(spaceTypeName);
                     String modelId = fieldInfo.attributes().getOrDefault(MODEL_ID, null);
+                    QuantizationConfig quantizationConfig = FieldInfoExtractor.extractQuantizationConfig(fieldInfo);
                     engineFiles.addAll(
                         getEngineFileContexts(
                             reader.getSegmentInfo(),
@@ -192,14 +193,12 @@ public class KNNIndexShard {
                             fileExtension,
                             spaceType,
                             modelId,
-                            FieldInfoExtractor.extractQuantizationConfig(fieldInfo) == QuantizationConfig.EMPTY
-                                ? VectorDataType.get(
-                                    fieldInfo.attributes().getOrDefault(VECTOR_DATA_TYPE_FIELD, VectorDataType.FLOAT.getValue())
-                                )
-                                : FieldInfoExtractor.extractQuantizationConfig(fieldInfo)
-                                    .getQuantizationType() == ScalarQuantizationType.EIGHT_BIT
-                                    ? VectorDataType.BYTE
-                                : VectorDataType.BINARY
+                            quantizationConfig == QuantizationConfig.EMPTY
+                                || quantizationConfig.getQuantizationType() == ScalarQuantizationType.EIGHT_BIT
+                                    ? VectorDataType.get(
+                                        fieldInfo.attributes().getOrDefault(VECTOR_DATA_TYPE_FIELD, VectorDataType.FLOAT.getValue())
+                                    )
+                                    : VectorDataType.BINARY
                         )
                     );
                 }

@@ -14,11 +14,11 @@ import org.opensearch.knn.index.vectorvalues.KNNVectorValues;
 import org.opensearch.knn.quantization.enums.ScalarQuantizationType;
 import org.opensearch.knn.quantization.factory.QuantizerFactory;
 import org.opensearch.knn.quantization.models.quantizationOutput.BinaryQuantizationOutput;
-import org.opensearch.knn.quantization.models.quantizationOutput.ByteQuantizationOutput;
 import org.opensearch.knn.quantization.models.quantizationOutput.QuantizationOutput;
 import org.opensearch.knn.quantization.models.quantizationParams.QuantizationParams;
 import org.opensearch.knn.quantization.models.quantizationParams.ScalarQuantizationParams;
 import org.opensearch.knn.quantization.models.quantizationState.QuantizationState;
+import org.opensearch.knn.quantization.quantizer.ByteScalarQuantizer;
 import org.opensearch.knn.quantization.quantizer.Quantizer;
 import java.io.IOException;
 
@@ -62,7 +62,8 @@ public final class QuantizationService<T, R> {
     public QuantizationState train(
         final QuantizationParams quantizationParams,
         final KNNVectorValues<T> knnVectorValues,
-        final long liveDocs
+        final long liveDocs,
+        final FieldInfo fieldInfo
     ) throws IOException {
         Quantizer<T, R> quantizer = QuantizerFactory.getQuantizer(quantizationParams);
 
@@ -70,6 +71,9 @@ public final class QuantizationService<T, R> {
         KNNVectorQuantizationTrainingRequest<T> trainingRequest = new KNNVectorQuantizationTrainingRequest<>(knnVectorValues, liveDocs);
 
         // Train the quantizer and return the quantization state
+        if (quantizer instanceof ByteScalarQuantizer) {
+            return quantizer.train(trainingRequest, fieldInfo);
+        }
         return quantizer.train(trainingRequest);
     }
 
@@ -111,7 +115,7 @@ public final class QuantizationService<T, R> {
         QuantizationConfig quantizationConfig = extractQuantizationConfig(fieldInfo);
         if (quantizationConfig != QuantizationConfig.EMPTY
             && quantizationConfig.getQuantizationType() == ScalarQuantizationType.EIGHT_BIT) {
-            return VectorDataType.BYTE;
+            return VectorDataType.FLOAT;
         }
         if (quantizationConfig != QuantizationConfig.EMPTY && quantizationConfig.getQuantizationType() != null) {
             return VectorDataType.BINARY;
@@ -130,9 +134,9 @@ public final class QuantizationService<T, R> {
     public QuantizationOutput<R> createQuantizationOutput(final QuantizationParams quantizationParams) {
         if (quantizationParams instanceof ScalarQuantizationParams) {
             ScalarQuantizationParams scalarParams = (ScalarQuantizationParams) quantizationParams;
-            if (scalarParams.getSqType() == ScalarQuantizationType.EIGHT_BIT) {
-                return (QuantizationOutput<R>) new ByteQuantizationOutput(scalarParams.getSqType().getId());
-            }
+            // if (scalarParams.getSqType() == ScalarQuantizationType.EIGHT_BIT) {
+            // return (QuantizationOutput<R>) new ByteQuantizationOutput(scalarParams.getSqType().getId());
+            // }
             return (QuantizationOutput<R>) new BinaryQuantizationOutput(scalarParams.getSqType().getId());
         }
         throw new IllegalArgumentException("Unsupported quantization parameters: " + quantizationParams.getClass().getName());

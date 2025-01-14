@@ -22,8 +22,7 @@ import java.io.IOException;
 @AllArgsConstructor
 public class ByteScalarQuantizationState implements QuantizationState {
     private ScalarQuantizationParams quantizationParams;
-    private float[] min;
-    private float[] diff;
+    private byte[] indexTemplate;
 
     @Override
     public QuantizationParams getQuantizationParams() {
@@ -34,15 +33,14 @@ public class ByteScalarQuantizationState implements QuantizationState {
     public void writeTo(StreamOutput out) throws IOException {
         out.writeVInt(Version.CURRENT.id); // Write the version
         quantizationParams.writeTo(out);
-        out.writeFloatArray(min);
-        out.writeFloatArray(diff);
+        out.writeByteArray(indexTemplate);
     }
 
     public ByteScalarQuantizationState(StreamInput in) throws IOException {
         int version = in.readVInt(); // Read the version
         this.quantizationParams = new ScalarQuantizationParams(in, version);
-        this.min = in.readFloatArray();
-        this.diff = in.readFloatArray();
+        this.indexTemplate = in.readByteArray();
+
     }
 
     @Override
@@ -56,20 +54,19 @@ public class ByteScalarQuantizationState implements QuantizationState {
 
     @Override
     public int getBytesPerVector() {
-        return min.length;
+        return 0;
     }
 
     @Override
     public int getDimensions() {
-        return min.length;
+        return 0;
     }
 
     @Override
     public long ramBytesUsed() {
         long size = RamUsageEstimator.shallowSizeOfInstance(ByteScalarQuantizationState.class);
         size += RamUsageEstimator.shallowSizeOf(quantizationParams);
-        size += RamUsageEstimator.sizeOf(min);
-        size += RamUsageEstimator.sizeOf(diff);
+        size += RamUsageEstimator.sizeOf(indexTemplate);
         return size;
     }
 }
