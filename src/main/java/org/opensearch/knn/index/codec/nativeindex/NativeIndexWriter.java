@@ -32,7 +32,6 @@ import org.opensearch.knn.index.vectorvalues.KNNVectorValues;
 import org.opensearch.knn.indices.Model;
 import org.opensearch.knn.indices.ModelCache;
 import org.opensearch.knn.plugin.stats.KNNGraphValue;
-import org.opensearch.knn.quantization.enums.ScalarQuantizationType;
 import org.opensearch.knn.quantization.models.quantizationState.QuantizationState;
 
 import java.io.IOException;
@@ -314,6 +313,7 @@ public class NativeIndexWriter {
     ) {
         final KNNEngine knnEngine = extractKNNEngine(fieldInfo);
         boolean iterative = !isTemplate(fieldInfo) && KNNEngine.FAISS == knnEngine;
+        // boolean iterative = KNNEngine.FAISS == knnEngine;
         NativeIndexBuildStrategy strategy = iterative
             ? MemOptimizedNativeIndexBuildStrategy.getInstance()
             : DefaultIndexBuildStrategy.getInstance();
@@ -324,9 +324,10 @@ public class NativeIndexWriter {
         if (fieldInfo.attributes().containsKey(MODEL_ID)) {
             return true;
         }
+        return false;
 
-        QuantizationConfig quantizationConfig = FieldInfoExtractor.extractQuantizationConfig(fieldInfo);
-        return quantizationConfig != QuantizationConfig.EMPTY
-            && quantizationConfig.getQuantizationType() == ScalarQuantizationType.EIGHT_BIT;
+        // QuantizationConfig quantizationConfig = FieldInfoExtractor.extractQuantizationConfig(fieldInfo);
+        // return quantizationConfig != QuantizationConfig.EMPTY
+        // && quantizationConfig.getQuantizationType() == ScalarQuantizationType.EIGHT_BIT;
     }
 }

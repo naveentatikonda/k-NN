@@ -33,6 +33,7 @@ import org.opensearch.knn.plugin.stats.KNNGraphValue;
 import org.opensearch.knn.quantization.enums.ScalarQuantizationType;
 import org.opensearch.knn.quantization.models.quantizationParams.QuantizationParams;
 import org.opensearch.knn.quantization.models.quantizationParams.ScalarQuantizationParams;
+import org.opensearch.knn.quantization.models.quantizationState.ByteScalarQuantizationState;
 import org.opensearch.knn.quantization.models.quantizationState.QuantizationState;
 
 import java.io.IOException;
@@ -108,7 +109,7 @@ public class NativeEngines990KnnVectorsWriter extends KnnVectorsWriter {
             final QuantizationState quantizationState = train(field.getFieldInfo(), knnVectorValuesSupplier, totalLiveDocs);
             // Check only after quantization state writer finish writing its state, since it is required
             // even if there are no graph files in segment, which will be later used by exact search
-            if (shouldSkipBuildingVectorDataStructure(totalLiveDocs)) {
+            if (shouldSkipBuildingVectorDataStructure(totalLiveDocs, quantizationState)) {
                 log.info(
                     "Skip building vector data structure for field: {}, as liveDoc: {} is less than the threshold {} during flush",
                     fieldInfo.name,
@@ -148,7 +149,7 @@ public class NativeEngines990KnnVectorsWriter extends KnnVectorsWriter {
         final QuantizationState quantizationState = train(fieldInfo, knnVectorValuesSupplier, totalLiveDocs);
         // Check only after quantization state writer finish writing its state, since it is required
         // even if there are no graph files in segment, which will be later used by exact search
-        if (shouldSkipBuildingVectorDataStructure(totalLiveDocs)) {
+        if (shouldSkipBuildingVectorDataStructure(totalLiveDocs, quantizationState)) {
             log.info(
                 "Skip building vector data structure for field: {}, as liveDoc: {} is less than the threshold {} during merge",
                 fieldInfo.name,
@@ -294,9 +295,13 @@ public class NativeEngines990KnnVectorsWriter extends KnnVectorsWriter {
         }
     }
 
-    private boolean shouldSkipBuildingVectorDataStructure(final long docCount) {
+    private boolean shouldSkipBuildingVectorDataStructure(final long docCount, final QuantizationState quantizationState) {
         if (approximateThreshold < 0) {
             return true;
+        }
+
+        if (quantizationState instanceof ByteScalarQuantizationState) {
+            return false;
         }
         return docCount < approximateThreshold;
     }

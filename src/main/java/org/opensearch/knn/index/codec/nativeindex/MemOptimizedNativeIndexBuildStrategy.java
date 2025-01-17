@@ -12,6 +12,7 @@ import org.opensearch.knn.index.codec.transfer.OffHeapVectorTransfer;
 import org.opensearch.knn.index.engine.KNNEngine;
 import org.opensearch.knn.index.vectorvalues.KNNVectorValues;
 import org.opensearch.knn.jni.JNIService;
+import org.opensearch.knn.quantization.models.quantizationState.ByteScalarQuantizationState;
 
 import java.io.IOException;
 import java.security.AccessController;
@@ -57,16 +58,31 @@ final class MemOptimizedNativeIndexBuildStrategy implements NativeIndexBuildStra
         KNNEngine engine = indexInfo.getKnnEngine();
         Map<String, Object> indexParameters = indexInfo.getParameters();
         IndexBuildSetup indexBuildSetup = QuantizationIndexUtils.prepareIndexBuild(knnVectorValues, indexInfo);
+        long indexMemoryAddress;
 
-        // Initialize the index
-        long indexMemoryAddress = AccessController.doPrivileged(
-            (PrivilegedAction<Long>) () -> JNIService.initIndex(
-                indexInfo.getTotalLiveDocs(),
-                indexBuildSetup.getDimensions(),
-                indexParameters,
-                engine
-            )
-        );
+        if (isTemplate(indexInfo)) {
+            // Initialize the index from Template
+            indexMemoryAddress = AccessController.doPrivileged(
+                (PrivilegedAction<Long>) () -> JNIService.initIndexFromTemplate(
+                    indexInfo.getTotalLiveDocs(),
+                    indexBuildSetup.getDimensions(),
+                    indexParameters,
+                    engine,
+                    getIndexTemplate(indexParameters, indexInfo)
+                )
+            );
+
+        } else {
+            // Initialize the index
+            indexMemoryAddress = AccessController.doPrivileged(
+                (PrivilegedAction<Long>) () -> JNIService.initIndex(
+                    indexInfo.getTotalLiveDocs(),
+                    indexBuildSetup.getDimensions(),
+                    indexParameters,
+                    engine
+                )
+            );
+        }
 
         try (
             final OffHeapVectorTransfer vectorTransfer = getVectorTransfer(
@@ -132,5 +148,25 @@ final class MemOptimizedNativeIndexBuildStrategy implements NativeIndexBuildStra
                 exception
             );
         }
+    }
+
+    private static boolean isTemplate(final BuildIndexParams indexInfo) {
+        // if (indexInfo.getParameters().containsKey(MODEL_ID)) {
+        // return true;
+        // }
+
+        if (indexInfo.getQuantizationState() instanceof ByteScalarQuantizationState) {
+            return true;
+        }
+        return false;
+    }
+
+    private byte[] getIndexTemplate(Map<String, Object> params, BuildIndexParams indexInfo) {
+        // if (params.containsKey(MODEL_ID)) {
+        // return (byte[]) params.get(KNNConstants.MODEL_BLOB_PARAMETER);
+        // }
+
+        ByteScalarQuantizationState byteSQState = (ByteScalarQuantizationState) indexInfo.getQuantizationState();
+        return byteSQState.getIndexTemplate();
     }
 }
