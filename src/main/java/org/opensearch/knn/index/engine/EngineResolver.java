@@ -5,6 +5,7 @@
 
 package org.opensearch.knn.index.engine;
 
+import org.opensearch.Version;
 import org.opensearch.knn.index.mapper.CompressionLevel;
 import org.opensearch.knn.index.mapper.Mode;
 
@@ -52,11 +53,10 @@ public final class EngineResolver {
             return mode == Mode.ON_DISK ? KNNEngine.FAISS : KNNEngine.NMSLIB;
         }
 
-        // Lucene is only engine that supports 4x - so we have to default to it here.
-        // // TODO : Change to before Version.V_2_19_0
-        // if (knnMethodConfigContext.getVersionCreated().onOrBefore(Version.V_2_18_0) && compressionLevel == CompressionLevel.x4) {
-        // return KNNEngine.LUCENE;
-        // }
+        // 4x is supported by Lucene engine before version 2.19.0
+        if (knnMethodConfigContext.getVersionCreated().before(Version.V_2_19_0) && compressionLevel == CompressionLevel.x4) {
+            return KNNEngine.LUCENE;
+        }
 
         if (compressionLevel == CompressionLevel.x4) {
             return KNNEngine.FAISS;
