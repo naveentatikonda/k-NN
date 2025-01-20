@@ -9,6 +9,7 @@ import lombok.Getter;
 import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.BytesRef;
+import org.opensearch.Version;
 import org.opensearch.index.fielddata.IndexFieldData;
 import org.opensearch.index.mapper.MappedFieldType;
 import org.opensearch.index.mapper.TextSearchInfo;
@@ -91,9 +92,10 @@ public class KNNVectorFieldType extends MappedFieldType {
      * Resolve the rescore context provided for a user based on the field configuration
      *
      * @param userProvidedContext {@link RescoreContext} user passed; if null, the default should be configured
+     * @param indexVersionCreated OpenSearch cluster version in which the index was created
      * @return resolved {@link RescoreContext}
      */
-    public RescoreContext resolveRescoreContext(RescoreContext userProvidedContext) {
+    public RescoreContext resolveRescoreContext(RescoreContext userProvidedContext, Version indexVersionCreated) {
         if (userProvidedContext != null) {
             return userProvidedContext;
         }
@@ -101,7 +103,7 @@ public class KNNVectorFieldType extends MappedFieldType {
         int dimension = knnMappingConfig.getDimension();
         CompressionLevel compressionLevel = knnMappingConfig.getCompressionLevel();
         Mode mode = knnMappingConfig.getMode();
-        return compressionLevel.getDefaultRescoreContext(mode, dimension);
+        return compressionLevel.getDefaultRescoreContext(mode, dimension, indexVersionCreated);
     }
 
     /**
