@@ -22,6 +22,7 @@ import static org.opensearch.knn.common.KNNConstants.ENCODER_SQ;
 import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_CLIP;
 import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_DESCRIPTION;
 import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_ENCODER_FP16;
+import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_ENCODER_INT8;
 import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_ENCODER_TYPES;
 import static org.opensearch.knn.common.KNNConstants.FAISS_SQ_TYPE;
 
@@ -80,11 +81,12 @@ public class FaissSQEncoder implements Encoder {
         MethodComponentContext methodComponentContext,
         KNNMethodConfigContext knnMethodConfigContext
     ) {
-        if (methodComponentContext.getParameters().containsKey(FAISS_SQ_TYPE) == false) {
-            return CompressionLevel.NOT_CONFIGURED;
+        // Faiss Scalar Quantizer by default sets to fp16 or compression level x2 when encoder type is not set
+        if (methodComponentContext.getParameters().size() == 0 || !methodComponentContext.getParameters().containsKey(FAISS_SQ_TYPE)) {
+            return CompressionLevel.x2;
         }
 
-        // Map the number of bits passed in, back to the compression level
+        // Map the sq encoder type passed in, back to the compression level
         Object value = methodComponentContext.getParameters().get(FAISS_SQ_TYPE);
         ValidationException validationException = METHOD_COMPONENT.getParameters()
             .get(FAISS_SQ_TYPE)
@@ -98,6 +100,10 @@ public class FaissSQEncoder implements Encoder {
             return CompressionLevel.x2;
         }
 
-        return CompressionLevel.x4;
+        if (FAISS_SQ_ENCODER_INT8.equals(SQEncoderType)) {
+            return CompressionLevel.x4;
+        }
+
+        return CompressionLevel.NOT_CONFIGURED;
     }
 }
