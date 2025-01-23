@@ -54,7 +54,7 @@ public final class EngineResolver {
         }
 
         // 4x is supported by Lucene engine before version 2.19.0
-        if (knnMethodConfigContext.getVersionCreated().before(Version.V_2_19_0) && compressionLevel == CompressionLevel.x4) {
+        if (compressionLevel == CompressionLevel.x4 && knnMethodConfigContext.getVersionCreated().before(Version.V_2_19_0)) {
             return KNNEngine.LUCENE;
         }
 
