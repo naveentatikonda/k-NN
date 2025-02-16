@@ -14,6 +14,7 @@ import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.knn.index.VectorDataType;
 import org.opensearch.knn.index.engine.KNNEngine;
 import org.opensearch.knn.index.query.common.QueryUtils;
+import org.opensearch.knn.index.query.lucene.LuceneEngineRescoreKnnVectorQuery;
 import org.opensearch.knn.index.query.lucenelib.NestedKnnVectorQueryFactory;
 import org.opensearch.knn.index.query.lucene.LuceneEngineKnnVectorQuery;
 import org.opensearch.knn.index.query.nativelib.NativeEngineKnnVectorQuery;
@@ -129,8 +130,15 @@ public class KNNQueryFactory extends BaseQueryFactory {
                     getKnnByteVectorQuery(fieldName, byteVector, luceneK, filterQuery, parentFilter, expandNested)
                 );
             case FLOAT:
-                return new LuceneEngineKnnVectorQuery(
-                    getKnnFloatVectorQuery(fieldName, vector, luceneK, filterQuery, parentFilter, expandNested)
+                if (rescoreContext == null) {
+                    return new LuceneEngineKnnVectorQuery(
+                        getKnnFloatVectorQuery(fieldName, vector, luceneK, filterQuery, parentFilter, expandNested)
+                    );
+                }
+                return new LuceneEngineRescoreKnnVectorQuery(
+                    getKnnFloatVectorQuery(fieldName, vector, luceneK, filterQuery, parentFilter, expandNested),
+                    luceneK,
+                    vector
                 );
             default:
                 throw new IllegalArgumentException(
