@@ -71,6 +71,8 @@ task pullBwcPlugin {
             } else {
                 srcUrl = "https://artifacts.opensearch.org/releases/bundle/opensearch/${knn_bwc_version}/opensearch-${knn_bwc_version}-${os_platform}-x64.${file_ext}"
             }
+            println("Printing src value")
+            println srcUrl
         }
         ant.get(
                 src: srcUrl,
