@@ -466,6 +466,8 @@ task integTestRemote(type: RestIntegTestTask) {
     systemProperty 'tests.security.manager', 'false'
     systemProperty("test.exhaustive", System.getProperty("test.exhaustive"))
 
+    systemProperty "tests.path.repo", "${layout.buildDirectory.toString()}/testSnapshotFolder"
+
     // Run tests with remote cluster only if rest case is defined
     if (System.getProperty("tests.rest.cluster") != null) {
         filter {

@@ -123,8 +123,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
             modelDao,
             CURRENT,
             null,
-            new OriginalMappingParameters(VectorDataType.DEFAULT, TEST_DIMENSION, null, null, null, null, SpaceType.UNDEFINED.getValue()),
-            false
+            new OriginalMappingParameters(VectorDataType.DEFAULT, TEST_DIMENSION, null, null, null, null, SpaceType.UNDEFINED.getValue())
         );
 
         assertEquals(10, builder.getParameters().size());
@@ -358,7 +357,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
     public void testBuilder_build_fromModel() {
         // Check that modelContext takes precedent over legacy
         ModelDao modelDao = mock(ModelDao.class);
-        KNNVectorFieldMapper.Builder builder = new KNNVectorFieldMapper.Builder("test-field-name-1", modelDao, CURRENT, null, null, false);
+        KNNVectorFieldMapper.Builder builder = new KNNVectorFieldMapper.Builder("test-field-name-1", modelDao, CURRENT, null, null);
 
         SpaceType spaceType = SpaceType.COSINESIMIL;
         int m = 17;
@@ -1199,8 +1198,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
                     new Explicit<>(true, true),
                     false,
                     false,
-                    originalMappingParameters,
-                    false
+                    originalMappingParameters
                 );
                 methodFieldMapper.parseCreateField(parseContext, dimension, dataType);
 
@@ -1240,8 +1238,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
                     new Explicit<>(true, true),
                     false,
                     false,
-                    originalMappingParameters,
-                    false
+                    originalMappingParameters
                 );
 
                 methodFieldMapper.parseCreateField(parseContext, dimension, dataType);
@@ -1314,8 +1311,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
                     modelDao,
                     CURRENT,
                     originalMappingParameters,
-                    knnMethodConfigContext,
-                    false
+                    knnMethodConfigContext
                 );
 
                 modelFieldMapper.parseCreateField(parseContext);
@@ -1358,8 +1354,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
                     modelDao,
                     CURRENT,
                     originalMappingParameters,
-                    knnMethodConfigContext,
-                    false
+                    knnMethodConfigContext
                 );
 
                 modelFieldMapper.parseCreateField(parseContext);
@@ -1405,8 +1400,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
             Collections.emptyMap(),
             knnMethodConfigContext,
             inputBuilder.build(),
-            originalMappingParameters,
-            false
+            originalMappingParameters
         );
         luceneFieldMapper.parseCreateField(parseContext, TEST_DIMENSION, VectorDataType.FLOAT);
 
@@ -1465,8 +1459,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
             Collections.emptyMap(),
             knnMethodConfigContext,
             inputBuilder.build(),
-            originalMappingParameters,
-            false
+            originalMappingParameters
         );
         luceneFieldMapper.parseCreateField(parseContext, TEST_DIMENSION, VectorDataType.FLOAT);
 
@@ -1513,8 +1506,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
                     .dimension(TEST_DIMENSION)
                     .build(),
                 inputBuilder.build(),
-                originalMappingParameters,
-                false
+                originalMappingParameters
             )
         );
         doReturn(Optional.of(TEST_BYTE_VECTOR)).when(luceneFieldMapper)
@@ -1564,8 +1556,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
                     .dimension(TEST_DIMENSION)
                     .build(),
                 inputBuilder.build(),
-                originalMappingParameters,
-                false
+                originalMappingParameters
             )
         );
         doReturn(Optional.of(TEST_BYTE_VECTOR)).when(luceneFieldMapper)
@@ -1680,7 +1671,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
     public void testBuilder_whenBinaryWithLegacyKNNDisabled_thenValid() {
         // Check legacy is picked up if model context and method context are not set
         ModelDao modelDao = mock(ModelDao.class);
-        KNNVectorFieldMapper.Builder builder = new KNNVectorFieldMapper.Builder("test-field-name-1", modelDao, CURRENT, null, null, false);
+        KNNVectorFieldMapper.Builder builder = new KNNVectorFieldMapper.Builder("test-field-name-1", modelDao, CURRENT, null, null);
         builder.vectorDataType.setValue(VectorDataType.BINARY);
         builder.dimension.setValue(8);
 
@@ -1729,7 +1720,7 @@ public class KNNVectorFieldMapperTests extends KNNTestCase {
 
             // IllegalArgumentException should be thrown.
             Exception e = assertThrows(IllegalArgumentException.class, () -> {
-                new KNNVectorFieldMapper.Builder(invalidVectorFieldName, null, CURRENT, null, null, false).build(builderContext);
+                new KNNVectorFieldMapper.Builder(invalidVectorFieldName, null, CURRENT, null, null).build(builderContext);
             });
             assertTrue(e.getMessage(), e.getMessage().contains("Vector field name must not include"));
         }

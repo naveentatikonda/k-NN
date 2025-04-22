@@ -7,16 +7,15 @@ package org.opensearch.knn.index.codec.derivedsource;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.DocValuesProducer;
-import org.apache.lucene.codecs.FieldsProducer;
 import org.apache.lucene.codecs.KnnVectorsReader;
-import org.apache.lucene.codecs.NormsProducer;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.IOUtils;
 import org.opensearch.common.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Class holds the readers necessary to implement derived source. Important to note that if a segment does not have
@@ -24,28 +23,53 @@ import java.io.IOException;
  */
 @RequiredArgsConstructor
 @Getter
-@Log4j2
-public class DerivedSourceReaders implements Cloneable, Closeable {
+public final class DerivedSourceReaders implements Closeable {
     @Nullable
     private final KnnVectorsReader knnVectorsReader;
     @Nullable
     private final DocValuesProducer docValuesProducer;
-    @Nullable
-    private final FieldsProducer fieldsProducer;
-    @Nullable
-    private final NormsProducer normsProducer;
 
-    private final boolean isCloned;
+    // Copied from lucene (https://github.com/apache/lucene/blob/main/lucene/core/src/java/org/apache/lucene/index/SegmentCoreReaders.java):
+    // We need to reference count these readers because they may be shared amongst different instances.
+    // "Counts how many other readers share the core objects
+    // (freqStream, proxStream, tis, etc.) of this reader;
+    // when coreRef drops to 0, these core objects may be
+    // closed. A given instance of SegmentReader may be
+    // closed, even though it shares core objects with other
+    // SegmentReaders":
+    private final AtomicInteger ref = new AtomicInteger(1);
 
-    @Override
-    public void close() throws IOException {
-        if (isCloned == false) {
-            IOUtils.close(knnVectorsReader, docValuesProducer, fieldsProducer, normsProducer);
-        }
+    /**
+     * Returns this DerivedSourceReaders object with incremented reference count
+     *
+     * @return DerivedSourceReaders object with incremented reference count
+     */
+    public DerivedSourceReaders cloneWithMerge() {
+        // For cloning, we dont need to reference count. In Lucene, the merging will actually not close any of the
+        // readers, so it should only be handled by the original code. See
+        // https://github.com/apache/lucene/blob/main/lucene/core/src/java/org/apache/lucene/index/IndexWriter.java#L3372
+        // for more details
+        return this;
     }
 
     @Override
-    public DerivedSourceReaders clone() {
-        return new DerivedSourceReaders(knnVectorsReader, docValuesProducer, fieldsProducer, normsProducer, true);
+    public void close() throws IOException {
+        decRef();
+    }
+
+    private void incRef() {
+        int count;
+        while ((count = ref.get()) > 0) {
+            if (ref.compareAndSet(count, count + 1)) {
+                return;
+            }
+        }
+        throw new AlreadyClosedException("DerivedSourceReaders is already closed");
+    }
+
+    private void decRef() throws IOException {
+        if (ref.decrementAndGet() == 0) {
+            IOUtils.close(knnVectorsReader, docValuesProducer);
+        }
     }
 }

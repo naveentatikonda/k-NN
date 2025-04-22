@@ -11,23 +11,20 @@ import org.opensearch.knn.index.vectorvalues.KNNVectorValues;
 import org.opensearch.knn.index.vectorvalues.KNNVectorValuesFactory;
 
 import java.io.IOException;
-import java.util.Map;
 
-/**
- * {@link PerFieldDerivedVectorInjector} for root fields (i.e. non nested fields).
- */
-class RootPerFieldDerivedVectorInjector implements PerFieldDerivedVectorInjector {
+public class RootPerFieldDerivedVectorTransformer extends AbstractPerFieldDerivedVectorTransformer {
 
     private final FieldInfo fieldInfo;
     private final CheckedSupplier<KNNVectorValues<?>, IOException> vectorValuesSupplier;
+    private KNNVectorValues<?> vectorValues;
 
     /**
-     * Constructor for RootPerFieldDerivedVectorInjector.
+     * Constructor for RootPerFieldDerivedVectorTransformer.
      *
      * @param fieldInfo FieldInfo for the field to create the injector for
      * @param derivedSourceReaders {@link DerivedSourceReaders} instance
      */
-    public RootPerFieldDerivedVectorInjector(FieldInfo fieldInfo, DerivedSourceReaders derivedSourceReaders) {
+    public RootPerFieldDerivedVectorTransformer(FieldInfo fieldInfo, DerivedSourceReaders derivedSourceReaders) {
         this.fieldInfo = fieldInfo;
         this.vectorValuesSupplier = () -> KNNVectorValuesFactory.getVectorValues(
             fieldInfo,
@@ -37,10 +34,21 @@ class RootPerFieldDerivedVectorInjector implements PerFieldDerivedVectorInjector
     }
 
     @Override
-    public void inject(int docId, Map<String, Object> sourceAsMap) throws IOException {
-        KNNVectorValues<?> vectorValues = vectorValuesSupplier.get();
-        if (vectorValues.docId() == docId || vectorValues.advance(docId) == docId) {
-            sourceAsMap.put(fieldInfo.name, vectorValues.conditionalCloneVector());
+    public void setCurrentDoc(int offset, int docId) throws IOException {
+        vectorValues = vectorValuesSupplier.get();
+        vectorValues.advance(docId);
+    }
+
+    @Override
+    public Object apply(Object object) {
+        if (object == null) {
+            return object;
+        }
+
+        try {
+            return formatVector(fieldInfo, vectorValues::getVector, vectorValues::conditionalCloneVector);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }

@@ -28,7 +28,10 @@ public class DerivedSourceStoredFieldsWriterTests extends KNNTestCase {
         FieldInfo fieldInfo = KNNCodecTestUtil.FieldInfoBuilder.builder("_source").build();
         List<String> fields = List.of("test");
 
-        DerivedSourceStoredFieldsWriter derivedSourceStoredFieldsWriter = new DerivedSourceStoredFieldsWriter(delegate, fields);
+        KNN9120DerivedSourceStoredFieldsWriter derivedSourceStoredFieldsWriter = new KNN9120DerivedSourceStoredFieldsWriter(
+            delegate,
+            fields
+        );
 
         Map<String, Object> source = Map.of("test", new float[] { 1.0f, 2.0f, 3.0f }, "text_field", "text_value");
         BytesStreamOutput bStream = new BytesStreamOutput();

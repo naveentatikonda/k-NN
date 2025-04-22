@@ -5,7 +5,6 @@
 
 package org.opensearch.knn.index.codec.KNN9120Codec;
 
-import lombok.RequiredArgsConstructor;
 import org.apache.lucene.codecs.StoredFieldsWriter;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.MergeState;
@@ -14,24 +13,51 @@ import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.xcontent.XContentHelper;
-import org.opensearch.common.xcontent.support.XContentMapValues;
 import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.xcontent.MediaType;
 import org.opensearch.core.xcontent.MediaTypeRegistry;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.mapper.SourceFieldMapper;
+import org.opensearch.knn.index.codec.derivedsource.XContentMapValuesHelper;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
-public class DerivedSourceStoredFieldsWriter extends StoredFieldsWriter {
+public class KNN9120DerivedSourceStoredFieldsWriter extends StoredFieldsWriter {
 
     private final StoredFieldsWriter delegate;
-    private final List<String> vectorFieldTypes;
+    private final Function<Map<String, Object>, Map<String, Object>> vectorMask;
+
+    // Keeping the mask as small as possible.
+    private final static Byte MASK = 0x1;
+
+    /**
+     *
+     * @param delegate StoredFieldsWriter to wrap
+     * @param vectorFieldTypesArg List of vector field types to mask. If empty, no masking will be done
+     */
+    public KNN9120DerivedSourceStoredFieldsWriter(StoredFieldsWriter delegate, List<String> vectorFieldTypesArg) {
+        this.delegate = delegate;
+        List<String> vectorFieldTypes = new ArrayList<>();
+        for (String s : vectorFieldTypesArg) {
+            String lowerCase = s.toLowerCase();
+            vectorFieldTypes.add(lowerCase);
+        }
+        if (vectorFieldTypes.isEmpty() == false) {
+            this.vectorMask = XContentMapValuesHelper.transform(
+                vectorFieldTypes.stream().collect(Collectors.toMap(k -> k, k -> (Object o) -> o == null ? o : MASK)),
+                true
+            );
+        } else {
+            this.vectorMask = null;
+        }
+    }
 
     @Override
     public void startDocument() throws IOException {
@@ -65,9 +91,10 @@ public class DerivedSourceStoredFieldsWriter extends StoredFieldsWriter {
 
     @Override
     public int merge(MergeState mergeState) throws IOException {
-        // We have to wrap these here to avoid storing the vectors during merge
+        // We wrap the segments to avoid injecting back vectors and then removing. If this is not done, then we will
+        // inject and then just write to disk potentially.
         for (int i = 0; i < mergeState.storedFieldsReaders.length; i++) {
-            mergeState.storedFieldsReaders[i] = DerivedSourceStoredFieldsReader.wrapForMerge(mergeState.storedFieldsReaders[i]);
+            mergeState.storedFieldsReaders[i] = KNN9120DerivedSourceStoredFieldsReader.wrapForMerge(mergeState.storedFieldsReaders[i]);
         }
         return delegate.merge(mergeState);
     }
@@ -75,7 +102,7 @@ public class DerivedSourceStoredFieldsWriter extends StoredFieldsWriter {
     @Override
     public void writeField(FieldInfo fieldInfo, BytesRef bytesRef) throws IOException {
         // Parse out the vectors from the source
-        if (Objects.equals(fieldInfo.name, SourceFieldMapper.NAME) && !vectorFieldTypes.isEmpty()) {
+        if (vectorMask != null && Objects.equals(fieldInfo.name, SourceFieldMapper.NAME)) {
             // Reference:
             // https://github.com/opensearch-project/OpenSearch/blob/2.18.0/server/src/main/java/org/opensearch/index/mapper/SourceFieldMapper.java#L322
             Tuple<? extends MediaType, Map<String, Object>> mapTuple = XContentHelper.convertToMap(
@@ -83,8 +110,7 @@ public class DerivedSourceStoredFieldsWriter extends StoredFieldsWriter {
                 true,
                 MediaTypeRegistry.JSON
             );
-            Map<String, Object> filteredSource = XContentMapValues.filter(null, vectorFieldTypes.toArray(new String[0]))
-                .apply(mapTuple.v2());
+            Map<String, Object> filteredSource = vectorMask.apply(mapTuple.v2());
             BytesStreamOutput bStream = new BytesStreamOutput();
             MediaType actualContentType = mapTuple.v1();
             XContentBuilder builder = MediaTypeRegistry.contentBuilder(actualContentType, bStream).map(filteredSource);
