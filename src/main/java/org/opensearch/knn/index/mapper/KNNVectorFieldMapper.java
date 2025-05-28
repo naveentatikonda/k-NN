@@ -406,7 +406,7 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             } else {
                 // Validate that the mode and compression are not set if data type is not float, as they are not
                 // supported.
-                validateModeAndCompressionForDataType(builder);
+                validateModeAndCompression(builder, parserContext.indexVersionCreated());
                 // If the original knnMethodContext is not null, resolve its space type and engine from the rest of the
                 // configuration. This is consistent with the existing behavior for space type in 2.16 where we modify the
                 // parsed value
@@ -448,12 +448,16 @@ public abstract class KNNVectorFieldMapper extends ParametrizedFieldMapper {
             }
         }
 
-        private void validateModeAndCompressionForDataType(KNNVectorFieldMapper.Builder builder) {
+        private void validateModeAndCompression(KNNVectorFieldMapper.Builder builder, Version indexCreatedVersion) {
             boolean isModeOrCompressionConfigured = builder.mode.isConfigured() || builder.compressionLevel.isConfigured();
             if (isModeOrCompressionConfigured && builder.vectorDataType.getValue() != VectorDataType.FLOAT) {
                 throw new MapperParsingException(
                     String.format(Locale.ROOT, "Compression and mode cannot be used for non-float32 data type for field %s", builder.name)
                 );
+            }
+
+            if (isModeOrCompressionConfigured && indexCreatedVersion.before(Version.V_2_17_0)) {
+                throw new MapperParsingException("Compression and mode can only be used on indices created on or after version 2.17.0");
             }
         }
 
