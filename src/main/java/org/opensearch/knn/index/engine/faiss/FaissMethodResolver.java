@@ -110,6 +110,7 @@ public class FaissMethodResolver extends AbstractMethodResolver {
             encoderComponentContext.getParameters().put(FAISS_SQ_TYPE, FAISS_SQ_ENCODER_FP16);
         }
 
+        //TODO: remove this
         if (CompressionLevel.x4 == resolvedCompressionLevel) {
             encoderComponentContext = new MethodComponentContext(ENCODER_SQ, new HashMap<>());
             encoder = encoderMap.get(ENCODER_SQ);
@@ -174,9 +175,8 @@ public class FaissMethodResolver extends AbstractMethodResolver {
             validationException.addValidationError(
                 String.format(
                     Locale.ROOT,
-                    "sq \"%s\" encoder or compression level \"%s\" does not support \"%s\" method",
+                    "sq \"%s\" encoder does not support \"%s\" method",
                     FAISS_SQ_ENCODER_INT8,
-                    CompressionLevel.x4.getName(),
                     METHOD_IVF
                 )
             );

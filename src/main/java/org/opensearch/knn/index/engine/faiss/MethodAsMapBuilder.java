@@ -117,8 +117,9 @@ class MethodAsMapBuilder {
         );
 
         QuantizationConfig quantizationConfig = QuantizationConfig.EMPTY;
-        if (knnMethodConfigContext.getCompressionLevel() == CompressionLevel.x4
-            && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_2_19_0)) {
+        //TODO: Validate if it impacts Lucene
+        if (knnMethodConfigContext.getCompressionLevel() == CompressionLevel.x4) {
+//            && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_2_19_0)) {
             quantizationConfig = QuantizationConfig.builder().quantizationType(ScalarQuantizationType.EIGHT_BIT).build();
         }
         return new MethodAsMapBuilder(baseDescription, methodComponent, initialMap, knnMethodConfigContext, quantizationConfig);
