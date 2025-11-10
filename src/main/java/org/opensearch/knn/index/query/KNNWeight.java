@@ -317,10 +317,10 @@ public abstract class KNNWeight extends Weight {
          * . Hence, if filtered results are less than K and filter query is present we should shift to exact search.
          * This improves the recall.
          */
-        if (isFilteredExactSearchPreferred(cardinality)) {
-            TopDocs result = doExactSearch(context, new BitSetIterator(filterBitSet, cardinality), cardinality, k);
-            return new PerLeafResult(filterWeight == null ? null : filterBitSet, result);
-        }
+//        if (isFilteredExactSearchPreferred(cardinality)) {
+//            TopDocs result = doExactSearch(context, new BitSetIterator(filterBitSet, cardinality), cardinality, k);
+//            return new PerLeafResult(filterWeight == null ? null : filterBitSet, result);
+//        }
 
         /*
          * If filters match all docs in this segment, then null should be passed as filterBitSet
@@ -624,6 +624,12 @@ public abstract class KNNWeight extends Weight {
             log.debug("Perform exact search after approximate search since no native engine files are available");
             return true;
         }
+
+        if (KNNSettings.getIsKnnIndexFaissEfficientFilterExactSearchDisabled(knnQuery.getIndexName())) {
+            log.debug("Exact Search is disabled after ANN Search");
+            return false;
+        }
+
         if (isFilteredExactSearchRequireAfterANNSearch(filterIdsCount, annResultCount)) {
             log.debug(
                 "Doing ExactSearch after doing ANNSearch as the number of documents returned are less than "

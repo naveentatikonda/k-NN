@@ -583,14 +583,14 @@ task integTestRemote(type: RestIntegTestTask) {
 
 run {
     useCluster project.testClusters.integTest
-    dependsOn buildJniLib
-    doFirst {
-        // There seems to be an issue when running multi node run or integ tasks with unicast_hosts
-        // not being written, the waitForAllConditions ensures it's written
-        getClusters().forEach { cluster ->
-            cluster.waitForAllConditions()
-        }
-    }
+    // dependsOn buildJniLib
+//    doFirst {
+//        // There seems to be an issue when running multi node run or integ tasks with unicast_hosts
+//        // not being written, the waitForAllConditions ensures it's written
+//        getClusters().forEach { cluster ->
+//            cluster.waitForAllConditions()
+//        }
+//    }
 }
 
 // updateVersion: Task to auto increment to the next development iteration

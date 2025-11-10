@@ -154,6 +154,7 @@ public class KNNSettings {
     // TODO: Tune these default values based on benchmarking
     public static final Integer KNN_DEFAULT_REMOTE_BUILD_CLIENT_TIMEOUT_MINUTES = 60;
     public static final Integer KNN_DEFAULT_REMOTE_BUILD_CLIENT_POLL_INTERVAL_SECONDS = 5;
+    public static final String INDEX_KNN_FAISS_EFFICIENT_FILTER_DISABLE_EXACT_SEARCH = "index.knn.faiss.efficient_filter.disable_exact_search";
 
     /**
      * Settings Definition
@@ -307,6 +308,13 @@ public class KNNSettings {
         MEMORY_OPTIMIZED_KNN_SEARCH_MODE,
         false,
         IndexScope
+    );
+
+    public static final Setting<Boolean> INDEX_KNN_FAISS_EFFICIENT_FILTER_DISABLE_EXACT_SEARCH_SETTING = Setting.boolSetting(
+            INDEX_KNN_FAISS_EFFICIENT_FILTER_DISABLE_EXACT_SEARCH,
+            false,
+            IndexScope,
+            Dynamic
     );
 
     /**
@@ -704,6 +712,10 @@ public class KNNSettings {
             return KNN_REMOTE_BUILD_SERVER_PASSWORD_SETTING;
         }
 
+        if (INDEX_KNN_FAISS_EFFICIENT_FILTER_DISABLE_EXACT_SEARCH.equals(key)) {
+            return INDEX_KNN_FAISS_EFFICIENT_FILTER_DISABLE_EXACT_SEARCH_SETTING;
+        }
+
         throw new IllegalArgumentException("Cannot find setting by key [" + key + "]");
     }
 
@@ -739,6 +751,7 @@ public class KNNSettings {
             KNN_REMOTE_BUILD_POLL_INTERVAL_SETTING,
             KNN_REMOTE_BUILD_CLIENT_TIMEOUT_SETTING,
             KNN_REMOTE_BUILD_SERVER_USERNAME_SETTING,
+            INDEX_KNN_FAISS_EFFICIENT_FILTER_DISABLE_EXACT_SEARCH_SETTING,
             KNN_REMOTE_BUILD_SERVER_PASSWORD_SETTING
         );
         return Stream.concat(settings.stream(), Stream.concat(getFeatureFlags().stream(), dynamicCacheSettings.values().stream()))
@@ -1017,6 +1030,14 @@ public class KNNSettings {
                 KNNSettings.KNN_ALGO_PARAM_EF_SEARCH,
                 IndexHyperParametersUtil.getHNSWEFSearchValue(indexMetadata.getCreationVersion())
             );
+    }
+
+    public static boolean getIsKnnIndexFaissEfficientFilterExactSearchDisabled(String indexName) {
+        return KNNSettings.state().clusterService.state()
+                .getMetadata()
+                .index(indexName)
+                .getSettings()
+                .getAsBoolean(INDEX_KNN_FAISS_EFFICIENT_FILTER_DISABLE_EXACT_SEARCH, false);
     }
 
     /**
