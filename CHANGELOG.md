@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Fix score to distance calculation for inner product in faiss [#2992](https://github.com/opensearch-project/k-NN/pull/2992) 
 * Fix indexing for 16x and 8x compression [#3019](https://github.com/opensearch-project/k-NN/pull/3019)
 * Block index creation for Faiss engine with cosine similarity and byte vectors due to normalization incompatibility [#3002](https://github.com/opensearch-project/k-NN/pull/3002)
+* Update validation for cases when k is greater than total results [#3038](https://github.com/opensearch-project/k-NN/pull/3038)
 
 ### Refactoring
 * Refactored the KNN Stat files for better readability.
