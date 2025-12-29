@@ -9,12 +9,10 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.ByteBuffersDirectory;
@@ -27,6 +25,10 @@ import org.opensearch.knn.index.query.common.QueryUtils;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
@@ -118,26 +120,28 @@ public class LuceneEngineKnnVectorQueryTests extends OpenSearchTestCase {
     }
 
     public void testCreateWeightWithReduceToTopK() throws Exception {
-        // Create a real directory with documents to get real LeafReaderContext
+        // Create a real directory with multiple segments to get multiple LeafReaderContexts
         Directory directory = new ByteBuffersDirectory();
         IndexWriterConfig config = new IndexWriterConfig();
         try (IndexWriter writer = new IndexWriter(directory, config)) {
-            Document doc = new Document();
-            doc.add(new FloatPoint("vector", 1.0f, 2.0f));
-            writer.addDocument(doc);
+            // Add documents to first segment
+            Document doc1 = new Document();
+            doc1.add(new FloatPoint("vector", 1.0f, 2.0f));
+            writer.addDocument(doc1);
+            writer.flush(); // Force segment creation
+
+            // Add documents to second segment
+            Document doc2 = new Document();
+            doc2.add(new FloatPoint("vector", 3.0f, 4.0f));
+            writer.addDocument(doc2);
             writer.commit();
         }
 
         DirectoryReader reader = DirectoryReader.open(directory);
-        LeafReaderContext leafContext = reader.leaves().get(0);
-        Scorer mockScorer = mock(Scorer.class);
-        DocIdSetIterator mockIterator = mock(DocIdSetIterator.class);
+        List<LeafReaderContext> leaves = reader.leaves();
+        assertEquals(2, leaves.size()); // Ensure we have 2 segments
 
         when(indexSearcher.getIndexReader()).thenReturn(reader);
-        when(weight.scorer(leafContext)).thenReturn(mockScorer);
-        when(mockScorer.iterator()).thenReturn(mockIterator);
-        when(mockIterator.nextDoc()).thenReturn(0, DocIdSetIterator.NO_MORE_DOCS);
-        when(mockScorer.score()).thenReturn(1.0f);
 
         try (MockedStatic<QueryUtils> queryUtilsMock = mockStatic(QueryUtils.class)) {
 
@@ -145,7 +149,15 @@ public class LuceneEngineKnnVectorQueryTests extends OpenSearchTestCase {
             Query mockDocAndScoreQuery = mock(Query.class);
             Weight mockDocAndScoreWeight = mock(Weight.class);
 
+            // Mock doSearch to return leaf-relative doc IDs from both segments
+            Map<Integer, Float> leafResult1 = new HashMap<>();
+            leafResult1.put(0, 1.0f); // leaf-relative doc ID 0 with score 1.0
+            Map<Integer, Float> leafResult2 = new HashMap<>();
+            leafResult2.put(0, 0.8f); // leaf-relative doc ID 0 with score 0.8
+            List<Map<Integer, Float>> leafResults = Arrays.asList(leafResult1, leafResult2);
+
             queryUtilsMock.when(QueryUtils::getInstance).thenReturn(mockQueryUtils);
+            when(mockQueryUtils.doSearch(eq(indexSearcher), eq(leaves), eq(weight))).thenReturn(leafResults);
             when(mockQueryUtils.createDocAndScoreQuery(any(), any())).thenReturn(mockDocAndScoreQuery);
             when(mockDocAndScoreQuery.createWeight(any(), any(), anyFloat())).thenReturn(mockDocAndScoreWeight);
 
@@ -153,6 +165,7 @@ public class LuceneEngineKnnVectorQueryTests extends OpenSearchTestCase {
             Weight reducedWeight = queryWithReduce.createWeight(indexSearcher, ScoreMode.TOP_DOCS, 1.0f);
 
             verify(luceneQuery).createWeight(indexSearcher, ScoreMode.TOP_DOCS, 1.0f);
+            verify(mockQueryUtils).doSearch(eq(indexSearcher), eq(leaves), eq(weight));
             verify(mockQueryUtils).createDocAndScoreQuery(eq(reader), any(TopDocs.class));
             assertEquals(mockDocAndScoreWeight, reducedWeight);
         }

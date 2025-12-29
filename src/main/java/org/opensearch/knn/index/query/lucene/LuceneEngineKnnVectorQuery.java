@@ -10,12 +10,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopKnnCollector;
 import org.apache.lucene.search.Weight;
 import org.opensearch.knn.index.query.lucenelib.ExpandNestedDocsQuery;
@@ -24,6 +22,8 @@ import org.opensearch.search.profile.query.QueryProfiler;
 import org.opensearch.knn.index.query.common.QueryUtils;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * LuceneEngineKnnVectorQuery is a wrapper around a vector queries for the Lucene engine.
@@ -75,18 +75,21 @@ public class LuceneEngineKnnVectorQuery extends Query {
         }
 
         Weight weight = query.createWeight(searcher, scoreMode, boost);
-        TopKnnCollector collector = new TopKnnCollector(k, Integer.MAX_VALUE);
 
-        for (LeafReaderContext context : searcher.getIndexReader().leaves()) {
-            Scorer scorer = weight.scorer(context);
-            if (scorer != null) {
-                DocIdSetIterator iterator = scorer.iterator();
-                int doc;
-                while ((doc = iterator.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-                    collector.collect(doc + context.docBase, scorer.score());
-                }
+        // Collect results from all leaves in parallel
+        List<LeafReaderContext> leaves = searcher.getIndexReader().leaves();
+        List<Map<Integer, Float>> leafResults = QueryUtils.getInstance().doSearch(searcher, leaves, weight);
+
+        // Add all results to collector sequentially, converting leaf-relative to global doc IDs
+        TopKnnCollector collector = new TopKnnCollector(k, Integer.MAX_VALUE);
+        for (int i = 0; i < leafResults.size(); i++) {
+            LeafReaderContext context = leaves.get(i);
+            Map<Integer, Float> leafResult = leafResults.get(i);
+            for (Map.Entry<Integer, Float> entry : leafResult.entrySet()) {
+                collector.collect(entry.getKey() + context.docBase, entry.getValue());
             }
         }
+
         return QueryUtils.getInstance().createDocAndScoreQuery(searcher.getIndexReader(), collector.topDocs());
     }
 
