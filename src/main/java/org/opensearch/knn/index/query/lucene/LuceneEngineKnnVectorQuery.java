@@ -10,12 +10,15 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.QueryVisitor;
 import org.apache.lucene.search.ScoreMode;
+import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TopKnnCollector;
 import org.apache.lucene.search.Weight;
+import org.opensearch.knn.index.KNNSettings;
 import org.opensearch.knn.index.query.lucenelib.ExpandNestedDocsQuery;
 import org.opensearch.knn.profile.KNNProfileUtil;
 import org.opensearch.search.profile.query.QueryProfiler;
@@ -75,19 +78,50 @@ public class LuceneEngineKnnVectorQuery extends Query {
         }
 
         Weight weight = query.createWeight(searcher, scoreMode, boost);
-
-        // Collect results from all leaves in parallel
-        List<LeafReaderContext> leaves = searcher.getIndexReader().leaves();
-        List<Map<Integer, Float>> leafResults = QueryUtils.getInstance().doSearch(searcher, leaves, weight);
-
-        // Add all results to collector sequentially, converting leaf-relative to global doc IDs
         TopKnnCollector collector = new TopKnnCollector(k, Integer.MAX_VALUE);
-        for (int i = 0; i < leafResults.size(); i++) {
-            LeafReaderContext context = leaves.get(i);
-            Map<Integer, Float> leafResult = leafResults.get(i);
-            for (Map.Entry<Integer, Float> entry : leafResult.entrySet()) {
-                collector.collect(entry.getKey() + context.docBase, entry.getValue());
+
+        boolean indexSetting = KNNSettings.isKnnIndexFaissEfficientFilterExactSearchDisabled("target_index");
+        if (indexSetting) {
+            log.info("Index Setting is true");
+            log.info("Started collecting and reducing results sequentially");
+            long start = System.nanoTime();
+
+            for (LeafReaderContext context : searcher.getIndexReader().leaves()) {
+                Scorer scorer = weight.scorer(context);
+                if (scorer != null) {
+                    DocIdSetIterator iterator = scorer.iterator();
+                    int doc;
+                    while ((doc = iterator.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
+                        collector.collect(doc + context.docBase, scorer.score());
+                    }
+                }
             }
+
+            long elapsedNanos = System.nanoTime() - start;
+            double elapsedMs = elapsedNanos / 1_000_000.0;
+            log.info("Collecting and reducing results sequentially took: {}", elapsedMs);
+
+        } else {
+            log.info("Index Setting is false");
+            log.info("Started collecting and reducing results with parallelization");
+            long start = System.nanoTime();
+            // Collect results from all leaves in parallel
+            List<LeafReaderContext> leaves = searcher.getIndexReader().leaves();
+            List<Map<Integer, Float>> leafResults = QueryUtils.getInstance().doSearch(searcher, leaves, weight);
+
+            // Add all results to collector sequentially (single-threaded top-k reduction)
+
+            for (int i = 0; i < leafResults.size(); i++) {
+                LeafReaderContext context = leaves.get(i);
+                Map<Integer, Float> leafResult = leafResults.get(i);
+                for (Map.Entry<Integer, Float> entry : leafResult.entrySet()) {
+                    collector.collect(entry.getKey() + context.docBase, entry.getValue());
+                }
+            }
+
+            long elapsedNanos = System.nanoTime() - start;
+            double elapsedMs = elapsedNanos / 1_000_000.0;
+            log.info("Naveen: Collecting and reducing results with parallelization took: {}", elapsedMs);
         }
 
         return QueryUtils.getInstance().createDocAndScoreQuery(searcher.getIndexReader(), collector.topDocs());
