@@ -73,6 +73,9 @@ public class OptimisticSearchTests {
         when(knnQuery.createWeight(any(), any(), anyFloat())).thenReturn(knnWeight);
         when(knnQuery.getK()).thenReturn(DEFAULT_K);
         when(knnQuery.isMemoryOptimizedSearch()).thenReturn(true);
+        when(knnQuery.getVectorDataType()).thenReturn(VectorDataType.FLOAT);
+        when(knnQuery.getQueryVector()).thenReturn(new float[8]);
+        when(knnQuery.getField()).thenReturn("field");
     }
 
     @Test
