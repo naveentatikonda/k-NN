@@ -138,7 +138,18 @@ public class KNNQueryFactory extends BaseQueryFactory {
         int luceneK = Math.max(overSampledK, IndexHyperParametersUtil.getHNSWEFSearchValue(methodParameters, indexName));
         log.debug("Creating Lucene k-NN query for index: {}, field:{}, k: {}, luceneK: {}", indexName, fieldName, k, luceneK);
         Query luceneKnnQuery = new LuceneEngineKnnVectorQuery(
-            getKnnVectorQuery(fieldName, vector, byteVector, luceneK, filterQuery, parentFilter, expandNested, vectorDataType, k)
+            getKnnVectorQuery(
+                fieldName,
+                vector,
+                byteVector,
+                luceneK,
+                filterQuery,
+                parentFilter,
+                expandNested,
+                vectorDataType,
+                k,
+                needsRescore
+            )
         );
         return needsRescore ? new RescoreKNNVectorQuery(luceneKnnQuery, fieldName, k, vector, shardId) : luceneKnnQuery;
 
@@ -175,12 +186,13 @@ public class KNNQueryFactory extends BaseQueryFactory {
         final BitSetProducer parentFilter,
         final boolean expandNested,
         @NonNull final VectorDataType vectorDataType,
-        final int k
+        final int k,
+        final boolean needsRescore
     ) {
         if (parentFilter == null) {
             assert expandNested == false : "expandNested is allowed to be true only for nested fields.";
             return vectorDataType == VectorDataType.FLOAT
-                ? new OSKnnFloatVectorQuery(fieldName, floatQueryVector, luceneK, filterQuery, k)
+                ? new OSKnnFloatVectorQuery(fieldName, floatQueryVector, luceneK, filterQuery, k, needsRescore)
                 : new OSKnnByteVectorQuery(fieldName, byteQueryVector, luceneK, filterQuery, k);
         }
         // If parentFilter is not null, it is a nested query. Therefore, we delegate creation of query to {@link

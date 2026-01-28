@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.opensearch.Version;
 import org.opensearch.core.common.Strings;
+import org.opensearch.knn.index.engine.KNNEngine;
 import org.opensearch.knn.index.query.rescore.RescoreContext;
 
 import java.util.Collections;
@@ -107,7 +108,7 @@ public enum CompressionLevel {
      *                  or equal to 1000, the default {@link RescoreContext} if greater, or {@code null} if the mode
      *                  is invalid.
      */
-    public RescoreContext getDefaultRescoreContext(Mode mode, int dimension, Version version) {
+    public RescoreContext getDefaultRescoreContext(Mode mode, int dimension, Version version, KNNEngine knnEngine) {
         // TODO move this to separate class called resolver to resolve rescore context
         if (modesForRescore.contains(mode)) {
             if (this == x4 && version.before(Version.V_3_1_0)) {
@@ -124,12 +125,32 @@ public enum CompressionLevel {
             }
             return defaultRescoreContext;
         }
+
+        // Special handling for Lucene BBQ (x32 compression)
+        if (this == x32 && knnEngine == KNNEngine.LUCENE && version.onOrAfter(Version.V_3_5_0)) {
+            if (dimension <= RescoreContext.DIMENSION_THRESHOLD) {
+                return RescoreContext.builder()
+                    .oversampleFactor(RescoreContext.OVERSAMPLE_FACTOR_BELOW_DIMENSION_THRESHOLD)
+                    .userProvided(false)
+                    .build();
+            } else {
+                return RescoreContext.builder()
+                    .oversampleFactor(RescoreContext.OVERSAMPLE_FACTOR_ABOVE_DIMENSION_THRESHOLD)
+                    .userProvided(false)
+                    .build();
+            }
+        }
+
         return null;
     }
 
     @VisibleForTesting
     RescoreContext getDefaultRescoreContext(Mode mode, int dimension) {
         return getDefaultRescoreContext(mode, dimension, Version.CURRENT);
+    }
+
+    public RescoreContext getDefaultRescoreContext(Mode mode, int dimension, Version version) {
+        return getDefaultRescoreContext(mode, dimension, version, null);
     }
 
 }

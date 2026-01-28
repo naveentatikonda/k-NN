@@ -18,20 +18,29 @@ import org.apache.lucene.search.TopDocs;
  */
 public final class OSKnnFloatVectorQuery extends KnnFloatVectorQuery {
     private final int k;
+    private final int luceneK;
+    private final Boolean needsRescore;
 
     public OSKnnFloatVectorQuery(
         final String fieldName,
         final float[] floatQueryVector,
         final int luceneK,
         final Query filterQuery,
-        final int k
+        final int k,
+        final Boolean needsRescore
     ) {
         super(fieldName, floatQueryVector, luceneK, filterQuery);
         this.k = k;
+        this.luceneK = luceneK;
+        this.needsRescore = needsRescore;
     }
 
     @Override
     protected TopDocs mergeLeafResults(TopDocs[] perLeafResults) {
+        if (needsRescore) {
+            return TopDocs.merge(luceneK, perLeafResults);
+            // return super.mergeLeafResults(perLeafResults);
+        }
         // Merge all segment level results and take top k from it
         return TopDocs.merge(k, perLeafResults);
     }
