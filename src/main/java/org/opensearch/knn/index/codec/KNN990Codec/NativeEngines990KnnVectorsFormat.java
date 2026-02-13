@@ -20,6 +20,11 @@ import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FilterDirectory;
+import org.apache.lucene.store.IOContext;
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.DataAccessHint;
 import org.opensearch.knn.index.KNNSettings;
 import org.opensearch.knn.index.codec.nativeindex.NativeIndexBuildStrategyFactory;
 import org.opensearch.knn.index.engine.KNNEngine;
@@ -87,7 +92,14 @@ public class NativeEngines990KnnVectorsFormat extends KnnVectorsFormat {
      */
     @Override
     public KnnVectorsReader fieldsReader(final SegmentReadState state) throws IOException {
-        return new NativeEngines990KnnVectorsReader(state, flatVectorsFormat.fieldsReader(state));
+        final SegmentReadState stateWithCustomDirectory = new SegmentReadState(
+            new FlagsOverridingMMapDirectory(state.directory),
+            state.segmentInfo,
+            state.fieldInfos,
+            state.context,
+            state.segmentSuffix
+        );
+        return new NativeEngines990KnnVectorsReader(state, flatVectorsFormat.fieldsReader(stateWithCustomDirectory));
     }
 
     /**
@@ -108,5 +120,34 @@ public class NativeEngines990KnnVectorsFormat extends KnnVectorsFormat {
             + ", approximateThreshold="
             + approximateThreshold
             + ")";
+    }
+
+    // Directory wrapper to enforce `ReadAdvice.NORMAL` for `.vec` files when opening IndexInput.
+    // Lucene’s flat vector format opens IndexInput with `ReadAdvice.RANDOM`, which introduces
+    // read overhead for exact search. Since the implementation is final and cannot
+    // be easily overridden for us, this wrapper intercepts `openInput` and forces `ReadAdvice.NORMAL`
+    // to restore default OS read-ahead behavior which can boost exact search.
+    private static final class FlagsOverridingMMapDirectory extends FilterDirectory {
+        // See Lucene99FlatVectorsFormat.VECTOR_DATA_EXTENSION
+        private static final String VECTOR_DATA_EXTENSION = ".vec";
+
+        private FlagsOverridingMMapDirectory(final Directory in) {
+            super(in);
+        }
+
+        @Override
+        public IndexInput openInput(final String fileName, final IOContext context) throws IOException {
+            return in.openInput(fileName, createNormalIOContext(fileName, context));
+        }
+
+        private IOContext createNormalIOContext(final String fileName, final IOContext defaultContext) {
+            if (fileName.endsWith(VECTOR_DATA_EXTENSION)) {
+                // For all .vec file, we force SEQUENTIAL access to disable random access flags.
+                return IOContext.DEFAULT.withHints(DataAccessHint.SEQUENTIAL);
+            }
+
+            // Return what its was given.
+            return defaultContext;
+        }
     }
 }
