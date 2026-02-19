@@ -8,6 +8,7 @@ package org.opensearch.knn.index.engine.lucene;
 import org.opensearch.common.ValidationException;
 import org.opensearch.knn.index.SpaceType;
 import org.opensearch.knn.index.engine.AbstractMethodResolver;
+import org.opensearch.knn.index.engine.Encoder;
 import org.opensearch.knn.index.engine.KNNEngine;
 import org.opensearch.knn.index.engine.KNNMethodConfigContext;
 import org.opensearch.knn.index.engine.KNNMethodContext;
@@ -22,7 +23,9 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.opensearch.knn.common.KNNConstants.METHOD_ENCODER_PARAMETER;
+import static org.opensearch.knn.common.KNNConstants.METHOD_FLAT;
 import static org.opensearch.knn.common.KNNConstants.METHOD_HNSW;
+import static org.opensearch.knn.index.engine.lucene.LuceneFlatMethod.FLAT_METHOD_COMPONENT;
 import static org.opensearch.knn.index.engine.lucene.LuceneHNSWMethod.HNSW_METHOD_COMPONENT;
 
 public class LuceneMethodResolver extends AbstractMethodResolver {
@@ -41,18 +44,25 @@ public class LuceneMethodResolver extends AbstractMethodResolver {
         final SpaceType spaceType
     ) {
         validateConfig(knnMethodConfigContext, shouldRequireTraining);
-        KNNMethodContext resolvedKNNMethodContext = initResolvedKNNMethodContext(
-            knnMethodContext,
-            KNNEngine.LUCENE,
-            spaceType,
-            METHOD_HNSW
-        );
-        resolveEncoder(resolvedKNNMethodContext, knnMethodConfigContext);
-        resolveMethodParams(resolvedKNNMethodContext.getMethodComponentContext(), knnMethodConfigContext, HNSW_METHOD_COMPONENT);
+
+        String methodName = knnMethodContext != null && knnMethodContext.getMethodComponentContext() != null
+            ? knnMethodContext.getMethodComponentContext().getName()
+            : METHOD_HNSW;
+
+        KNNMethodContext resolvedKNNMethodContext = initResolvedKNNMethodContext(knnMethodContext, KNNEngine.LUCENE, spaceType, methodName);
+
+        MethodComponent methodComponent = METHOD_HNSW.equals(methodName) ? HNSW_METHOD_COMPONENT : FLAT_METHOD_COMPONENT;
+        Map<String, Encoder> supportedEncoders = METHOD_HNSW.equals(methodName)
+            ? LuceneHNSWMethod.SUPPORTED_ENCODERS
+            : LuceneFlatMethod.SUPPORTED_ENCODERS;
+
+        resolveEncoder(resolvedKNNMethodContext, knnMethodConfigContext, methodName);
+
+        resolveMethodParams(resolvedKNNMethodContext.getMethodComponentContext(), knnMethodConfigContext, methodComponent);
         CompressionLevel resolvedCompressionLevel = resolveCompressionLevelFromMethodContext(
             resolvedKNNMethodContext,
             knnMethodConfigContext,
-            LuceneHNSWMethod.SUPPORTED_ENCODERS
+            supportedEncoders
         );
         validateCompressionConflicts(knnMethodConfigContext.getCompressionLevel(), resolvedCompressionLevel);
         return ResolvedMethodContext.builder()
@@ -61,7 +71,11 @@ public class LuceneMethodResolver extends AbstractMethodResolver {
             .build();
     }
 
-    protected void resolveEncoder(KNNMethodContext resolvedKNNMethodContext, KNNMethodConfigContext knnMethodConfigContext) {
+    protected void resolveEncoder(
+        KNNMethodContext resolvedKNNMethodContext,
+        KNNMethodConfigContext knnMethodConfigContext,
+        String methodName
+    ) {
         if (shouldEncoderBeResolved(resolvedKNNMethodContext, knnMethodConfigContext) == false) {
             return;
         }
@@ -75,7 +89,11 @@ public class LuceneMethodResolver extends AbstractMethodResolver {
 
         String encoderName;
         MethodComponent encoderComponent;
-        if (resolvedCompressionLevel == CompressionLevel.x32) {
+
+        if (METHOD_FLAT.equals(methodName)) {
+            encoderName = LuceneFlatMethod.BBQ_ENCODER.getName();
+            encoderComponent = LuceneFlatMethod.BBQ_ENCODER.getMethodComponent();
+        } else if (resolvedCompressionLevel == CompressionLevel.x32) {
             encoderName = LuceneHNSWMethod.BBQ_ENCODER.getName();
             encoderComponent = LuceneHNSWMethod.BBQ_ENCODER.getMethodComponent();
         } else {
