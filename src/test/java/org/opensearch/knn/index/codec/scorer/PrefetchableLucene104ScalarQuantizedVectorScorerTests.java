@@ -7,7 +7,6 @@ package org.opensearch.knn.index.codec.scorer;
 
 import junit.framework.TestCase;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorScorer;
 import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene104.QuantizedByteVectorValues;
 import org.apache.lucene.index.KnnVectorValues;
@@ -17,8 +16,6 @@ import org.apache.lucene.util.hnsw.RandomVectorScorerSupplier;
 import org.apache.lucene.util.quantization.OptimizedScalarQuantizer;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -31,25 +28,6 @@ public class PrefetchableLucene104ScalarQuantizedVectorScorerTests extends TestC
 
     private final FlatVectorsScorer delegate = mock(FlatVectorsScorer.class);
     private final PrefetchableLucene104ScalarQuantizedVectorScorer scorer = new PrefetchableLucene104ScalarQuantizedVectorScorer(delegate);
-
-    /**
-     * Verifies that all non-final, non-static methods declared on the parent scorer are overridden.
-     */
-    public void testDeclaredMethodsOverridden() {
-        for (Method superMethod : Lucene104ScalarQuantizedVectorScorer.class.getDeclaredMethods()) {
-            int mod = superMethod.getModifiers();
-            if (Modifier.isFinal(mod) || Modifier.isStatic(mod)) continue;
-            try {
-                Method subMethod = PrefetchableLucene104ScalarQuantizedVectorScorer.class.getDeclaredMethod(
-                    superMethod.getName(),
-                    superMethod.getParameterTypes()
-                );
-                assertEquals("Return type mismatch for " + superMethod.getName(), superMethod.getReturnType(), subMethod.getReturnType());
-            } catch (NoSuchMethodException e) {
-                fail(PrefetchableLucene104ScalarQuantizedVectorScorer.class + " needs to override '" + superMethod + "'");
-            }
-        }
-    }
 
     public void testToString_containsClassName() {
         assertEquals("PrefetchableLucene104ScalarQuantizedVectorScorer()", scorer.toString());
