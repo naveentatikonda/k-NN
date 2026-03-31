@@ -36,9 +36,11 @@ public class Faiss1040ScalarQuantizedKnnVectorsFormat extends KnnVectorsFormat {
 
     private static final String FORMAT_NAME = "Faiss1040ScalarQuantizedKnnVectorsFormat";
 
-    // Shared across all format instances; Lucene104ScalarQuantizedVectorsFormat is stateless.
+    // Shared across all format instances; KNN1040ScalarQuantizedVectorsFormat is stateless.
+    // Uses KNN1040ScalarQuantizedVectorsFormat to override read advice for .veb files from RANDOM to NORMAL,
+    // improving sequential I/O throughput for quantized vector data.
     // TODO : We have to make it scalable for other encoding types, not limit this on `ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE`.
-    private static final Lucene104ScalarQuantizedVectorsFormat faissSqFlatFormat = new Lucene104ScalarQuantizedVectorsFormat(
+    private static final KNN1040ScalarQuantizedVectorsFormat faissSqFlatFormat = new KNN1040ScalarQuantizedVectorsFormat(
         ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE
     );
 
