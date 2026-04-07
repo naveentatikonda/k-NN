@@ -9,7 +9,7 @@ import lombok.SneakyThrows;
 import org.apache.lucene.codecs.hnsw.FlatVectorScorerUtil;
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorScorer;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorScorer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
 public class FaissMemoryOptimizedSearcherFactoryTests extends KNNTestCase {
 
     private static final FlatVectorsScorer LUCENE99_SCORER = FlatVectorScorerUtil.getLucene99FlatVectorsScorer();
-    private static final FlatVectorsScorer SQ_SCORER = new Lucene104ScalarQuantizedVectorScorer(LUCENE99_SCORER);
+    private static final FlatVectorsScorer SQ_SCORER = new Lucene103ScalarQuantizedVectorScorer(LUCENE99_SCORER);
     private static final FlatVectorsScorer SCORER = LUCENE99_SCORER;
 
     @SneakyThrows

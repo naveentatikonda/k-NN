@@ -93,7 +93,7 @@ public class FaissSQEncoderTests extends KNNTestCase {
     public void testValidate_whenPreV360NoBits_thenOk() {
         FaissSQEncoder encoder = new FaissSQEncoder();
         TrainingConfigValidationOutput output = encoder.validateEncoderConfig(
-            buildValidationInput(Version.V_3_5_0, CompressionLevel.NOT_CONFIGURED, Map.of(FAISS_SQ_TYPE, "fp16"))
+            buildValidationInput(Version.V_3_3_1, CompressionLevel.NOT_CONFIGURED, Map.of(FAISS_SQ_TYPE, "fp16"))
         );
         assertNull(output.getValid());
     }

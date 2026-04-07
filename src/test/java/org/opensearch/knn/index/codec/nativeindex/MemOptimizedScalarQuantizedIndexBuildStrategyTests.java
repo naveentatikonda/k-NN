@@ -9,8 +9,8 @@ import lombok.SneakyThrows;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.QuantizedByteVectorValues;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene103.QuantizedByteVectorValues;
 import org.apache.lucene.util.quantization.OptimizedScalarQuantizer;
 import org.apache.lucene.index.DocValuesSkipIndexType;
 import org.apache.lucene.index.DocValuesType;
@@ -47,7 +47,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import static org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
+import static org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
+import static org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -198,7 +199,7 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategyTests extends KNNTestC
                 FIELD_NAME
             );
 
-            final Lucene104ScalarQuantizedVectorsFormat sqFormat = new Lucene104ScalarQuantizedVectorsFormat(SINGLE_BIT_QUERY_NIBBLE);
+            final Lucene103ScalarQuantizedVectorsFormat sqFormat = new Lucene103ScalarQuantizedVectorsFormat(SINGLE_BIT_QUERY_NIBBLE);
             final DocsWithFieldSet docsWithFieldSet;
             final Map<Integer, float[]> docIdToVector = new HashMap<>();
             try (FlatVectorsWriter flatWriter = sqFormat.fieldsWriter(writeState)) {

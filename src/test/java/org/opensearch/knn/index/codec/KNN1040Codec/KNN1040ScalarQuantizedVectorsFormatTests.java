@@ -5,11 +5,11 @@
 
 package org.opensearch.knn.index.codec.KNN1040Codec;
 
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat;
 import org.opensearch.knn.KNNTestCase;
 import org.opensearch.knn.index.engine.KNNEngine;
 
-import static org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
+import static org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
 
 public class KNN1040ScalarQuantizedVectorsFormatTests extends KNNTestCase {
 
@@ -37,7 +37,7 @@ public class KNN1040ScalarQuantizedVectorsFormatTests extends KNNTestCase {
     }
 
     public void testConstructor_allEncodings() {
-        for (Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding encoding : Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding
+        for (Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding encoding : Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding
             .values()) {
             KNN1040ScalarQuantizedVectorsFormat format = new KNN1040ScalarQuantizedVectorsFormat(encoding);
             assertNotNull(format);

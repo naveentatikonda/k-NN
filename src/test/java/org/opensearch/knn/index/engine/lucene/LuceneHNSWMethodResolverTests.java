@@ -169,7 +169,7 @@ public class LuceneHNSWMethodResolverTests extends KNNTestCase {
             knnMethodContext,
             KNNMethodConfigContext.builder()
                 .vectorDataType(VectorDataType.FLOAT)
-                .versionCreated(Version.V_3_5_0)
+                .versionCreated(Version.V_3_3_1)
                 .mode(Mode.ON_DISK)
                 .build(),
             false,
@@ -214,7 +214,7 @@ public class LuceneHNSWMethodResolverTests extends KNNTestCase {
             knnMethodContext,
             KNNMethodConfigContext.builder()
                 .vectorDataType(VectorDataType.FLOAT)
-                .versionCreated(Version.V_3_6_0)
+                .versionCreated(Version.V_3_3_2)
                 .mode(Mode.ON_DISK)
                 .build(),
             false,
@@ -257,7 +257,7 @@ public class LuceneHNSWMethodResolverTests extends KNNTestCase {
         );
         resolvedMethodContext = TEST_RESOLVER.resolveMethod(
             knnMethodContext,
-            KNNMethodConfigContext.builder().vectorDataType(VectorDataType.FLOAT).versionCreated(Version.V_3_6_0).build(),
+            KNNMethodConfigContext.builder().vectorDataType(VectorDataType.FLOAT).versionCreated(Version.V_3_3_2).build(),
             false,
             SpaceType.INNER_PRODUCT
         );
@@ -365,7 +365,7 @@ public class LuceneHNSWMethodResolverTests extends KNNTestCase {
                 ),
                 KNNMethodConfigContext.builder()
                     .vectorDataType(VectorDataType.FLOAT)
-                    .versionCreated(Version.V_3_6_0)
+                    .versionCreated(Version.V_3_3_2)
                     .mode(Mode.IN_MEMORY)
                     .build(),
                 false,
@@ -387,7 +387,7 @@ public class LuceneHNSWMethodResolverTests extends KNNTestCase {
                 ),
                 KNNMethodConfigContext.builder()
                     .vectorDataType(VectorDataType.FLOAT)
-                    .versionCreated(Version.V_3_6_0)
+                    .versionCreated(Version.V_3_3_2)
                     .mode(Mode.ON_DISK)
                     .build(),
                 false,

@@ -13,7 +13,7 @@ package org.opensearch.knn.index.codec.params;
 
 import junit.framework.TestCase;
 
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding;
 import org.junit.Assert;
 import org.opensearch.knn.index.engine.MethodComponentContext;
 

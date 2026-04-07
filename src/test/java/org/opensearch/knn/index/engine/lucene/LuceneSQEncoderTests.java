@@ -35,7 +35,7 @@ public class LuceneSQEncoderTests extends KNNTestCase {
         LuceneSQEncoder encoder = new LuceneSQEncoder();
         assertEquals(
             CompressionLevel.x32,
-            encoder.calculateCompressionLevel(null, KNNMethodConfigContext.builder().versionCreated(Version.V_3_6_0).build())
+            encoder.calculateCompressionLevel(null, KNNMethodConfigContext.builder().versionCreated(Version.V_3_3_2).build())
         );
     }
 
@@ -47,7 +47,7 @@ public class LuceneSQEncoderTests extends KNNTestCase {
             CompressionLevel.x16,
             encoder.calculateCompressionLevel(
                 null,
-                KNNMethodConfigContext.builder().versionCreated(Version.V_3_6_0).compressionLevel(CompressionLevel.x16).build()
+                KNNMethodConfigContext.builder().versionCreated(Version.V_3_3_2).compressionLevel(CompressionLevel.x16).build()
             )
         );
     }
@@ -55,20 +55,20 @@ public class LuceneSQEncoderTests extends KNNTestCase {
     public void testValidate_WhenV360NoBits_thenError() {
         ValidationException e = expectThrows(
             ValidationException.class,
-            () -> callValidateEncoderParams(Version.V_3_6_0, CompressionLevel.NOT_CONFIGURED, Map.of())
+            () -> callValidateEncoderParams(Version.V_3_3_2, CompressionLevel.NOT_CONFIGURED, Map.of())
         );
         assertTrue(e.getMessage().contains("bits"));
         assertTrue(e.getMessage().contains("required"));
     }
 
     public void testValidate_whenPreV360NoBits_thenOk() {
-        callValidateEncoderParams(Version.V_3_5_0, CompressionLevel.NOT_CONFIGURED, Map.of());
+        callValidateEncoderParams(Version.V_3_3_1, CompressionLevel.NOT_CONFIGURED, Map.of());
     }
 
     public void testValidate_WhenPreV360Bits1_thenError() {
         expectThrows(
             ValidationException.class,
-            () -> callValidateEncoderParams(Version.V_3_5_0, CompressionLevel.NOT_CONFIGURED, Map.of(LUCENE_SQ_BITS, 1))
+            () -> callValidateEncoderParams(Version.V_3_3_1, CompressionLevel.NOT_CONFIGURED, Map.of(LUCENE_SQ_BITS, 1))
         );
     }
 
@@ -115,7 +115,7 @@ public class LuceneSQEncoderTests extends KNNTestCase {
         LuceneSQEncoder encoder = new LuceneSQEncoder();
         assertEquals(
             CompressionLevel.x4,
-            encoder.calculateCompressionLevel(null, KNNMethodConfigContext.builder().versionCreated(Version.V_3_5_0).build())
+            encoder.calculateCompressionLevel(null, KNNMethodConfigContext.builder().versionCreated(Version.V_3_3_1).build())
         );
     }
 

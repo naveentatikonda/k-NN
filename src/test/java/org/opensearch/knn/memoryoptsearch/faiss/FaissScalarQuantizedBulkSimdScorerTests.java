@@ -12,11 +12,11 @@ import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorScorer;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsReader;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsWriter;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorScorer;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsReader;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsWriter;
 import org.apache.lucene.index.DocValuesSkipIndexType;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.FieldInfo;
@@ -49,12 +49,12 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Tests that the native SIMD SQ scorer ({@link KNN1040ScalarQuantizedVectorScorer}) produces scores
- * matching Lucene's {@link Lucene104ScalarQuantizedVectorScorer} (the source of truth).
+ * matching Lucene's {@link Lucene103ScalarQuantizedVectorScorer} (the source of truth).
  * <p>
  * Uses the Lucene codec pipeline directly:
- * 1. {@link Lucene104ScalarQuantizedVectorsFormat#fieldsWriter} to quantize and write vectors.
- * 2. {@link Lucene104ScalarQuantizedVectorsReader} with {@link Lucene104ScalarQuantizedVectorScorer} → truth.
- * 3. {@link Lucene104ScalarQuantizedVectorsReader} with {@link KNN1040ScalarQuantizedVectorScorer} → test subject.
+ * 1. {@link Lucene103ScalarQuantizedVectorsFormat#fieldsWriter} to quantize and write vectors.
+ * 2. {@link Lucene103ScalarQuantizedVectorsReader} with {@link Lucene103ScalarQuantizedVectorScorer} → truth.
+ * 3. {@link Lucene103ScalarQuantizedVectorsReader} with {@link KNN1040ScalarQuantizedVectorScorer} → test subject.
  * 4. Compare scores.
  */
 public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
@@ -143,10 +143,10 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
             );
 
             // ---- Step 1: Write vectors using Lucene104ScalarQuantizedVectorsWriter ----
-            final Lucene104ScalarQuantizedVectorScorer luceneVectorScorer = new Lucene104ScalarQuantizedVectorScorer(defaultScorer);
+            final Lucene103ScalarQuantizedVectorScorer luceneVectorScorer = new Lucene103ScalarQuantizedVectorScorer(defaultScorer);
 
             try (
-                FlatVectorsWriter writer = new Lucene104ScalarQuantizedVectorsWriter(
+                FlatVectorsWriter writer = new Lucene103ScalarQuantizedVectorsWriter(
                     writeState,
                     encoding,
                     rawVectorFormat.fieldsWriter(writeState),
@@ -181,7 +181,7 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
             }
             final RandomVectorScorer truthScorer;
             try (
-                FlatVectorsReader truthReader = new Lucene104ScalarQuantizedVectorsReader(
+                FlatVectorsReader truthReader = new Lucene103ScalarQuantizedVectorsReader(
                     readState,
                     rawVectorFormat.fieldsReader(readState),
                     luceneVectorScorer
@@ -248,10 +248,10 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
 
     /**
      * Extracts the private static {@code rawVectorFormat} field from
-     * {@link Lucene104ScalarQuantizedVectorsFormat} via reflection.
+     * {@link Lucene103ScalarQuantizedVectorsFormat} via reflection.
      */
     private static FlatVectorsFormat getRawVectorFormat() throws Exception {
-        Field field = Lucene104ScalarQuantizedVectorsFormat.class.getDeclaredField("rawVectorFormat");
+        Field field = Lucene103ScalarQuantizedVectorsFormat.class.getDeclaredField("rawVectorFormat");
         field.setAccessible(true);
         return (FlatVectorsFormat) field.get(null);
     }
