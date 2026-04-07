@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
@@ -41,8 +41,8 @@ import java.io.IOException;
  * <p>No quantization training is needed — Lucene's flat format handles quantization internally.
  */
 @Log4j2
-class Faiss1040ScalarQuantizedKnnVectorsWriter extends AbstractNativeEnginesKnnVectorsWriter {
-    private static final long SHALLOW_SIZE = RamUsageEstimator.shallowSizeOfInstance(Faiss1040ScalarQuantizedKnnVectorsWriter.class);
+class Faiss1030ScalarQuantizedKnnVectorsWriter extends AbstractNativeEnginesKnnVectorsWriter {
+    private static final long SHALLOW_SIZE = RamUsageEstimator.shallowSizeOfInstance(Faiss1030ScalarQuantizedKnnVectorsWriter.class);
 
     private final SegmentWriteState segmentWriteState;
     private final FlatVectorsWriter flatVectorsWriter;
@@ -52,7 +52,7 @@ class Faiss1040ScalarQuantizedKnnVectorsWriter extends AbstractNativeEnginesKnnV
     private boolean finished;
     private final IOFunction<SegmentReadState, FlatVectorsReader> quantizedFlatVectorsReaderSupplier;
 
-    Faiss1040ScalarQuantizedKnnVectorsWriter(
+    Faiss1030ScalarQuantizedKnnVectorsWriter(
         @NonNull SegmentWriteState segmentWriteState,
         @NonNull FlatVectorsWriter flatVectorsWriter,
         @NonNull IOFunction<SegmentReadState, FlatVectorsReader> quantizedFlatVectorsReaderSupplier
@@ -69,7 +69,7 @@ class Faiss1040ScalarQuantizedKnnVectorsWriter extends AbstractNativeEnginesKnnV
     public KnnFieldVectorsWriter<?> addField(final FieldInfo newFieldInfo) throws IOException {
         if (this.fieldWriter != null) {
             throw new IllegalStateException(
-                Faiss1040ScalarQuantizedKnnVectorsWriter.class.getSimpleName()
+                Faiss1030ScalarQuantizedKnnVectorsWriter.class.getSimpleName()
                     + " supports only a single field, but addField was called for ["
                     + newFieldInfo.name
                     + "] after ["
@@ -107,7 +107,7 @@ class Faiss1040ScalarQuantizedKnnVectorsWriter extends AbstractNativeEnginesKnnV
         // and pass it to the build strategy. The writer owns the reader lifecycle.
         final FlatVectorsReader flatVectorsReader = openFlatVectorsReader();
         try {
-            final QuantizedByteVectorValues quantizedValues = KNN1040ScalarQuantizedUtils.extractQuantizedByteVectorValues(
+            final QuantizedByteVectorValues quantizedValues = KNN1030ScalarQuantizedUtils.extractQuantizedByteVectorValues(
                 flatVectorsReader.getFloatVectorValues(fieldInfo.getName())
             );
             doFlush(
@@ -142,7 +142,7 @@ class Faiss1040ScalarQuantizedKnnVectorsWriter extends AbstractNativeEnginesKnnV
         // and pass it to the build strategy. The writer owns the reader lifecycle.
         final FlatVectorsReader flatVectorsReader = openFlatVectorsReader();
         try {
-            final QuantizedByteVectorValues quantizedValues = KNN1040ScalarQuantizedUtils.extractQuantizedByteVectorValues(
+            final QuantizedByteVectorValues quantizedValues = KNN1030ScalarQuantizedUtils.extractQuantizedByteVectorValues(
                 flatVectorsReader.getFloatVectorValues(fieldInfo.getName())
             );
             doMergeOneField(fieldInfo, mergeState, null, null, segmentWriteState, new NativeIndexBuildStrategyFactory(), quantizedValues);
@@ -154,7 +154,7 @@ class Faiss1040ScalarQuantizedKnnVectorsWriter extends AbstractNativeEnginesKnnV
     @Override
     public void finish() throws IOException {
         if (finished) {
-            throw new IllegalStateException(Faiss1040ScalarQuantizedKnnVectorsWriter.class.getSimpleName() + " is already finished");
+            throw new IllegalStateException(Faiss1030ScalarQuantizedKnnVectorsWriter.class.getSimpleName() + " is already finished");
         }
         finished = true;
         // flatVectorsWriter.finish() and close() are already called in flush/mergeOneField

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.SneakyThrows;
 import org.apache.lucene.codecs.CodecUtil;
@@ -37,19 +37,19 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 
 @Log4j2
-public class Faiss1040ScalarQuantizedKnnVectorsFormatTests extends KNNTestCase {
+public class Faiss1030ScalarQuantizedKnnVectorsFormatTests extends KNNTestCase {
 
     public void testFormatName_thenSuccess() {
         assertEquals(
-            Faiss1040ScalarQuantizedKnnVectorsFormat.class.getSimpleName(),
-            new Faiss1040ScalarQuantizedKnnVectorsFormat().getName()
+            Faiss1030ScalarQuantizedKnnVectorsFormat.class.getSimpleName(),
+            new Faiss1030ScalarQuantizedKnnVectorsFormat().getName()
         );
     }
 
     public void testGetMaxDimensions_thenUsesLuceneEngine() {
         try (MockedStatic<KNNEngine> mockedKNNEngine = Mockito.mockStatic(KNNEngine.class)) {
             mockedKNNEngine.when(() -> KNNEngine.getMaxDimensionByEngine(KNNEngine.FAISS)).thenReturn(16000);
-            assertEquals(16000, new Faiss1040ScalarQuantizedKnnVectorsFormat().getMaxDimensions("test-field"));
+            assertEquals(16000, new Faiss1030ScalarQuantizedKnnVectorsFormat().getMaxDimensions("test-field"));
             mockedKNNEngine.verify(() -> KNNEngine.getMaxDimensionByEngine(KNNEngine.FAISS));
         }
     }
@@ -109,7 +109,7 @@ public class Faiss1040ScalarQuantizedKnnVectorsFormatTests extends KNNTestCase {
             mock(IOContext.class)
         );
 
-        final Faiss1040ScalarQuantizedKnnVectorsFormat format = new Faiss1040ScalarQuantizedKnnVectorsFormat();
+        final Faiss1030ScalarQuantizedKnnVectorsFormat format = new Faiss1030ScalarQuantizedKnnVectorsFormat();
         try (MockedStatic<CodecUtil> mockedCodecUtil = Mockito.mockStatic(CodecUtil.class)) {
             mockedCodecUtil.when(
                 () -> CodecUtil.writeIndexHeader(any(IndexOutput.class), anyString(), anyInt(), any(byte[].class), anyString())
@@ -117,18 +117,18 @@ public class Faiss1040ScalarQuantizedKnnVectorsFormatTests extends KNNTestCase {
             mockedCodecUtil.when(() -> CodecUtil.retrieveChecksum(any(IndexInput.class))).thenAnswer((Answer<Void>) invocation -> null);
 
             KnnVectorsReader reader = format.fieldsReader(mockedSegmentReadState);
-            assertTrue(reader instanceof Faiss1040ScalarQuantizedKnnVectorsReader);
+            assertTrue(reader instanceof Faiss1030ScalarQuantizedKnnVectorsReader);
             reader.close();
 
             KnnVectorsWriter writer = format.fieldsWriter(mockedSegmentWriteState);
-            assertTrue(writer instanceof Faiss1040ScalarQuantizedKnnVectorsWriter);
+            assertTrue(writer instanceof Faiss1030ScalarQuantizedKnnVectorsWriter);
             writer.close();
         }
     }
 
     public void testToString_thenContainsFormatInfo() {
-        final String str = new Faiss1040ScalarQuantizedKnnVectorsFormat().toString();
-        assertTrue(str.contains(Faiss1040ScalarQuantizedKnnVectorsFormat.class.getSimpleName()));
+        final String str = new Faiss1030ScalarQuantizedKnnVectorsFormat().toString();
+        assertTrue(str.contains(Faiss1030ScalarQuantizedKnnVectorsFormat.class.getSimpleName()));
     }
 
     @SneakyThrows
@@ -173,20 +173,20 @@ public class Faiss1040ScalarQuantizedKnnVectorsFormatTests extends KNNTestCase {
             "test-segment-suffix"
         );
 
-        final Faiss1040ScalarQuantizedKnnVectorsFormat format = new Faiss1040ScalarQuantizedKnnVectorsFormat();
+        final Faiss1030ScalarQuantizedKnnVectorsFormat format = new Faiss1030ScalarQuantizedKnnVectorsFormat();
         try (MockedStatic<CodecUtil> mockedCodecUtil = Mockito.mockStatic(CodecUtil.class)) {
             mockedCodecUtil.when(() -> CodecUtil.retrieveChecksum(any(IndexInput.class))).thenAnswer((Answer<Void>) invocation -> null);
 
             KnnVectorsReader reader = format.fieldsReader(mockedSegmentReadState);
-            assertTrue(reader instanceof Faiss1040ScalarQuantizedKnnVectorsReader);
+            assertTrue(reader instanceof Faiss1030ScalarQuantizedKnnVectorsReader);
 
-            // Verify the internal FlatVectorsReader is wrapped with Faiss1040ScalarQuantizedFlatVectorsReader
+            // Verify the internal FlatVectorsReader is wrapped with Faiss1030ScalarQuantizedFlatVectorsReader
             java.lang.reflect.Field flatReaderField = reader.getClass().getSuperclass().getDeclaredField("flatVectorsReader");
             flatReaderField.setAccessible(true);
             Object flatReader = flatReaderField.get(reader);
             assertTrue(
-                "FlatVectorsReader should be wrapped with Faiss1040ScalarQuantizedFlatVectorsReader",
-                flatReader instanceof Faiss1040ScalarQuantizedFlatVectorsReader
+                "FlatVectorsReader should be wrapped with Faiss1030ScalarQuantizedFlatVectorsReader",
+                flatReader instanceof Faiss1030ScalarQuantizedFlatVectorsReader
             );
 
             reader.close();

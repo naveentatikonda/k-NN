@@ -9,8 +9,8 @@ import org.apache.lucene.codecs.Codec;
 import org.opensearch.index.codec.CodecService;
 import org.opensearch.index.codec.CodecServiceConfig;
 import org.opensearch.index.mapper.MapperService;
-import org.opensearch.knn.index.codec.KNN1040Codec.KNN1040Codec;
-import org.opensearch.knn.index.codec.KNN1040Codec.KNN1040PerFieldKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1030Codec.KNN1030Codec;
+import org.opensearch.knn.index.codec.KNN1030Codec.KNN1030PerFieldKnnVectorsFormat;
 import org.opensearch.knn.index.codec.nativeindex.NativeIndexBuildStrategyFactory;
 
 import java.util.Optional;
@@ -37,10 +37,10 @@ public class KNNCodecService extends CodecService {
      */
     @Override
     public Codec codec(String name) {
-        return KNN1040Codec.builder()
+        return KNN1030Codec.builder()
             .delegate(super.codec(name))
             .mapperService(mapperService)
-            .knnVectorsFormat(new KNN1040PerFieldKnnVectorsFormat(Optional.ofNullable(mapperService), nativeIndexBuildStrategyFactory))
+            .knnVectorsFormat(new KNN1030PerFieldKnnVectorsFormat(Optional.ofNullable(mapperService), nativeIndexBuildStrategyFactory))
             .build();
     }
 }

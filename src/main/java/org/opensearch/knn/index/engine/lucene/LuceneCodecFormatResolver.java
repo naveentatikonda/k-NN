@@ -65,7 +65,7 @@ public class LuceneCodecFormatResolver implements CodecFormatResolver {
 
     /**
      * Determines the {@link LuceneVectorsFormatType} based on the method context and parameters.
-     * Moved from {@code KNN1040BasePerFieldKnnVectorsFormat.resolveLuceneFormat}.
+     * Moved from {@code KNN1030BasePerFieldKnnVectorsFormat.resolveLuceneFormat}.
      *
      * <ul>
      *   <li>Flat method name → {@link LuceneVectorsFormatType#FLAT}</li>

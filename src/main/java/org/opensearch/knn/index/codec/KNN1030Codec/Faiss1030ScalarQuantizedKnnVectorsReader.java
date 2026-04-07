@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
@@ -36,8 +36,8 @@ import java.io.IOException;
  * with both {@code scorer()} (quantized) and {@code rescorer()} (full-precision) support.
  */
 @Log4j2
-public class Faiss1040ScalarQuantizedKnnVectorsReader extends AbstractNativeEnginesKnnVectorsReader {
-    Faiss1040ScalarQuantizedKnnVectorsReader(SegmentReadState state, FlatVectorsReader flatVectorsReader) {
+public class Faiss1030ScalarQuantizedKnnVectorsReader extends AbstractNativeEnginesKnnVectorsReader {
+    Faiss1030ScalarQuantizedKnnVectorsReader(SegmentReadState state, FlatVectorsReader flatVectorsReader) {
         super(state, flatVectorsReader);
     }
 

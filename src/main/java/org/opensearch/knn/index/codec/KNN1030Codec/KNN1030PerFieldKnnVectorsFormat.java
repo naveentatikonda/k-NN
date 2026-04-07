@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import org.apache.lucene.backward_codecs.lucene99.Lucene99RWHnswScalarQuantizedVectorsFormat;
 import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat;
@@ -14,7 +14,7 @@ import org.opensearch.common.collect.Tuple;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.knn.index.KNNSettings;
 import org.opensearch.knn.index.SpaceType;
-import org.opensearch.knn.index.codec.KNN1040BasePerFieldKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1030BasePerFieldKnnVectorsFormat;
 import org.opensearch.knn.index.codec.KnnVectorsFormatContext;
 import org.opensearch.knn.index.codec.LuceneVectorsFormatType;
 import org.opensearch.knn.index.codec.KNN9120Codec.KNN9120HnswBinaryVectorsFormat;
@@ -33,21 +33,21 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 /**
- * Per-field KNN vectors format for the KNN1040 codec. Uses {@link Lucene99HnswVectorsFormat}
+ * Per-field KNN vectors format for the KNN1030 codec. Uses {@link Lucene99HnswVectorsFormat}
  * for HNSW, {@link Lucene99RWHnswScalarQuantizedVectorsFormat} for scalar quantization (to
  * preserve the {@code confidenceInterval} parameter), and
  * {@link Lucene103ScalarQuantizedVectorsFormat} with {@code SINGLE_BIT_QUERY_NIBBLE} encoding
  * for the flat SQ method.
  */
-public class KNN1040PerFieldKnnVectorsFormat extends KNN1040BasePerFieldKnnVectorsFormat {
+public class KNN1030PerFieldKnnVectorsFormat extends KNN1030BasePerFieldKnnVectorsFormat {
 
     private static final Tuple<Integer, ExecutorService> DEFAULT_MERGE_THREAD_COUNT_AND_EXECUTOR_SERVICE = Tuple.tuple(1, null);
 
-    public KNN1040PerFieldKnnVectorsFormat(final Optional<MapperService> mapperService) {
+    public KNN1030PerFieldKnnVectorsFormat(final Optional<MapperService> mapperService) {
         this(mapperService, new NativeIndexBuildStrategyFactory());
     }
 
-    public KNN1040PerFieldKnnVectorsFormat(
+    public KNN1030PerFieldKnnVectorsFormat(
         final Optional<MapperService> mapperService,
         NativeIndexBuildStrategyFactory nativeIndexBuildStrategyFactory
     ) {
@@ -83,7 +83,7 @@ public class KNN1040PerFieldKnnVectorsFormat extends KNN1040BasePerFieldKnnVecto
             );
             final Tuple<Integer, ExecutorService> merge = getMergeThreadCountAndExecutorService();
             if (p.getBits() == LuceneSQEncoder.Bits.ONE.getValue()) {
-                return new KNN1040HnswScalarQuantizedVectorsFormat(
+                return new KNN1030HnswScalarQuantizedVectorsFormat(
                     p.getBitEncoding(),
                     p.getMaxConnections(),
                     p.getBeamWidth(),
@@ -102,7 +102,7 @@ public class KNN1040PerFieldKnnVectorsFormat extends KNN1040BasePerFieldKnnVecto
             );
         },
             LuceneVectorsFormatType.FLAT,
-            ctx -> new KNN1040ScalarQuantizedVectorsFormat(Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE)
+            ctx -> new KNN1030ScalarQuantizedVectorsFormat(Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE)
         );
     }
 

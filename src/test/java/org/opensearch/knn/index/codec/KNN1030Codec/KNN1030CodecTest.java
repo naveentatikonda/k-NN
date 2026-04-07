@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.SneakyThrows;
 import org.apache.lucene.codecs.Codec;
@@ -29,35 +29,35 @@ import static org.mockito.Mockito.when;
 import static org.opensearch.knn.common.KNNConstants.METHOD_FLAT;
 import static org.opensearch.knn.index.engine.KNNEngine.LUCENE;
 
-public class KNN1040CodecTest extends KNNCodecTestCase {
+public class KNN1030CodecTest extends KNNCodecTestCase {
 
     @SneakyThrows
     public void testMultiFieldsKnnIndex() {
-        testMultiFieldsKnnIndex(KNN1040Codec.builder().delegate(KNNCodecVersion.CURRENT_DEFAULT_DELEGATE).build());
+        testMultiFieldsKnnIndex(KNN1030Codec.builder().delegate(KNNCodecVersion.CURRENT_DEFAULT_DELEGATE).build());
     }
 
     @SneakyThrows
     public void testMultiFieldsKnnIndexCustomCodecWithStoredFields() {
-        testMultiFieldsKnnIndex(KNN1040Codec.builder().delegate(new CustomCodec()).build());
+        testMultiFieldsKnnIndex(KNN1030Codec.builder().delegate(new CustomCodec()).build());
     }
 
     @SneakyThrows
     public void testMultiFieldsKnnIndexCustomCodecWithoutStoredFields() {
-        testMultiFieldsKnnIndex(KNN1040Codec.builder().delegate(new CustomCodecNoStoredFields()).build());
+        testMultiFieldsKnnIndex(KNN1030Codec.builder().delegate(new CustomCodecNoStoredFields()).build());
     }
 
     @SneakyThrows
     public void testBuildFromModelTemplate() {
-        testBuildFromModelTemplate(KNN1040Codec.builder().delegate(KNNCodecVersion.CURRENT_DEFAULT_DELEGATE).build());
+        testBuildFromModelTemplate(KNN1030Codec.builder().delegate(KNNCodecVersion.CURRENT_DEFAULT_DELEGATE).build());
     }
 
     // Ensure that the codec is able to return the correct per field knn vectors format for codec
     public void testCodecSetsCustomPerFieldKnnVectorsFormat() {
-        final Codec codec = new KNN1040Codec();
-        assertTrue(codec.knnVectorsFormat() instanceof KNN1040PerFieldKnnVectorsFormat);
+        final Codec codec = new KNN1030Codec();
+        assertTrue(codec.knnVectorsFormat() instanceof KNN1030PerFieldKnnVectorsFormat);
     }
 
-    public void testFlatFormatResolver_returnsKNN1040ScalarQuantizedVectorsFormat() {
+    public void testFlatFormatResolver_returnsKNN1030ScalarQuantizedVectorsFormat() {
         KNNMethodContext flatMethodContext = new KNNMethodContext(
             LUCENE,
             SpaceType.L2,
@@ -73,11 +73,11 @@ public class KNN1040CodecTest extends KNNCodecTestCase {
         );
         when(mapperService.fieldType(eq("test_field"))).thenReturn(fieldType);
 
-        KNN1040PerFieldKnnVectorsFormat format = new KNN1040PerFieldKnnVectorsFormat(Optional.of(mapperService));
+        KNN1030PerFieldKnnVectorsFormat format = new KNN1030PerFieldKnnVectorsFormat(Optional.of(mapperService));
         KnnVectorsFormat result = format.getKnnVectorsFormatForField("test_field");
         assertTrue(
-            "Expected KNN1040ScalarQuantizedVectorsFormat but got " + result.getClass().getSimpleName(),
-            result instanceof KNN1040ScalarQuantizedVectorsFormat
+            "Expected KNN1030ScalarQuantizedVectorsFormat but got " + result.getClass().getSimpleName(),
+            result instanceof KNN1030ScalarQuantizedVectorsFormat
         );
     }
 
@@ -86,9 +86,9 @@ public class KNN1040CodecTest extends KNNCodecTestCase {
     @SneakyThrows
     public void testKnnVectorIndex() {
         Function<MapperService, PerFieldKnnVectorsFormat> perFieldKnnVectorsFormatProvider = (
-            mapperService) -> new KNN1040PerFieldKnnVectorsFormat(Optional.of(mapperService));
+            mapperService) -> new KNN1030PerFieldKnnVectorsFormat(Optional.of(mapperService));
 
-        Function<PerFieldKnnVectorsFormat, Codec> knnCodecProvider = (knnVectorFormat) -> KNN1040Codec.builder()
+        Function<PerFieldKnnVectorsFormat, Codec> knnCodecProvider = (knnVectorFormat) -> KNN1030Codec.builder()
             .delegate(KNNCodecVersion.CURRENT_DEFAULT_DELEGATE)
             .knnVectorsFormat(knnVectorFormat)
             .build();

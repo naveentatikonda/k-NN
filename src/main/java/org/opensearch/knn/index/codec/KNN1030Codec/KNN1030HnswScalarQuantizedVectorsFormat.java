@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
@@ -26,23 +26,23 @@ import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.HNSW_G
 
 /**
  * HNSW + scalar quantization format that extends {@link Lucene103HnswScalarQuantizedVectorsFormat}
- * and overrides flat vector operations to use {@link KNN1040ScalarQuantizedVectorsFormat},
- * inheriting its SIMD-accelerated {@link KNN1040ScalarQuantizedVectorScorer} for graph traversal scoring.
+ * and overrides flat vector operations to use {@link KNN1030ScalarQuantizedVectorsFormat},
+ * inheriting its SIMD-accelerated {@link KNN1030ScalarQuantizedVectorScorer} for graph traversal scoring.
  */
-public class KNN1040HnswScalarQuantizedVectorsFormat extends Lucene103HnswScalarQuantizedVectorsFormat {
+public class KNN1030HnswScalarQuantizedVectorsFormat extends Lucene103HnswScalarQuantizedVectorsFormat {
 
     private final int maxConn;
     private final int beamWidth;
     private final int tinySegmentsThreshold;
     private final int numMergeWorkers;
     private final TaskExecutor mergeExec;
-    private final KNN1040ScalarQuantizedVectorsFormat flatVectorsFormat;
+    private final KNN1030ScalarQuantizedVectorsFormat flatVectorsFormat;
 
-    public KNN1040HnswScalarQuantizedVectorsFormat() {
+    public KNN1030HnswScalarQuantizedVectorsFormat() {
         this(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE, DEFAULT_MAX_CONN, DEFAULT_BEAM_WIDTH, DEFAULT_NUM_MERGE_WORKER, null);
     }
 
-    public KNN1040HnswScalarQuantizedVectorsFormat(
+    public KNN1030HnswScalarQuantizedVectorsFormat(
         ScalarEncoding encoding,
         int maxConn,
         int beamWidth,
@@ -52,7 +52,7 @@ public class KNN1040HnswScalarQuantizedVectorsFormat extends Lucene103HnswScalar
         this(encoding, maxConn, beamWidth, numMergeWorkers, mergeExec, HNSW_GRAPH_THRESHOLD);
     }
 
-    public KNN1040HnswScalarQuantizedVectorsFormat(
+    public KNN1030HnswScalarQuantizedVectorsFormat(
         ScalarEncoding encoding,
         int maxConn,
         int beamWidth,
@@ -66,7 +66,7 @@ public class KNN1040HnswScalarQuantizedVectorsFormat extends Lucene103HnswScalar
         this.tinySegmentsThreshold = tinySegmentsThreshold;
         this.numMergeWorkers = numMergeWorkers;
         this.mergeExec = mergeExec != null ? new TaskExecutor(mergeExec) : null;
-        this.flatVectorsFormat = new KNN1040ScalarQuantizedVectorsFormat(encoding);
+        this.flatVectorsFormat = new KNN1030ScalarQuantizedVectorsFormat(encoding);
     }
 
     @Override

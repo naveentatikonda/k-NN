@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.index.ByteVectorValues;
@@ -29,21 +29,21 @@ import java.io.IOException;
  *
  * <p>The resulting reader hierarchy is:
  * <pre>
- *   Faiss1040ScalarQuantizedKnnVectorsReader
- *     └─ Faiss1040ScalarQuantizedFlatVectorsReader  (this class)
+ *   Faiss1030ScalarQuantizedKnnVectorsReader
+ *     └─ Faiss1030ScalarQuantizedFlatVectorsReader  (this class)
  *          └─ Lucene104ScalarQuantizedVectorsReader  (delegate)
  * </pre>
  *
  * <p>All other operations are delegated directly to the underlying reader.
  */
-public class Faiss1040ScalarQuantizedFlatVectorsReader extends FlatVectorsReader {
+public class Faiss1030ScalarQuantizedFlatVectorsReader extends FlatVectorsReader {
     private final FlatVectorsReader delegateFlatVectorsReader;
 
     /**
      * @param lucene103ScalarQuantizedVectorsReader the delegate reader whose {@link FloatVectorValues}
      *                                              will be wrapped to implement {@code HasIndexSlice}
      */
-    protected Faiss1040ScalarQuantizedFlatVectorsReader(final FlatVectorsReader lucene103ScalarQuantizedVectorsReader) {
+    protected Faiss1030ScalarQuantizedFlatVectorsReader(final FlatVectorsReader lucene103ScalarQuantizedVectorsReader) {
         super(lucene103ScalarQuantizedVectorsReader.getFlatVectorScorer());
         this.delegateFlatVectorsReader = lucene103ScalarQuantizedVectorsReader;
     }
@@ -72,7 +72,7 @@ public class Faiss1040ScalarQuantizedFlatVectorsReader extends FlatVectorsReader
         final FloatVectorValues floatVectorValues = delegateFlatVectorsReader.getFloatVectorValues(field);
         return new ScalarQuantizedFloatVectorValues(
             floatVectorValues,
-            KNN1040ScalarQuantizedUtils.extractQuantizedByteVectorValues(floatVectorValues)
+            KNN1030ScalarQuantizedUtils.extractQuantizedByteVectorValues(floatVectorValues)
         );
     }
 

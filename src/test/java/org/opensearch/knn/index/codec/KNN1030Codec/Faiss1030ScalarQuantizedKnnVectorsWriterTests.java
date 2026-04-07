@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.SneakyThrows;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class Faiss1040ScalarQuantizedKnnVectorsWriterTests extends KNNTestCase {
+public class Faiss1030ScalarQuantizedKnnVectorsWriterTests extends KNNTestCase {
 
     private static final int DIMENSION = 128;
     private static final String FIELD_NAME = "test_field";
@@ -74,13 +74,13 @@ public class Faiss1040ScalarQuantizedKnnVectorsWriterTests extends KNNTestCase {
     private IOFunction<SegmentReadState, FlatVectorsReader> quantizedFlatVectorsReaderSupplier;
 
     private FlatFieldVectorsWriter<?> mockedFlatFieldVectorsWriter;
-    private Faiss1040ScalarQuantizedKnnVectorsWriter objectUnderTest;
+    private Faiss1030ScalarQuantizedKnnVectorsWriter objectUnderTest;
 
     @Override
     public void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.openMocks(this);
-        objectUnderTest = new Faiss1040ScalarQuantizedKnnVectorsWriter(
+        objectUnderTest = new Faiss1030ScalarQuantizedKnnVectorsWriter(
             segmentWriteState,
             flatVectorsWriter,
             quantizedFlatVectorsReaderSupplier
@@ -258,7 +258,7 @@ public class Faiss1040ScalarQuantizedKnnVectorsWriterTests extends KNNTestCase {
         try (org.apache.lucene.store.Directory directory = newDirectory()) {
             final SegmentWriteState writeState = createWriteState(directory, "_0", numVectors);
             final FieldInfo fi = createRealFieldInfo();
-            final Faiss1040ScalarQuantizedKnnVectorsFormat format = new Faiss1040ScalarQuantizedKnnVectorsFormat();
+            final Faiss1030ScalarQuantizedKnnVectorsFormat format = new Faiss1030ScalarQuantizedKnnVectorsFormat();
 
             try (KnnVectorsWriter knnWriter = format.fieldsWriter(writeState)) {
                 KnnFieldVectorsWriter<float[]> fw = (KnnFieldVectorsWriter<float[]>) knnWriter.addField(fi);
@@ -292,7 +292,7 @@ public class Faiss1040ScalarQuantizedKnnVectorsWriterTests extends KNNTestCase {
 
         final FieldInfo fi = createRealFieldInfo();
         final FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { fi });
-        final Faiss1040ScalarQuantizedKnnVectorsFormat format = new Faiss1040ScalarQuantizedKnnVectorsFormat();
+        final Faiss1030ScalarQuantizedKnnVectorsFormat format = new Faiss1030ScalarQuantizedKnnVectorsFormat();
 
         try (org.apache.lucene.store.Directory directory = newDirectory()) {
             // Step 1: Create 3 segments by flushing vectors
@@ -478,7 +478,7 @@ public class Faiss1040ScalarQuantizedKnnVectorsWriterTests extends KNNTestCase {
     /** Opens a reader on the written segment and verifies all vectors match the originals. */
     @SneakyThrows
     private void verifyVectorsReadable(
-        Faiss1040ScalarQuantizedKnnVectorsFormat format,
+        Faiss1030ScalarQuantizedKnnVectorsFormat format,
         org.apache.lucene.store.Directory directory,
         SegmentWriteState writeState,
         FieldInfo fi,

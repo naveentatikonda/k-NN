@@ -16,7 +16,7 @@ import org.opensearch.knn.KNNTestCase;
 import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.index.KNNVectorSimilarityFunction;
 import org.opensearch.knn.index.SpaceType;
-import org.opensearch.knn.index.codec.KNN1040Codec.KNN1040ScalarQuantizedVectorScorer;
+import org.opensearch.knn.index.codec.KNN1030Codec.KNN1030ScalarQuantizedVectorScorer;
 import org.opensearch.knn.index.codec.scorer.PrefetchableFlatVectorScorer;
 import org.opensearch.knn.memoryoptsearch.faiss.FlatVectorsScorerProvider;
 
@@ -90,13 +90,13 @@ public class FlatVectorsScorerProviderTests extends KNNTestCase {
             VECTOR_SCORER
         );
 
-        assertTrue(scorer instanceof KNN1040ScalarQuantizedVectorScorer);
+        assertTrue(scorer instanceof KNN1030ScalarQuantizedVectorScorer);
     }
 
-    public void testGetKNN1040ScalarQuantizedVectorScorer_returnsCorrectType() {
-        KNN1040ScalarQuantizedVectorScorer scorer = FlatVectorsScorerProvider.getKNN1040ScalarQuantizedVectorScorer(VECTOR_SCORER);
+    public void testGetKNN1030ScalarQuantizedVectorScorer_returnsCorrectType() {
+        KNN1030ScalarQuantizedVectorScorer scorer = FlatVectorsScorerProvider.getKNN1030ScalarQuantizedVectorScorer(VECTOR_SCORER);
         assertNotNull(scorer);
-        assertTrue(scorer instanceof KNN1040ScalarQuantizedVectorScorer);
+        assertTrue(scorer instanceof KNN1030ScalarQuantizedVectorScorer);
     }
 
     public void testGetLucene99FlatVectorsScorer_returnsScorer() {

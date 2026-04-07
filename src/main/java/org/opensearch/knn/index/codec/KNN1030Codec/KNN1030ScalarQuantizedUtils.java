@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.experimental.UtilityClass;
 import org.apache.lucene.codecs.lucene103.QuantizedByteVectorValues;
@@ -21,12 +21,12 @@ import java.util.Locale;
  * The quantized values are stored in a private {@code quantizedVectorValues} field and are not exposed
  * through any public API. This utility uses reflection to access that field.
  *
- * <p>This is used by both the write path ({@link Faiss1040ScalarQuantizedKnnVectorsWriter}) to extract
+ * <p>This is used by both the write path ({@link Faiss1030ScalarQuantizedKnnVectorsWriter}) to extract
  * quantized vectors for native HNSW graph construction, and the search path
- * ({@link KNN1040ScalarQuantizedVectorScorer}) to obtain quantized vectors for SIMD-accelerated scoring.
+ * ({@link KNN1030ScalarQuantizedVectorScorer}) to obtain quantized vectors for SIMD-accelerated scoring.
  */
 @UtilityClass
-class KNN1040ScalarQuantizedUtils {
+class KNN1030ScalarQuantizedUtils {
     private static final String QUANTIZED_VECTOR_VALUES_FIELD_NAME = "quantizedVectorValues";
 
     /**

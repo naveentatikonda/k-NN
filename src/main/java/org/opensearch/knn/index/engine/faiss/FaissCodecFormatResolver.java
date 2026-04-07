@@ -9,7 +9,7 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.knn.index.KNNSettings;
-import org.opensearch.knn.index.codec.KNN1040Codec.Faiss1040ScalarQuantizedKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1030Codec.Faiss1030ScalarQuantizedKnnVectorsFormat;
 import org.opensearch.knn.index.codec.KNN990Codec.NativeEngines990KnnVectorsFormat;
 import org.opensearch.knn.index.codec.nativeindex.NativeIndexBuildStrategyFactory;
 import org.opensearch.knn.index.engine.CodecFormatResolver;
@@ -40,7 +40,7 @@ public class FaissCodecFormatResolver implements CodecFormatResolver {
     }
 
     /**
-     * Resolves the format for a specific field. Returns {@link Faiss1040ScalarQuantizedKnnVectorsFormat} when
+     * Resolves the format for a specific field. Returns {@link Faiss1030ScalarQuantizedKnnVectorsFormat} when
      * the encoder is sq with bits=1, otherwise falls back to the default native format.
      */
     @Override
@@ -52,7 +52,7 @@ public class FaissCodecFormatResolver implements CodecFormatResolver {
         int defaultBeamWidth
     ) {
         if (isSQOneBitEncoder(params)) {
-            return new Faiss1040ScalarQuantizedKnnVectorsFormat();
+            return new Faiss1030ScalarQuantizedKnnVectorsFormat();
         }
         return resolve();
     }

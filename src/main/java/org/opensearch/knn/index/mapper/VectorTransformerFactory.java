@@ -39,7 +39,7 @@ public final class VectorTransformerFactory {
      * <ul>
      *   <li>Faiss engine with cosine similarity (Faiss doesn't natively support cosine)</li>
      *   <li>Lucene engine with cosine similarity when using SQ 1-bit encoding or flat method
-     *       (these paths use {@code KNN1040ScalarQuantizedVectorScorer} which requires a unit vector)</li>
+     *       (these paths use {@code KNN1030ScalarQuantizedVectorScorer} which requires a unit vector)</li>
      * </ul>
      *
      * @param knnEngine The KNN engine type

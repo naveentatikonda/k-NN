@@ -37,7 +37,7 @@ import org.apache.lucene.util.Version;
 import org.apache.lucene.util.hnsw.RandomVectorScorer;
 import org.junit.Test;
 import org.opensearch.knn.KNNTestCase;
-import org.opensearch.knn.index.codec.KNN1040Codec.KNN1040ScalarQuantizedVectorScorer;
+import org.opensearch.knn.index.codec.KNN1030Codec.KNN1030ScalarQuantizedVectorScorer;
 
 import java.lang.reflect.Field;
 import java.nio.file.Path;
@@ -48,13 +48,13 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Tests that the native SIMD SQ scorer ({@link KNN1040ScalarQuantizedVectorScorer}) produces scores
+ * Tests that the native SIMD SQ scorer ({@link KNN1030ScalarQuantizedVectorScorer}) produces scores
  * matching Lucene's {@link Lucene103ScalarQuantizedVectorScorer} (the source of truth).
  * <p>
  * Uses the Lucene codec pipeline directly:
  * 1. {@link Lucene103ScalarQuantizedVectorsFormat#fieldsWriter} to quantize and write vectors.
  * 2. {@link Lucene103ScalarQuantizedVectorsReader} with {@link Lucene103ScalarQuantizedVectorScorer} → truth.
- * 3. {@link Lucene103ScalarQuantizedVectorsReader} with {@link KNN1040ScalarQuantizedVectorScorer} → test subject.
+ * 3. {@link Lucene103ScalarQuantizedVectorsReader} with {@link KNN1030ScalarQuantizedVectorScorer} → test subject.
  * 4. Compare scores.
  */
 public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
@@ -191,7 +191,7 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
                 assertNotNull("Truth scorer should not be null", truthScorer);
 
                 // ---- Step 3: SIMD scorer (test subject) ----
-                final KNN1040ScalarQuantizedVectorScorer simdFlatScorer = new KNN1040ScalarQuantizedVectorScorer(defaultScorer);
+                final KNN1030ScalarQuantizedVectorScorer simdFlatScorer = new KNN1030ScalarQuantizedVectorScorer(defaultScorer);
 
                 RandomVectorScorer testScorer = simdFlatScorer.getRandomVectorScorer(
                     similarityFunction,

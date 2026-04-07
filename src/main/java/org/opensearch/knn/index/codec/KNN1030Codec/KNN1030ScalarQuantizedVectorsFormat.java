@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
@@ -19,16 +19,16 @@ import org.opensearch.knn.memoryoptsearch.faiss.FlatVectorsScorerProvider;
 import java.io.IOException;
 
 /**
- * A {@link Lucene103ScalarQuantizedVectorsFormat} that uses a {@link KNN1040ScalarQuantizedVectorScorer}
+ * A {@link Lucene103ScalarQuantizedVectorsFormat} that uses a {@link KNN1030ScalarQuantizedVectorScorer}
  * to take advantage of SIMD-accelerated scoring during search.
  */
-public class KNN1040ScalarQuantizedVectorsFormat extends Lucene103ScalarQuantizedVectorsFormat {
+public class KNN1030ScalarQuantizedVectorsFormat extends Lucene103ScalarQuantizedVectorsFormat {
 
-    private static final KNN1040ScalarQuantizedVectorScorer KNN_1040_SCALAR_QUANTIZED_VECTOR_SCORER = FlatVectorsScorerProvider
-        .getKNN1040ScalarQuantizedVectorScorer(FlatVectorsScorerProvider.getLucene99FlatVectorsScorer());
+    private static final KNN1030ScalarQuantizedVectorScorer KNN_1040_SCALAR_QUANTIZED_VECTOR_SCORER = FlatVectorsScorerProvider
+        .getKNN1030ScalarQuantizedVectorScorer(FlatVectorsScorerProvider.getLucene99FlatVectorsScorer());
 
     // Must use the default Lucene scorer here, not KNN_1040_SCALAR_QUANTIZED_VECTOR_SCORER.
-    // KNN1040ScalarQuantizedVectorScorer.getRandomVectorScorer(float[]) always assumes quantized
+    // KNN1030ScalarQuantizedVectorScorer.getRandomVectorScorer(float[]) always assumes quantized
     // vectors and will fail (NPE/exception) when called with raw OffHeapFloatVectorValues.
     private static final Lucene99FlatVectorsFormat RAW_VECTOR_FORMAT = new Lucene99FlatVectorsFormat(
         FlatVectorsScorerProvider.getLucene99FlatVectorsScorer()
@@ -36,11 +36,11 @@ public class KNN1040ScalarQuantizedVectorsFormat extends Lucene103ScalarQuantize
 
     private final ScalarEncoding encoding;
 
-    public KNN1040ScalarQuantizedVectorsFormat() {
+    public KNN1030ScalarQuantizedVectorsFormat() {
         this(ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
     }
 
-    public KNN1040ScalarQuantizedVectorsFormat(final ScalarEncoding encoding) {
+    public KNN1030ScalarQuantizedVectorsFormat(final ScalarEncoding encoding) {
         super(encoding);
         this.encoding = encoding;
     }

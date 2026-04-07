@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -28,13 +28,13 @@ import java.io.IOException;
  * {@code "encoder": {"name": "sq", "bits": 1}}. See {@code FaissCodecFormatResolver} for the
  * routing logic in {@code BasePerFieldKnnVectorsFormat.getKnnVectorsFormatForField}.
  *
- * @see Faiss1040ScalarQuantizedKnnVectorsWriter
- * @see Faiss1040ScalarQuantizedKnnVectorsReader
+ * @see Faiss1030ScalarQuantizedKnnVectorsWriter
+ * @see Faiss1030ScalarQuantizedKnnVectorsReader
  */
 @Log4j2
-public class Faiss1040ScalarQuantizedKnnVectorsFormat extends KnnVectorsFormat {
+public class Faiss1030ScalarQuantizedKnnVectorsFormat extends KnnVectorsFormat {
 
-    private static final String FORMAT_NAME = "Faiss1040ScalarQuantizedKnnVectorsFormat";
+    private static final String FORMAT_NAME = "Faiss1030ScalarQuantizedKnnVectorsFormat";
 
     // Shared across all format instances; Lucene103ScalarQuantizedVectorsFormat is stateless.
     // TODO : We have to make it scalable for other encoding types, not limit this on `ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE`.
@@ -42,17 +42,17 @@ public class Faiss1040ScalarQuantizedKnnVectorsFormat extends KnnVectorsFormat {
         ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE
     );
 
-    public Faiss1040ScalarQuantizedKnnVectorsFormat() {
+    public Faiss1030ScalarQuantizedKnnVectorsFormat() {
         super(FORMAT_NAME);
     }
 
     @Override
     public KnnVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
-        return new Faiss1040ScalarQuantizedKnnVectorsWriter(state, faissSqFlatFormat.fieldsWriter(state), faissSqFlatFormat::fieldsReader);
+        return new Faiss1030ScalarQuantizedKnnVectorsWriter(state, faissSqFlatFormat.fieldsWriter(state), faissSqFlatFormat::fieldsReader);
     }
 
     /**
-     * Wraps the Lucene flat vectors reader with {@link Faiss1040ScalarQuantizedFlatVectorsReader} so that
+     * Wraps the Lucene flat vectors reader with {@link Faiss1030ScalarQuantizedFlatVectorsReader} so that
      * the {@link org.apache.lucene.index.FloatVectorValues} returned by the reader implement
      * {@link org.apache.lucene.codecs.lucene95.HasIndexSlice}. This is required because Lucene's
      * HNSW traversal expects all vector values to expose an {@link org.apache.lucene.store.IndexInput},
@@ -60,9 +60,9 @@ public class Faiss1040ScalarQuantizedKnnVectorsFormat extends KnnVectorsFormat {
      */
     @Override
     public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-        return new Faiss1040ScalarQuantizedKnnVectorsReader(
+        return new Faiss1030ScalarQuantizedKnnVectorsReader(
             state,
-            new Faiss1040ScalarQuantizedFlatVectorsReader(faissSqFlatFormat.fieldsReader(state))
+            new Faiss1030ScalarQuantizedFlatVectorsReader(faissSqFlatFormat.fieldsReader(state))
         );
     }
 

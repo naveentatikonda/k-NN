@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
@@ -47,13 +47,13 @@ import static org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectors
  * operations, improving cache locality and reducing I/O latency during graph traversal.
  */
 @Log4j2
-public class KNN1040ScalarQuantizedVectorScorer extends Lucene103ScalarQuantizedVectorScorer {
+public class KNN1030ScalarQuantizedVectorScorer extends Lucene103ScalarQuantizedVectorScorer {
     /**
      * Creates a new scorer that wraps a non-quantized delegate scorer.
      *
      * @param delegate fallback scorer used when SIMD acceleration is not applicable
      */
-    public KNN1040ScalarQuantizedVectorScorer(final FlatVectorsScorer delegate) {
+    public KNN1030ScalarQuantizedVectorScorer(final FlatVectorsScorer delegate) {
         super(delegate);
     }
 
@@ -94,7 +94,7 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene103ScalarQuantized
         } else {
             // Extract QuantizedByteVectorValues from `vectorValues`.
             // This should not be null, otherwise it can't get entroid + correction factors.
-            quantizedByteVectorValues = KNN1040ScalarQuantizedUtils.extractQuantizedByteVectorValues(vectorValues);
+            quantizedByteVectorValues = KNN1030ScalarQuantizedUtils.extractQuantizedByteVectorValues(vectorValues);
         }
 
         return new PrefetchableRandomVectorScorer(getScorer(similarityFunction, quantizedByteVectorValues, target));

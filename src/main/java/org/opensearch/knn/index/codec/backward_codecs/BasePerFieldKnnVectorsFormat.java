@@ -12,7 +12,7 @@ import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.knn.index.KNNSettings;
-import org.opensearch.knn.index.codec.KNN1040BasePerFieldKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1030BasePerFieldKnnVectorsFormat;
 import org.opensearch.knn.index.codec.KNN990Codec.NativeEngines990KnnVectorsFormat;
 import org.opensearch.knn.index.codec.nativeindex.NativeIndexBuildStrategyFactory;
 import org.opensearch.knn.index.codec.params.KNNScalarQuantizedVectorsFormatParams;
@@ -37,8 +37,8 @@ import static org.opensearch.knn.common.KNNConstants.METHOD_ENCODER_PARAMETER;
  * <p>
  * Uses the legacy supplier-based constructor path with {@code vectorsFormatSupplier},
  * {@code scalarQuantizedVectorsFormatSupplier}, and {@code flatVectorsFormatSupplier} for
- * Lucene format resolution. Current and future codecs (KNN1040+) should use
- * {@link KNN1040BasePerFieldKnnVectorsFormat} instead.
+ * Lucene format resolution. Current and future codecs (KNN1030+) should use
+ * {@link KNN1030BasePerFieldKnnVectorsFormat} instead.
  * </p>
  */
 @AllArgsConstructor

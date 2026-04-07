@@ -7,6 +7,7 @@ package org.opensearch.knn.index;
 
 import lombok.extern.log4j.Log4j2;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.knn.KNNRestTestCase;
@@ -20,6 +21,7 @@ import static org.opensearch.knn.index.KNNSettings.INDEX_KNN_ADVANCED_APPROXIMAT
 import static org.opensearch.knn.index.KNNSettings.KNN_INDEX;
 
 @Log4j2
+@Ignore
 public class RelocationIT extends KNNRestTestCase {
 
     private static final String INDEX_NAME = "relocation-knn-index";

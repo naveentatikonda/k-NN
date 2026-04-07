@@ -224,7 +224,7 @@ public class FaissMethodResolver extends AbstractMethodResolver {
      * Currently disabled — the SQ writer pipeline is not yet fully stable for auto-resolved
      * indices. Users can still explicitly specify sq(bits=1) to opt in. This will be enabled
      * as the default in Part 2.
-     * TODO: Enable once the Faiss1040ScalarQuantizedKnnVectorsWriter pipeline is validated end-to-end.
+     * TODO: Enable once the Faiss1030ScalarQuantizedKnnVectorsWriter pipeline is validated end-to-end.
      */
     private static boolean shouldUseSQOneBitForX32(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
         return knnMethodConfigContext.getVersionCreated() != null

@@ -28,8 +28,8 @@ import org.apache.lucene.util.Version;
 import org.opensearch.knn.KNNTestCase;
 import org.opensearch.knn.common.KNNConstants;
 import org.opensearch.knn.generate.IndexingType;
-import org.opensearch.knn.index.codec.KNN1040Codec.Faiss1040ScalarQuantizedKnnVectorsFormat;
-import org.opensearch.knn.index.codec.KNN1040Codec.Faiss1040ScalarQuantizedKnnVectorsReader;
+import org.opensearch.knn.index.codec.KNN1030Codec.Faiss1030ScalarQuantizedKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1030Codec.Faiss1030ScalarQuantizedKnnVectorsReader;
 import org.opensearch.knn.index.warmup.WarmableReader;
 
 import java.nio.file.Path;
@@ -41,14 +41,14 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * Warmup-only tests for {@link Faiss1040ScalarQuantizedKnnVectorsReader}.
- * Ingests real vectors using {@link Faiss1040ScalarQuantizedKnnVectorsFormat}, triggers warmup via
+ * Warmup-only tests for {@link Faiss1030ScalarQuantizedKnnVectorsReader}.
+ * Ingests real vectors using {@link Faiss1030ScalarQuantizedKnnVectorsFormat}, triggers warmup via
  * {@link WarmableReader#warmUp(String)}, and verifies that {@code .faiss}, {@code .veb}, and {@code .vec}
  * files are fully read. No search queries are performed.
  *
  * // Feature: warmup-delegation-tests, Property 4: Faiss SQ warmup reads all three file types
  */
-public class Faiss1040SQWarmupTests extends KNNTestCase {
+public class Faiss1030SQWarmupTests extends KNNTestCase {
 
     private static final int DIMENSIONS = 16;
     private static final int TOTAL_NUM_DOCS = 300;
@@ -74,7 +74,7 @@ public class Faiss1040SQWarmupTests extends KNNTestCase {
 
         final Path tempDir = createTempDir("faiss1040sq_warmup");
         try (Directory rawDirectory = new MMapDirectory(tempDir)) {
-            // Write vectors using the real Faiss1040 SQ format (creates .faiss, .veb, .vec)
+            // Write vectors using the real Faiss1030 SQ format (creates .faiss, .veb, .vec)
             final FieldInfo fieldInfo = createFieldInfo();
             final FieldInfos fieldInfos = new FieldInfos(new FieldInfo[] { fieldInfo });
 
@@ -104,7 +104,7 @@ public class Faiss1040SQWarmupTests extends KNNTestCase {
             );
 
             // Prepare format
-            final Faiss1040ScalarQuantizedKnnVectorsFormat format = new Faiss1040ScalarQuantizedKnnVectorsFormat();
+            final Faiss1030ScalarQuantizedKnnVectorsFormat format = new Faiss1030ScalarQuantizedKnnVectorsFormat();
 
             // Write vectors (quantizing + build a graph)
             try (KnnVectorsWriter writer = format.fieldsWriter(writeState)) {

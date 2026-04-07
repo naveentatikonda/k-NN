@@ -11,8 +11,8 @@ import org.opensearch.index.mapper.MapperService;
 import org.opensearch.knn.KNNTestCase;
 import org.opensearch.knn.index.KNNSettings;
 import org.opensearch.knn.index.SpaceType;
-import org.opensearch.knn.index.codec.KNN1040Codec.Faiss1040ScalarQuantizedKnnVectorsFormat;
-import org.opensearch.knn.index.codec.KNN1040Codec.KNN1040PerFieldKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1030Codec.Faiss1030ScalarQuantizedKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1030Codec.KNN1030PerFieldKnnVectorsFormat;
 import org.opensearch.knn.index.codec.KNN990Codec.NativeEngines990KnnVectorsFormat;
 import org.opensearch.knn.index.codec.backward_codecs.BasePerFieldKnnVectorsFormat;
 import org.opensearch.knn.index.codec.nativeindex.NativeIndexBuildStrategyFactory;
@@ -61,9 +61,9 @@ public class BasePerFieldKnnVectorsFormatTests extends KNNTestCase {
     private static final KnnVectorsFormat DEFAULT_FORMAT = mock(KnnVectorsFormat.class);
 
     /**
-     * Concrete subclass for testing the registry-based path via KNN1040BasePerFieldKnnVectorsFormat.
+     * Concrete subclass for testing the registry-based path via KNN1030BasePerFieldKnnVectorsFormat.
      */
-    private static class TestPerFieldKnnVectorsFormat extends KNN1040BasePerFieldKnnVectorsFormat {
+    private static class TestPerFieldKnnVectorsFormat extends KNN1030BasePerFieldKnnVectorsFormat {
         TestPerFieldKnnVectorsFormat(
             Optional<MapperService> mapperService,
             Map<LuceneVectorsFormatType, Function<KnnVectorsFormatContext, KnnVectorsFormat>> resolvers
@@ -476,7 +476,7 @@ public class BasePerFieldKnnVectorsFormatTests extends KNNTestCase {
     /**
      *
      * Verifies that non-Lucene fields (non-KNN, model-based, native engine) bypass the registry
-     * entirely in KNN1040BasePerFieldKnnVectorsFormat.
+     * entirely in KNN1030BasePerFieldKnnVectorsFormat.
      *
      */
     public void testRegistryRoutingCorrectness_nonLuceneFields() {
@@ -599,9 +599,9 @@ public class BasePerFieldKnnVectorsFormatTests extends KNNTestCase {
         when(methodContext.getMethodComponentContext()).thenReturn(hnswContext);
 
         MapperService mapperService = mockMapperService(TEST_FIELD, methodContext);
-        KNN1040PerFieldKnnVectorsFormat perFieldFormat = new KNN1040PerFieldKnnVectorsFormat(Optional.of(mapperService));
+        KNN1030PerFieldKnnVectorsFormat perFieldFormat = new KNN1030PerFieldKnnVectorsFormat(Optional.of(mapperService));
         KnnVectorsFormat format = perFieldFormat.getKnnVectorsFormatForField(TEST_FIELD);
-        assertTrue(format instanceof Faiss1040ScalarQuantizedKnnVectorsFormat);
+        assertTrue(format instanceof Faiss1030ScalarQuantizedKnnVectorsFormat);
     }
 
     public void testGetKnnVectorsFormatForField_whenSQWithoutOneBit_thenReturnNativeFormat() {
@@ -612,7 +612,7 @@ public class BasePerFieldKnnVectorsFormatTests extends KNNTestCase {
         when(methodContext.getMethodComponentContext()).thenReturn(hnswContext);
 
         MapperService mapperService = mockMapperService(TEST_FIELD, methodContext);
-        KNN1040PerFieldKnnVectorsFormat perFieldFormat = new KNN1040PerFieldKnnVectorsFormat(Optional.of(mapperService));
+        KNN1030PerFieldKnnVectorsFormat perFieldFormat = new KNN1030PerFieldKnnVectorsFormat(Optional.of(mapperService));
         KnnVectorsFormat format = perFieldFormat.getKnnVectorsFormatForField(TEST_FIELD);
         assertTrue(format instanceof NativeEngines990KnnVectorsFormat);
     }

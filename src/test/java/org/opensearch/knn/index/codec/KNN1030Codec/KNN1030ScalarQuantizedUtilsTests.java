@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
@@ -17,7 +17,7 @@ import java.io.IOException;
 import static org.mockito.Mockito.mock;
 
 @Log4j2
-public class KNN1040ScalarQuantizedUtilsTests extends KNNTestCase {
+public class KNN1030ScalarQuantizedUtilsTests extends KNNTestCase {
 
     /**
      * A concrete stub extending KnnVectorValues that declares the private field
@@ -58,7 +58,7 @@ public class KNN1040ScalarQuantizedUtilsTests extends KNNTestCase {
         field.set(stub, expected);
 
         // Act
-        QuantizedByteVectorValues result = KNN1040ScalarQuantizedUtils.extractQuantizedByteVectorValues(stub);
+        QuantizedByteVectorValues result = KNN1030ScalarQuantizedUtils.extractQuantizedByteVectorValues(stub);
 
         // Assert: the returned reference is the exact same object
         assertSame(expected, result);
@@ -71,7 +71,7 @@ public class KNN1040ScalarQuantizedUtilsTests extends KNNTestCase {
         // Act & Assert
         IOException exception = expectThrows(
             IOException.class,
-            () -> KNN1040ScalarQuantizedUtils.extractQuantizedByteVectorValues(mockValues)
+            () -> KNN1030ScalarQuantizedUtils.extractQuantizedByteVectorValues(mockValues)
         );
 
         assertTrue(exception.getMessage().contains("incompatible Lucene version"));

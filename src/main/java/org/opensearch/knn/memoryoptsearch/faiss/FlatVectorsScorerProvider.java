@@ -17,7 +17,7 @@ import org.apache.lucene.util.hnsw.RandomVectorScorerSupplier;
 import org.opensearch.knn.common.FieldInfoExtractor;
 import org.opensearch.knn.index.KNNVectorSimilarityFunction;
 import org.opensearch.knn.index.SpaceType;
-import org.opensearch.knn.index.codec.KNN1040Codec.KNN1040ScalarQuantizedVectorScorer;
+import org.opensearch.knn.index.codec.KNN1030Codec.KNN1030ScalarQuantizedVectorScorer;
 import org.opensearch.knn.index.codec.scorer.PrefetchableFlatVectorScorer;
 import org.opensearch.knn.index.engine.faiss.FaissSQEncoder;
 import org.opensearch.knn.plugin.script.KNNScoringUtil;
@@ -87,7 +87,7 @@ public class FlatVectorsScorerProvider {
             return HAMMING_VECTOR_SCORER;
         } else if (FieldInfoExtractor.isSQField(fieldInfo)
             && FieldInfoExtractor.extractSQConfig(fieldInfo).getBits() == FaissSQEncoder.Bits.ONE.getValue()) {
-                return getKNN1040ScalarQuantizedVectorScorer(delegateScorer);
+                return getKNN1030ScalarQuantizedVectorScorer(delegateScorer);
             } else if (delegateScorer != null) {
                 // For all other cases, return the delegate scorer
                 return delegateScorer;
@@ -96,15 +96,15 @@ public class FlatVectorsScorerProvider {
     }
 
     /**
-     * Returns a {@link KNN1040ScalarQuantizedVectorScorer} that wraps the given delegate scorer.
+     * Returns a {@link KNN1030ScalarQuantizedVectorScorer} that wraps the given delegate scorer.
      * This is the single entry point for creating the SIMD-accelerated SQ scorer, making it easy
      * to globally wrap or replace the scorer (e.g., with a prefetch-enabled variant).
      *
      * @param delegateScorer the fallback scorer used for non-quantized vectors
      * @return a SIMD-accelerated scalar quantized vector scorer
      */
-    public static KNN1040ScalarQuantizedVectorScorer getKNN1040ScalarQuantizedVectorScorer(final FlatVectorsScorer delegateScorer) {
-        return new KNN1040ScalarQuantizedVectorScorer(delegateScorer);
+    public static KNN1030ScalarQuantizedVectorScorer getKNN1030ScalarQuantizedVectorScorer(final FlatVectorsScorer delegateScorer) {
+        return new KNN1030ScalarQuantizedVectorScorer(delegateScorer);
     }
 
     private static class ADCFlatVectorsScorer implements FlatVectorsScorer {

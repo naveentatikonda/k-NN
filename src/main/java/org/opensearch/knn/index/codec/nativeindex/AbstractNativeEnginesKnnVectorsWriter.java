@@ -45,7 +45,7 @@ public abstract class AbstractNativeEnginesKnnVectorsWriter extends KnnVectorsWr
         // Check total live docs first to avoid unnecessary supplier creation for empty fields
         final int totalLiveDocs;
         // NativeEngines990KnnVectorsWriter keeps vector as Map<DocId, Vector> as BQ sampler needs random access.
-        // while Faiss1040ScalarQuantizedKnnVectorsWriter keeps vector as List<Vector> from FlatFieldVectorsWriter.
+        // while Faiss1030ScalarQuantizedKnnVectorsWriter keeps vector as List<Vector> from FlatFieldVectorsWriter.
         if (vectors instanceof Map) {
             totalLiveDocs = ((Map) vectors).size();
         } else {

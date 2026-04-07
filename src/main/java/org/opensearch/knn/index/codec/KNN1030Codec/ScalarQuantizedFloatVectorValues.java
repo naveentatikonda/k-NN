@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.codecs.lucene103.QuantizedByteVectorValues;

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.opensearch.knn.index.codec.KNN1040Codec;
+package org.opensearch.knn.index.codec.KNN1030Codec;
 
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @Log4j2
-public class KNN1040ScalarQuantizedVectorScorerTests extends KNNTestCase {
+public class KNN1030ScalarQuantizedVectorScorerTests extends KNNTestCase {
 
     /**
      * A concrete stub extending KnnVectorValues that declares the private field
@@ -65,7 +65,7 @@ public class KNN1040ScalarQuantizedVectorScorerTests extends KNNTestCase {
         final FlatVectorsScorer mockDelegate = mock(FlatVectorsScorer.class);
 
         // Create the scorer under test
-        final KNN1040ScalarQuantizedVectorScorer scorer = new KNN1040ScalarQuantizedVectorScorer(mockDelegate);
+        final KNN1030ScalarQuantizedVectorScorer scorer = new KNN1030ScalarQuantizedVectorScorer(mockDelegate);
 
         // Set up QuantizedByteVectorValues mock with all methods needed by the parent class
         final int dimension = 8;

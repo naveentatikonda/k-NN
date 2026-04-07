@@ -25,7 +25,7 @@ import static org.opensearch.knn.common.KNNConstants.MAX_CONNECTIONS;
 
 /**
  * Standalone registry-based base class for per-field KNN vectors format resolution,
- * used by current and future codecs (KNN1040+).
+ * used by current and future codecs (KNN1030+).
  *
  * <p>
  * This class extends {@link PerFieldKnnVectorsFormat} directly and delegates format
@@ -33,7 +33,7 @@ import static org.opensearch.knn.common.KNNConstants.MAX_CONNECTIONS;
  * </p>
  */
 @Log4j2
-public abstract class KNN1040BasePerFieldKnnVectorsFormat extends PerFieldKnnVectorsFormat {
+public abstract class KNN1030BasePerFieldKnnVectorsFormat extends PerFieldKnnVectorsFormat {
 
     private final Optional<MapperService> mapperService;
     private final int defaultMaxConnections;
@@ -43,7 +43,7 @@ public abstract class KNN1040BasePerFieldKnnVectorsFormat extends PerFieldKnnVec
     private final CodecFormatResolver nativeFormatResolver;
     private final NativeIndexBuildStrategyFactory nativeIndexBuildStrategyFactory;
 
-    protected KNN1040BasePerFieldKnnVectorsFormat(
+    protected KNN1030BasePerFieldKnnVectorsFormat(
         Optional<MapperService> mapperService,
         int defaultMaxConnections,
         int defaultBeamWidth,
