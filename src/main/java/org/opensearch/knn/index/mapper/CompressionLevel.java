@@ -153,7 +153,8 @@ public enum CompressionLevel {
         if (modesForRescore.contains(mode)) {
             // Special handling for Lucene Scalar Quantizer (x32 compression)
             // Engine check is temporary until binary scalar quantizer is finalized for FAISS as well
-            if (this == x32 && engine == KNNEngine.LUCENE && version.onOrAfter(Version.V_3_6_0)) {
+            // if (this == x32 && engine == KNNEngine.LUCENE && version.onOrAfter(Version.V_3_6_0)) {
+            if (this == x32 && engine == KNNEngine.LUCENE && version.onOrAfter(Version.V_3_3_2)) {
                 return RescoreContext.builder()
                     .oversampleFactor(RescoreContext.OVERSAMPLE_FACTOR_DEFAULT_FOR_LUCENE_SCALAR_QUANTIZER_AFTER_V360)
                     .userProvided(false)

@@ -7,8 +7,8 @@ package org.opensearch.knn.index.codec.KNN1040Codec;
 
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
-import org.apache.lucene.codecs.lucene104.Lucene104HnswScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding;
+import org.apache.lucene.codecs.lucene103.Lucene103HnswScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsWriter;
 import org.apache.lucene.index.SegmentReadState;
@@ -25,11 +25,11 @@ import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAUL
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.HNSW_GRAPH_THRESHOLD;
 
 /**
- * HNSW + scalar quantization format that extends {@link Lucene104HnswScalarQuantizedVectorsFormat}
+ * HNSW + scalar quantization format that extends {@link Lucene103HnswScalarQuantizedVectorsFormat}
  * and overrides flat vector operations to use {@link KNN1040ScalarQuantizedVectorsFormat},
  * inheriting its SIMD-accelerated {@link KNN1040ScalarQuantizedVectorScorer} for graph traversal scoring.
  */
-public class KNN1040HnswScalarQuantizedVectorsFormat extends Lucene104HnswScalarQuantizedVectorsFormat {
+public class KNN1040HnswScalarQuantizedVectorsFormat extends Lucene103HnswScalarQuantizedVectorsFormat {
 
     private final int maxConn;
     private final int beamWidth;

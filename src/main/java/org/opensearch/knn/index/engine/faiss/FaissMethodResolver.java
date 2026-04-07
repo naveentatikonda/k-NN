@@ -118,7 +118,7 @@ public class FaissMethodResolver extends AbstractMethodResolver {
             encoderComponentContext.getParameters().put(FAISS_SQ_TYPE, FAISS_SQ_ENCODER_FP16);
             // On 3.6.0+, also set bits for consistency with the new bits-based validation
             if (knnMethodConfigContext.getVersionCreated() != null
-                && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_6_0)) {
+                && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_3_2)) {
                 encoderComponentContext.getParameters().put(SQ_BITS, FaissSQEncoder.Bits.SIXTEEN.getValue());
             }
         }
@@ -228,7 +228,7 @@ public class FaissMethodResolver extends AbstractMethodResolver {
      */
     private static boolean shouldUseSQOneBitForX32(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
         return knnMethodConfigContext.getVersionCreated() != null
-            && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_6_0)
+            && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_3_2)
             && encoderMap.containsKey(ENCODER_SQ);
     }
 }

@@ -7,9 +7,9 @@ package org.opensearch.knn.index.codec.KNN1040Codec;
 
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsReader;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsWriter;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsReader;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsWriter;
 import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
@@ -19,10 +19,10 @@ import org.opensearch.knn.memoryoptsearch.faiss.FlatVectorsScorerProvider;
 import java.io.IOException;
 
 /**
- * A {@link Lucene104ScalarQuantizedVectorsFormat} that uses a {@link KNN1040ScalarQuantizedVectorScorer}
+ * A {@link Lucene103ScalarQuantizedVectorsFormat} that uses a {@link KNN1040ScalarQuantizedVectorScorer}
  * to take advantage of SIMD-accelerated scoring during search.
  */
-public class KNN1040ScalarQuantizedVectorsFormat extends Lucene104ScalarQuantizedVectorsFormat {
+public class KNN1040ScalarQuantizedVectorsFormat extends Lucene103ScalarQuantizedVectorsFormat {
 
     private static final KNN1040ScalarQuantizedVectorScorer KNN_1040_SCALAR_QUANTIZED_VECTOR_SCORER = FlatVectorsScorerProvider
         .getKNN1040ScalarQuantizedVectorScorer(FlatVectorsScorerProvider.getLucene99FlatVectorsScorer());
@@ -47,7 +47,7 @@ public class KNN1040ScalarQuantizedVectorsFormat extends Lucene104ScalarQuantize
 
     @Override
     public FlatVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
-        return new Lucene104ScalarQuantizedVectorsWriter(
+        return new Lucene103ScalarQuantizedVectorsWriter(
             state,
             encoding,
             RAW_VECTOR_FORMAT.fieldsWriter(state),
@@ -68,7 +68,7 @@ public class KNN1040ScalarQuantizedVectorsFormat extends Lucene104ScalarQuantize
 
     @Override
     public FlatVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-        return new Lucene104ScalarQuantizedVectorsReader(
+        return new Lucene103ScalarQuantizedVectorsReader(
             state,
             RAW_VECTOR_FORMAT.fieldsReader(state),
             KNN_1040_SCALAR_QUANTIZED_VECTOR_SCORER

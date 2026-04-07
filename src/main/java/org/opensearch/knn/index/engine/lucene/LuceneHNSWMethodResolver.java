@@ -119,7 +119,7 @@ public class LuceneHNSWMethodResolver extends AbstractMethodResolver {
             return;
         }
         boolean didUserSpecifyEncoder = isEncoderSpecified(originalMethodContext);
-        boolean isV360OrLater = knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_6_0);
+        boolean isV360OrLater = knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_3_2);
 
         MethodComponentContext encoderComponentContext = getEncoderComponentContext(resolvedKNNMethodContext);
         if (encoderComponentContext == null) {
@@ -171,7 +171,7 @@ public class LuceneHNSWMethodResolver extends AbstractMethodResolver {
         }
         if (knnMethodConfigContext.getMode() == Mode.ON_DISK) {
             // Starting with version 3.6, supporting 32x compression by default
-            if (Version.V_3_6_0.onOrBefore(knnMethodConfigContext.getVersionCreated())) {
+            if (Version.V_3_3_2.onOrBefore(knnMethodConfigContext.getVersionCreated())) {
                 return CompressionLevel.x32;
             }
             return CompressionLevel.x4;
@@ -198,7 +198,7 @@ public class LuceneHNSWMethodResolver extends AbstractMethodResolver {
 
         Map<String, Object> encoderParams = encoderContext.getParameters();
         Version version = configContext.getVersionCreated();
-        boolean isV360OrLater = version != null && version.onOrAfter(Version.V_3_6_0);
+        boolean isV360OrLater = version != null && version.onOrAfter(Version.V_3_3_2);
         Object bitsObj = encoderParams.get(LUCENE_SQ_BITS);
         Set<String> nonBitParameters = encoderParams.keySet().stream().filter(k -> !k.equals(LUCENE_SQ_BITS)).collect(Collectors.toSet());
 

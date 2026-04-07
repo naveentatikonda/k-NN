@@ -165,13 +165,14 @@ public class FaissSQEncoder implements Encoder {
 
         Map<String, Object> encoderParams = encoderContext.getParameters();
         Version version = configContext.getVersionCreated();
-        boolean isV360OrLater = version != null && version.onOrAfter(Version.V_3_6_0);
+        // boolean isV360OrLater = version != null && version.onOrAfter(Version.V_3_6_0);
+        boolean isV332OrLater = version != null && version.onOrAfter(Version.V_3_3_2);
         Object bitsObj = encoderParams.get(SQ_BITS);
         boolean hasType = encoderParams.containsKey(FAISS_SQ_TYPE);
         boolean hasClip = encoderParams.containsKey(FAISS_SQ_CLIP);
 
         // On 3.6.0+, bits is required when the user explicitly specifies the sq encoder for FLOAT data
-        if (isV360OrLater && bitsObj == null && configContext.getVectorDataType() == VectorDataType.FLOAT) {
+        if (isV332OrLater && bitsObj == null && configContext.getVectorDataType() == VectorDataType.FLOAT) {
             return builder.valid(false)
                 .errorMessage(
                     String.format(

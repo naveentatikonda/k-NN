@@ -12,7 +12,7 @@ import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.FilterCodec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.StoredFieldsFormat;
-import org.apache.lucene.codecs.lucene104.Lucene104Codec;
+import org.apache.lucene.codecs.lucene103.Lucene103Codec;
 import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.knn.index.codec.KNN10010Codec.KNN10010DerivedSourceStoredFieldsFormat;
@@ -24,7 +24,7 @@ import java.util.Optional;
 
 public class KNN1040Codec extends FilterCodec {
     private static final String NAME = "KNN1040Codec";
-    public static final Codec DEFAULT_DELEGATE = new Lucene104Codec();
+    public static final Codec DEFAULT_DELEGATE = new Lucene103Codec();
     private static final PerFieldKnnVectorsFormat DEFAULT_KNN_VECTOR_FORMAT = new KNN1040PerFieldKnnVectorsFormat(Optional.empty());
 
     private final PerFieldKnnVectorsFormat perFieldKnnVectorsFormat;

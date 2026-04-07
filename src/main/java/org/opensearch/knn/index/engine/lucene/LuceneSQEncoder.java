@@ -107,7 +107,7 @@ public class LuceneSQEncoder implements Encoder {
         }
 
         // For indices after version 3.6.0, we want to default to 32x compression
-        if (knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_6_0)) {
+        if (knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_3_2)) {
             return CompressionLevel.x32;
         }
         return CompressionLevel.x4;

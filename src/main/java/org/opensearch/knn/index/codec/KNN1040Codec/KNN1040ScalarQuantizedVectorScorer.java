@@ -7,9 +7,9 @@ package org.opensearch.knn.index.codec.KNN1040Codec;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorScorer;
-import org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat;
-import org.apache.lucene.codecs.lucene104.QuantizedByteVectorValues;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorScorer;
+import org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat;
+import org.apache.lucene.codecs.lucene103.QuantizedByteVectorValues;
 import org.apache.lucene.index.KnnVectorValues;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.store.IndexInput;
@@ -23,10 +23,10 @@ import org.opensearch.knn.memoryoptsearch.faiss.WrappedFloatVectorValues;
 
 import java.io.IOException;
 
-import static org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
+import static org.apache.lucene.codecs.lucene103.Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
 
 /**
- * A specialized {@link Lucene104ScalarQuantizedVectorScorer} that leverages
+ * A specialized {@link Lucene103ScalarQuantizedVectorScorer} that leverages
  * FAISS-style SIMD-accelerated scoring for scalar-quantized vectors with fallback.
  * Will hit fallback only if we cannot use native bulk simd scorer.
  *
@@ -47,7 +47,7 @@ import static org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectors
  * operations, improving cache locality and reducing I/O latency during graph traversal.
  */
 @Log4j2
-public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantizedVectorScorer {
+public class KNN1040ScalarQuantizedVectorScorer extends Lucene103ScalarQuantizedVectorScorer {
     /**
      * Creates a new scorer that wraps a non-quantized delegate scorer.
      *
@@ -148,7 +148,7 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantized
         final VectorSimilarityFunction similarityFunction
     ) throws IOException {
         // Check encoding type
-        final Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding scalarEncoding = quantizedByteVectorValues.getScalarEncoding();
+        final Lucene103ScalarQuantizedVectorsFormat.ScalarEncoding scalarEncoding = quantizedByteVectorValues.getScalarEncoding();
 
         // We only support 32x quantization with 4 bit query quantization for search.
         if (scalarEncoding != SINGLE_BIT_QUERY_NIBBLE) {

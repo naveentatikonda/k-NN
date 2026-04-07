@@ -40,12 +40,12 @@ public class Faiss1040ScalarQuantizedFlatVectorsReader extends FlatVectorsReader
     private final FlatVectorsReader delegateFlatVectorsReader;
 
     /**
-     * @param lucene104ScalarQuantizedVectorsReader the delegate reader whose {@link FloatVectorValues}
+     * @param lucene103ScalarQuantizedVectorsReader the delegate reader whose {@link FloatVectorValues}
      *                                              will be wrapped to implement {@code HasIndexSlice}
      */
-    protected Faiss1040ScalarQuantizedFlatVectorsReader(final FlatVectorsReader lucene104ScalarQuantizedVectorsReader) {
-        super(lucene104ScalarQuantizedVectorsReader.getFlatVectorScorer());
-        this.delegateFlatVectorsReader = lucene104ScalarQuantizedVectorsReader;
+    protected Faiss1040ScalarQuantizedFlatVectorsReader(final FlatVectorsReader lucene103ScalarQuantizedVectorsReader) {
+        super(lucene103ScalarQuantizedVectorsReader.getFlatVectorScorer());
+        this.delegateFlatVectorsReader = lucene103ScalarQuantizedVectorsReader;
     }
 
     @Override
