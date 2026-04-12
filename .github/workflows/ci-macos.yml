@@ -1,0 +1,132 @@
+name: CI macOS
+on:
+  workflow_call:
+    inputs:
+      test_scope:
+        description: 'Test scope: all, unit, integration'
+        required: false
+        default: 'all'
+        type: string
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Test scope: all, unit, integration'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+
+jobs:
+  build-and-unit-test:
+    if: inputs.test_scope == 'all' || inputs.test_scope == 'unit'
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [21, 25]
+
+    name: Build and Unit Test k-NN on MacOS (Java ${{ matrix.java }})
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout k-NN
+        uses: actions/checkout@v4
+
+      - name: Setup git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Java ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Install dependencies on macos
+        run: |
+          brew install libomp
+          brew reinstall gcc
+          export FC=/usr/local/Cellar/gcc/12.2.0/bin/gfortran
+
+      - name: Detect CPU core count
+        id: cores
+        run: |
+          # Prefer performance cores on Apple Silicon, fallback to physical cores
+          CORES=$(sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || sysctl -n hw.physicalcpu)
+          echo "count=$CORES" >> $GITHUB_OUTPUT
+          echo "Detected $CORES physical cores"
+
+      - name: Determine SIMD flags
+        id: simd
+        run: |
+          if sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -i AVX2; then
+            echo "flags=" >> $GITHUB_OUTPUT
+          else
+            echo "flags=-Davx2.enabled=false -Davx512.enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and run unit tests
+        run: ./gradlew assemble buildJniLib test ${{ steps.simd.outputs.flags }} -Dnproc.count=${{ steps.cores.outputs.count }} --parallel
+
+  integration-test:
+    if: inputs.test_scope == 'all' || inputs.test_scope == 'integration'
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [21, 25]
+
+    name: Integration Test k-NN on MacOS (Java ${{ matrix.java }})
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout k-NN
+        uses: actions/checkout@v4
+
+      - name: Setup git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Java ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Install dependencies on macos
+        run: |
+          brew install libomp
+          brew reinstall gcc
+          export FC=/usr/local/Cellar/gcc/12.2.0/bin/gfortran
+
+      - name: Detect CPU core count
+        id: cores
+        run: |
+          CORES=$(sysctl -n hw.perflevel0.physicalcpu 2>/dev/null || sysctl -n hw.physicalcpu)
+          echo "count=$CORES" >> $GITHUB_OUTPUT
+          echo "Detected $CORES physical cores"
+
+      - name: Determine SIMD flags
+        id: simd
+        run: |
+          if sysctl -n machdep.cpu.features machdep.cpu.leaf7_features | grep -i AVX2; then
+            echo "flags=" >> $GITHUB_OUTPUT
+          else
+            echo "flags=-Davx2.enabled=false -Davx512.enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run integration tests
+        run: ./gradlew integTest integTestMultiNode ${{ steps.simd.outputs.flags }} -Dnproc.count=${{ steps.cores.outputs.count }} --parallel
