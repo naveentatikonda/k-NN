@@ -31,9 +31,10 @@ import static org.opensearch.knn.index.codec.util.KNNCodecUtil.initializeVectorV
  * Memory-optimized build strategy for Faiss SQ (Binary Quantized) HNSW indexes.
  *
  * <h2>Architecture Overview</h2>
- * This strategy builds a Faiss HNSW graph on top of 1-bit binary quantized vectors.
+ * This strategy builds a Faiss HNSW graph on top of B-bit scalar-quantized vectors,
+ * where B is in {1, 2, 4} as resolved from the field's stored {@code ScalarEncoding}.
  * By the time this strategy is invoked, the caller (Faiss104ScalarQuantizedKnnVectorsWriter)
- * has already written the quantized vectors to flat vector files (.vec and .veb), opened a
+ * has already written the quantized vectors to flat vector files (.vec and .veq), opened a
  * reader, and extracted the {@link QuantizedByteVectorValues}. This strategy then:
  * <ol>
  *   <li>Reads the quantized vectors and their correction factors from the provided
@@ -45,7 +46,8 @@ import static org.opensearch.knn.index.codec.util.KNNCodecUtil.initializeVectorV
  * </ol>
  *
  * <h2>SQ Quantization</h2>
- * SQ quantizes each float vector component down to 1 bit, producing a compact binary code.
+ * SQ quantizes each float vector component down to B bits (B in {1, 2, 4}), producing a
+ * compact code; B=1 yields a binary code, B=2/B=4 yield multi-level codes.
  * To preserve distance accuracy, each quantized vector is accompanied by correction factors:
  * <ul>
  *   <li>{@code lowerInterval} (float) — lower bound of the quantization interval</li>

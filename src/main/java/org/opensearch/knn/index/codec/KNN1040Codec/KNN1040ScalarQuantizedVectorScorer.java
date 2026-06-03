@@ -163,9 +163,14 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantized
         // Check encoding type
         final Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding scalarEncoding = quantizedByteVectorValues.getScalarEncoding();
 
-        // We only support 32x quantization with 4 bit query quantization for search.
+        // The native bulk-SIMD path is currently 1-bit only. Multi-bit (B in {2, 4}) is dispatched
+        // to the parent reference scorer in getRandomVectorScorer above and never reaches here.
+        // This guard is a defense-in-depth check; if it ever fires, the dispatch in getRandomVectorScorer
+        // is out of sync with the encodings supported by this method.
         if (scalarEncoding != SINGLE_BIT_QUERY_NIBBLE) {
-            throw new IllegalStateException(String.format("SQ only supports %s encoding.", SINGLE_BIT_QUERY_NIBBLE));
+            throw new IllegalStateException(
+                String.format("Bulk SIMD SQ scorer only supports %s; saw %s", SINGLE_BIT_QUERY_NIBBLE, scalarEncoding)
+            );
         }
 
         // Validate dimensionality

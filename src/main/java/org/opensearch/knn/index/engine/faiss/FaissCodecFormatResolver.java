@@ -42,7 +42,7 @@ public class FaissCodecFormatResolver implements CodecFormatResolver {
 
     /**
      * Resolves the format for a specific field. Returns {@link Faiss1040ScalarQuantizedKnnVectorsFormat} when
-     * the encoder is sq with bits=1, otherwise falls back to the default native format.
+     * the encoder is sq with bits in {1, 2, 4}, otherwise falls back to the default native format.
      */
     @Override
     public KnnVectorsFormat resolve(
