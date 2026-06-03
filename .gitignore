@@ -5,6 +5,10 @@ buildSrc/libKNNIndex*
 
 .gradle/
 build
+# Eclipse / IDE-managed compile output for both the root and subprojects (qa/*, remote-index-build-client/*)
+bin/
+**/bin/
+.kiro/
 .idea/*
 !.idea/codeStyles/codeStyleConfig.xml
 !.idea/copyright
