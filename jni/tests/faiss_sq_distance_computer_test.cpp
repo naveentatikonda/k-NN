@@ -189,13 +189,13 @@ TEST_P(FaissSQDistanceComputerTest, OperatorSingleVector) {
     // Create distance computer via template
     std::unique_ptr<faiss::DistanceComputer> dc;
     if (isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (isMaxIP && !isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (!isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else
-        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
 
     dc->set_query(reinterpret_cast<const float*>(queryBuf.data()));
 
@@ -234,13 +234,13 @@ TEST_P(FaissSQDistanceComputerTest, DistancesBatch4) {
 
     std::unique_ptr<faiss::DistanceComputer> dc;
     if (isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (isMaxIP && !isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (!isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else
-        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
 
     dc->set_query(reinterpret_cast<const float*>(queryBuf.data()));
 
@@ -276,13 +276,13 @@ TEST_P(FaissSQDistanceComputerTest, SymmetricDis) {
 
     std::unique_ptr<faiss::DistanceComputer> dc;
     if (isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (isMaxIP && !isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (!isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else
-        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
 
     // symmetric_dis doesn't need set_query, it works on stored vectors only
     for (int i = 0; i < NUM_VECS; ++i) {
@@ -328,13 +328,13 @@ TEST_P(FaissSQDistanceComputerTest, CorrectionFactorsExtraction) {
 
     std::unique_ptr<faiss::DistanceComputer> dc;
     if (isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (isMaxIP && !isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else if (!isMaxIP && isBytesMultipleOf8)
-        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, true>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else
-        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
 
     // Verify correction factor extraction indirectly: set_query reads query correction
     // factors, then operator() uses both query and target correction factors in the
@@ -371,7 +371,7 @@ TEST_P(FaissSQDistanceComputerTest, GetDistanceComputerIntegration) {
     constexpr int NUM_VECS = 4;
 
     faiss::MetricType metric = isMaxIP ? faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
-    FaissSQFlat flat(NUM_VECS, qvb, CENTROID_DP, dim, metric);
+    FaissSQFlat flat(NUM_VECS, qvb, CENTROID_DP, dim, metric, 1);
 
     // Populate the storage
     auto buf = makeBuffer(NUM_VECS, qvb);
@@ -439,9 +439,9 @@ TEST_P(FaissSQDistanceComputerTest, OperatorNonMultipleOf8Bytes) {
 
     std::unique_ptr<faiss::DistanceComputer> dc;
     if (isMaxIP)
-        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else
-        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
 
     dc->set_query(reinterpret_cast<const float*>(queryBuf.data()));
 
@@ -478,9 +478,9 @@ TEST_P(FaissSQDistanceComputerTest, DistancesBatch4NonMultipleOf8Bytes) {
 
     std::unique_ptr<faiss::DistanceComputer> dc;
     if (isMaxIP)
-        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else
-        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
 
     dc->set_query(reinterpret_cast<const float*>(queryBuf.data()));
 
@@ -505,9 +505,9 @@ TEST_P(FaissSQDistanceComputerTest, SymmetricDisNonMultipleOf8Bytes) {
 
     std::unique_ptr<faiss::DistanceComputer> dc;
     if (isMaxIP)
-        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<true, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
     else
-        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS));
+        dc.reset(new FaissSQDistanceComputer<false, false>(buf.oneElementSize, buf.data.data(), CENTROID_DP, dim, NUM_VECS, 1));
 
     for (int i = 0; i < NUM_VECS; ++i) {
         for (int j = i; j < NUM_VECS; ++j) {
@@ -548,7 +548,7 @@ TEST_P(FaissSQDistanceComputerTest, GetDistanceComputerIntegrationNonMultipleOf8
     constexpr int NUM_VECS = 4;
 
     faiss::MetricType metric = isMaxIP ? faiss::METRIC_INNER_PRODUCT : faiss::METRIC_L2;
-    FaissSQFlat flat(NUM_VECS, qvb, CENTROID_DP, dim, metric);
+    FaissSQFlat flat(NUM_VECS, qvb, CENTROID_DP, dim, metric, 1);
 
     auto buf = makeBuffer(NUM_VECS, qvb);
     flat.quantizedVectorsAndCorrectionFactors.assign(buf.data.begin(), buf.data.end());

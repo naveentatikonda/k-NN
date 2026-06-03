@@ -294,7 +294,7 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategyTests extends KNNTestC
 
         try (MockedStatic<JNIService> mockedJNIService = Mockito.mockStatic(JNIService.class)) {
             mockedJNIService.when(
-                () -> JNIService.initFaissSQIndex(anyInt(), anyInt(), anyMap(), anyFloat(), anyInt(), any(KNNEngine.class))
+                () -> JNIService.initFaissSQIndex(anyInt(), anyInt(), anyMap(), anyFloat(), anyInt(), anyInt(), any(KNNEngine.class))
             ).thenReturn(fakeIndexAddress);
 
             // Phase 1 throws
