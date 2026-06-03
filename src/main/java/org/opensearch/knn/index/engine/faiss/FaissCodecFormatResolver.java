@@ -10,6 +10,7 @@ import org.opensearch.index.IndexSettings;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.knn.index.KNNSettings;
 import org.opensearch.knn.index.codec.KNN1040Codec.Faiss1040ScalarQuantizedKnnVectorsFormat;
+import org.opensearch.knn.index.codec.KNN1040Codec.ScalarEncodingResolver;
 import org.opensearch.knn.index.codec.KNN990Codec.NativeEngines990KnnVectorsFormat;
 import org.opensearch.knn.index.codec.nativeindex.NativeIndexBuildStrategyFactory;
 import org.opensearch.knn.index.engine.CodecFormatResolver;
@@ -51,8 +52,12 @@ public class FaissCodecFormatResolver implements CodecFormatResolver {
         int defaultMaxConnections,
         int defaultBeamWidth
     ) {
-        if (isSQOneBitEncoder(params)) {
-            return new Faiss1040ScalarQuantizedKnnVectorsFormat(nativeIndexBuildStrategyFactory);
+        if (isSQMultiBitEncoder(params)) {
+            final int docBits = FaissSQEncoder.getSQBits(params);
+            return new Faiss1040ScalarQuantizedKnnVectorsFormat(
+                nativeIndexBuildStrategyFactory,
+                ScalarEncodingResolver.forDocBits(docBits)
+            );
         }
         return resolve();
     }
@@ -75,7 +80,7 @@ public class FaissCodecFormatResolver implements CodecFormatResolver {
             : KNNSettings.INDEX_KNN_ADVANCED_APPROXIMATE_THRESHOLD_DEFAULT_VALUE;
     }
 
-    private static boolean isSQOneBitEncoder(Map<String, Object> params) {
-        return FaissSQEncoder.isSQOneBit(params);
+    private static boolean isSQMultiBitEncoder(Map<String, Object> params) {
+        return FaissSQEncoder.isSQMultiBit(params);
     }
 }
