@@ -215,7 +215,7 @@ public class FaissHNSWMethodTests extends KNNTestCase {
 
     private void assertSQOneBitIndex(VectorDataType dataType, String encoderName, Map<String, Object> encoderParams, boolean expected) {
         Map<String, Object> params = buildLibraryParametersMap(dataType, encoderName, encoderParams);
-        assertEquals(expected, FaissHNSWMethod.isSQOneBitIndex(dataType, params));
+        assertEquals(expected, FaissHNSWMethod.isSQMultiBitIndex(dataType, params));
     }
 
     private void assertIsFloat16Index(VectorDataType dataType, String encoderName, Map<String, Object> encoderParams, boolean expected) {

@@ -200,7 +200,7 @@ public class FaissHNSWMethod extends AbstractFaissMethod {
             final VectorDataType vectorDataType = extractVectorDataType(parameters);
             final Map<String, Object> encoderMap = extractEncoderMap(parameters);
 
-            if (isSQOneBitIndex(vectorDataType, parameters)) {
+            if (isSQMultiBitIndex(vectorDataType, parameters)) {
                 return true;
             }
 
@@ -325,17 +325,22 @@ public class FaissHNSWMethod extends AbstractFaissMethod {
     }
 
     /**
-     * Checks whether the given parameters represent an SQ 1-bit index (encoder: sq, bits: 1).
+     * Checks whether the given parameters represent an SQ multi-bit index — encoder=sq with
+     * bits in {1, 2, 4}. These bit widths share the same memory-optimized search storage
+     * model: the .faiss file holds only the HNSW graph, and the quantized codes plus
+     * correction factors live in Lucene's flat .veq file.
      *
-     * TODO: Consolidate the logic in this function with {@link FaissSQEncoder#isSQOneBit} into one function,
-     * so that there is a single source of truth. Currently, this is not possible because
-     * {@link FaissSQEncoder#isSQOneBit} assumes the encoder object is a {@link MethodComponentContext}.
+     * TODO: Consolidate the logic in this function with {@link FaissSQEncoder#isSQMultiBit}
+     * into one function, so that there is a single source of truth. Currently, this is not
+     * possible because {@link FaissSQEncoder#isSQMultiBit} assumes the encoder object is a
+     * {@link MethodComponentContext}, while this method operates on the flattened library
+     * indexing parameters.
      *
      * @param vectorDataType The data type for the vector field
      * @param parameters KNN library indexing parameters
-     * @return true if SQ 1 bit, false otherwise
+     * @return true if encoder is sq with bits in {1, 2, 4}; false otherwise
      */
-    public static boolean isSQOneBitIndex(final VectorDataType vectorDataType, final Map<String, Object> parameters) {
+    public static boolean isSQMultiBitIndex(final VectorDataType vectorDataType, final Map<String, Object> parameters) {
         try {
             if (vectorDataType != VectorDataType.FLOAT) {
                 return false;
@@ -346,9 +351,9 @@ public class FaissHNSWMethod extends AbstractFaissMethod {
                 return false;
             }
             Object bits = encoderMap.get(SQ_BITS);
-            return bits instanceof Integer && (Integer) bits == FaissSQEncoder.Bits.ONE.getValue();
+            return bits instanceof Integer && FaissSQEncoder.isMosBits((Integer) bits);
         } catch (final Exception e) {
-            log.error("Failed to check if method parameters contain an sq encoder with bits=1", e);
+            log.error("Failed to check if method parameters contain an sq encoder with bits in {1, 2, 4}", e);
             // Ignore
             return false;
         }

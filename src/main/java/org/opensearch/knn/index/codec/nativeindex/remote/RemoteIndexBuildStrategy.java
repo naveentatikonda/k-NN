@@ -328,9 +328,10 @@ public class RemoteIndexBuildStrategy implements NativeIndexBuildStrategy {
 
     private static String determineVectorDataType(final VectorDataType dataType, final Map<String, Object> parameters) {
         if (dataType == VectorDataType.FLOAT) {
-            // SQ 1-bit sends fp32 vectors. Once support is added for building 1 bit SQ graphs
-            // in the Remote Vector Index Builder, then this can be modified to send 1 bit SQ vectors.
-            if (FaissHNSWMethod.isSQOneBitIndex(dataType, parameters)) {
+            // SQ multi-bit (bits in {1, 2, 4}) sends fp32 vectors. Once the Remote Vector Index
+            // Builder learns to build SQ graphs natively, this can be modified to send the
+            // already-quantized codes instead.
+            if (FaissHNSWMethod.isSQMultiBitIndex(dataType, parameters)) {
                 return dataType.getValue();
             }
             if (FaissHNSWMethod.isFloat16Index(dataType, parameters)) {
@@ -347,7 +348,7 @@ public class RemoteIndexBuildStrategy implements NativeIndexBuildStrategy {
      * flat vectors at search time via {@link org.opensearch.knn.memoryoptsearch.faiss.FaissFlatIndexFactory}.
      */
     private static boolean shouldSkipStoredVectors(final VectorDataType vectorDataType, final Map<String, Object> parameters) {
-        return FaissHNSWMethod.isSQOneBitIndex(vectorDataType, parameters);
+        return FaissHNSWMethod.isSQMultiBitIndex(vectorDataType, parameters);
     }
 
     /**

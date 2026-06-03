@@ -213,6 +213,22 @@ jlong BinaryIndexService::initFaissSQIndex(knn_jni::JNIUtilInterface *jniUtil, J
         throw std::runtime_error("Parameter [" + M + "] is required for Faiss scalar optimized index");
     }
 
+    // Validate docBits early: only 1, 2, and 4 are supported. The downstream
+    // FaissSQDistanceComputer divides by docBits to compute planeBytes and uses
+    // (1 << docBits) - 1 to scale the quantization interval; both formulas break
+    // for docBits == 0 (and produce silent garbage for unsupported widths).
+    if (docBits != 1 && docBits != 2 && docBits != 4) {
+        throw std::runtime_error("Unsupported docBits for Faiss SQ index: " + std::to_string(docBits)
+            + " (expected 1, 2, or 4)");
+    }
+    // The native distance computer assumes the quantized code is exactly docBits contiguous
+    // single-bit planes of equal length. Catch any layout mismatch here rather than letting
+    // it manifest as a corrupted graph.
+    if (quantizedVectorBytes <= 0 || (quantizedVectorBytes % docBits) != 0) {
+        throw std::runtime_error("quantizedVectorBytes (" + std::to_string(quantizedVectorBytes)
+            + ") must be a positive multiple of docBits (" + std::to_string(docBits) + ")");
+    }
+
     // Extract `m` from the binary index
     const int32_t m = jniUtil->ConvertJavaObjectToCppInteger(env, parameters[M]);
 
