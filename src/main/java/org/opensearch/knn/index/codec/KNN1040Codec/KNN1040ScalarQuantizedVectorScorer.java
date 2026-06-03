@@ -105,6 +105,19 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantized
         final QuantizedByteVectorValues quantizedByteVectorValues,
         final float[] target
     ) throws IOException {
+        // Phase 1: native bulk-SIMD scoring is implemented for 1-bit documents only. For supported
+        // multi-bit documents (2-bit / 4-bit), fall back to Lucene's reference scorer, which scores
+        // the same multi-bit .veq codes correctly in pure Java. Native multi-bit bulk SIMD
+        // (bulkSimdRandomVectorScorer) is a Phase 2 item.
+        final Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding scalarEncoding = quantizedByteVectorValues.getScalarEncoding();
+        if (ScalarEncodingResolver.docBits(scalarEncoding) != 1) {
+            return (RandomVectorScorer.AbstractRandomVectorScorer) super.getRandomVectorScorer(
+                similarityFunction,
+                quantizedByteVectorValues,
+                target
+            );
+        }
+
         final IndexInput indexInput = quantizedByteVectorValues.getSlice();
         final long[] addressAndSize = MemorySegmentAddressExtractorUtil.tryExtractAddressAndSize(indexInput, 0, indexInput.length());
         if (addressAndSize != null) {
