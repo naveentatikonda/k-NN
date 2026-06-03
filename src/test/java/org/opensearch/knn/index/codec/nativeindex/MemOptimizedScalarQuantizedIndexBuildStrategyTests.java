@@ -274,6 +274,7 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategyTests extends KNNTestC
         QuantizedByteVectorValues quantizedValues = mock(QuantizedByteVectorValues.class);
         when(quantizedValues.vectorValue(0)).thenReturn(new byte[] { 0x01 });
         when(quantizedValues.getCentroidDP()).thenReturn(1.0f);
+        when(quantizedValues.getScalarEncoding()).thenReturn(SINGLE_BIT_QUERY_NIBBLE);
         when(quantizedValues.size()).thenReturn(1);
         when(quantizedValues.getCorrectiveTerms(0)).thenReturn(new OptimizedScalarQuantizer.QuantizationResult(0.0f, 1.0f, 0.0f, 0));
 

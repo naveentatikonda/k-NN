@@ -175,7 +175,8 @@ public class FaissSQEncoderTests extends KNNTestCase {
             .dimension(128)
             .build();
 
-        MethodComponentContext mcc = new MethodComponentContext(ENCODER_SQ, Map.of(SQ_BITS, 2));
+        // 3 is not a supported bit width (valid: 1, 2, 4, 16)
+        MethodComponentContext mcc = new MethodComponentContext(ENCODER_SQ, Map.of(SQ_BITS, 3));
         assertNotNull(methodComponent.validate(mcc, context));
     }
 
