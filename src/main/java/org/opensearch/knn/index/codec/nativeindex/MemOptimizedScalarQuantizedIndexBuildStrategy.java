@@ -154,7 +154,15 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         try {
             // Phase 1 + 2: transfer vectors and build HNSW graph.
             // If these fail, Java still owns the native memory and must release it.
-            doBuildIndex(indexMemoryAddress, binarizedVectorValues, knnVectorValues, indexInfo, indexParameters, quantizedVecBytes, docBits);
+            doBuildIndex(
+                indexMemoryAddress,
+                binarizedVectorValues,
+                knnVectorValues,
+                indexInfo,
+                indexParameters,
+                quantizedVecBytes,
+                docBits
+            );
         } catch (final Exception e) {
             // Release the native Faiss SQ index to prevent off-heap memory leaks.
             // The indexMemoryAddress points to faiss::IndexBinaryIDMap* which owns the entire
@@ -198,7 +206,13 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         // Phase 1: Transfer all quantized vectors and their correction factors to off-heap memory.
         // After this call, the native Faiss index has all the data it needs to compute distances
         // between vectors during HNSW graph construction.
-        passQuantizedVectorsAndCorrectionFactors(indexMemoryAddress, binarizedVectorValues, quantizedVecBytes, docBits, indexInfo.getKnnEngine());
+        passQuantizedVectorsAndCorrectionFactors(
+            indexMemoryAddress,
+            binarizedVectorValues,
+            quantizedVecBytes,
+            docBits,
+            indexInfo.getKnnEngine()
+        );
 
         // Phase 2: Stream document IDs in batches to the native layer to build the HNSW graph.
         // We batch in groups of 16 * 1024 (16KB of int data) to balance JNI call overhead against
@@ -316,11 +330,11 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
                 // 64-bit alignment for efficient SIMD processing.
                 //
                 // Layout in Lucene's .veq file depends on the encoding:
-                //   B=1 (SINGLE_BIT_QUERY_NIBBLE) - one bit-plane (packAsBinary)
-                //   B=2 (DIBIT_QUERY_NIBBLE)     - two contiguous bit-planes (transposeDibit:
-                //                                    [low-bit stripe | high-bit stripe])
-                //   B=4 (PACKED_NIBBLE)          - two 4-bit values per byte
-                //                                    (high nibble = element i, low nibble = element N/2+i)
+                // B=1 (SINGLE_BIT_QUERY_NIBBLE) - one bit-plane (packAsBinary)
+                // B=2 (DIBIT_QUERY_NIBBLE) - two contiguous bit-planes (transposeDibit:
+                // [low-bit stripe | high-bit stripe])
+                // B=4 (PACKED_NIBBLE) - two 4-bit values per byte
+                // (high nibble = element i, low nibble = element N/2+i)
                 //
                 // The native FaissSQDistanceComputer assumes B contiguous bit-planes, so for
                 // B=4 we repack PACKED_NIBBLE into 4 bit-plane stripes here. B=1 and B=2
@@ -427,7 +441,7 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         }
 
         // PACKED_NIBBLE: high nibble of packed[i] = element i;
-        //                low nibble of packed[i] = element packedLen + i.
+        // low nibble of packed[i] = element packedLen + i.
         for (int i = 0; i < packedLen; i++) {
             final int b = packed[i] & 0xFF;
             final int hi = (b >>> 4) & 0x0F; // element i
@@ -437,7 +451,13 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         }
     }
 
-    private static void scatterNibbleBits(final int nibble, final int elementIdx, final byte[] dst, final int dstOff, final int stripeBytes) {
+    private static void scatterNibbleBits(
+        final int nibble,
+        final int elementIdx,
+        final byte[] dst,
+        final int dstOff,
+        final int stripeBytes
+    ) {
         final int byteIdx = elementIdx >>> 3;
         final int bitMask = 1 << (7 - (elementIdx & 7));
         // Plane k holds bit k (LSB first), matching transposeHalfByte's stripe ordering.

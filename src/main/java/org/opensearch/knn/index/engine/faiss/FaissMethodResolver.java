@@ -124,15 +124,27 @@ public class FaissMethodResolver extends AbstractMethodResolver {
         }
 
         if (CompressionLevel.x8 == resolvedCompressionLevel) {
-            encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
-            encoder = encoderMap.get(QFrameBitEncoder.NAME);
-            encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x8.numBitsForFloat32());
+            if (shouldUseSQFourBitForX8(knnMethodConfigContext, encoderMap)) {
+                encoderComponentContext = new MethodComponentContext(ENCODER_SQ, new HashMap<>());
+                encoder = encoderMap.get(ENCODER_SQ);
+                encoderComponentContext.getParameters().put(SQ_BITS, FaissSQEncoder.Bits.FOUR.getValue());
+            } else {
+                encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
+                encoder = encoderMap.get(QFrameBitEncoder.NAME);
+                encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x8.numBitsForFloat32());
+            }
         }
 
         if (CompressionLevel.x16 == resolvedCompressionLevel) {
-            encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
-            encoder = encoderMap.get(QFrameBitEncoder.NAME);
-            encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x16.numBitsForFloat32());
+            if (shouldUseSQTwoBitForX16(knnMethodConfigContext, encoderMap)) {
+                encoderComponentContext = new MethodComponentContext(ENCODER_SQ, new HashMap<>());
+                encoder = encoderMap.get(ENCODER_SQ);
+                encoderComponentContext.getParameters().put(SQ_BITS, FaissSQEncoder.Bits.TWO.getValue());
+            } else {
+                encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
+                encoder = encoderMap.get(QFrameBitEncoder.NAME);
+                encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x16.numBitsForFloat32());
+            }
         }
 
         if (CompressionLevel.x32 == resolvedCompressionLevel) {
@@ -154,10 +166,10 @@ public class FaissMethodResolver extends AbstractMethodResolver {
         );
         encoderComponentContext.getParameters().putAll(resolvedParams);
 
-        // When auto-resolved to bits=1, remove the type and clip defaults that were injected —
-        // the 1-bit quantization path doesn't use them, and validateEncoderConfig would reject them.
-        if (encoderComponentContext.getParameters().get(SQ_BITS) instanceof Integer bitsVal
-            && bitsVal == FaissSQEncoder.Bits.ONE.getValue()) {
+        // When auto-resolved to a multi-bit MOS path (bits in {1, 2, 4}), remove the type and clip
+        // defaults that may have been injected — those parameters are only valid for fp16 (bits=16),
+        // and validateEncoderConfig would reject them.
+        if (encoderComponentContext.getParameters().get(SQ_BITS) instanceof Integer bitsVal && FaissSQEncoder.isMosBits(bitsVal)) {
             encoderComponentContext.getParameters().remove(FAISS_SQ_TYPE);
             encoderComponentContext.getParameters().remove(FAISS_SQ_CLIP);
         }
@@ -227,6 +239,30 @@ public class FaissMethodResolver extends AbstractMethodResolver {
      * TODO: Enable once the Faiss1040ScalarQuantizedKnnVectorsWriter pipeline is validated end-to-end.
      */
     private static boolean shouldUseSQOneBitForX32(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
+        return isSQMosAvailable(knnMethodConfigContext, encoderMap);
+    }
+
+    /**
+     * Starting 3.6.0, x16 compression can use sq(bits=2) instead of QFrameBitEncoder (binary, 2-bit).
+     * Same trade-off as {@link #shouldUseSQOneBitForX32}: 2-bit SQ delegates HNSW construction to
+     * Faiss over Lucene-stored scalar codes (DIBIT_QUERY_NIBBLE), which gives better recall than
+     * the 2-bit binary quantization path. The IVF encoderMap guard mirrors the x32 case.
+     */
+    private static boolean shouldUseSQTwoBitForX16(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
+        return isSQMosAvailable(knnMethodConfigContext, encoderMap);
+    }
+
+    /**
+     * Starting 3.6.0, x8 compression can use sq(bits=4) instead of QFrameBitEncoder (binary, 4-bit).
+     * Same trade-off as {@link #shouldUseSQOneBitForX32}: 4-bit SQ delegates HNSW construction to
+     * Faiss over Lucene-stored scalar codes (PACKED_NIBBLE), which gives better recall than the
+     * 4-bit binary quantization path. The IVF encoderMap guard mirrors the x32 case.
+     */
+    private static boolean shouldUseSQFourBitForX8(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
+        return isSQMosAvailable(knnMethodConfigContext, encoderMap);
+    }
+
+    private static boolean isSQMosAvailable(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
         return knnMethodConfigContext.getVersionCreated() != null
             && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_6_0)
             && encoderMap.containsKey(ENCODER_SQ);
