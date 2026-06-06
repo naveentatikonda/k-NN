@@ -100,13 +100,40 @@ namespace knn_jni {
             return pc;
         }
 
-        // Multi-bit dot product between two quantized codes:
-        //   dp = Σ_{i<docBits} Σ_{j<docBits} popcount(planeA_i AND planeB_j) << (i + j)
-        // For docBits == 1 this is exactly popcount(a AND b), matching the legacy single-bit path.
+        // Byte-wise dot product over Lucene's PACKED_NIBBLE doc layout.
+        // packed[i] high nibble = element i, low nibble = element (packedBytes + i).
+        // Mirrors Lucene's VectorUtil.int4DotProductBothPacked. For each byte, we extract two
+        // 4-bit values per side and accumulate two products. The compiler's auto-vectorizer
+        // turns this into wide 16-bit multiplies on x86 (PMULLW) and ARM (NEON MUL).
+        static inline uint64_t bothPackedNibbleDp(const uint8_t* a, const uint8_t* b, const uint64_t packedBytes) {
+            uint64_t total = 0;
+            for (uint64_t i = 0; i < packedBytes; ++i) {
+                const uint32_t aLo = a[i] & 0x0Fu;
+                const uint32_t aHi = (a[i] >> 4) & 0x0Fu;
+                const uint32_t bLo = b[i] & 0x0Fu;
+                const uint32_t bHi = (b[i] >> 4) & 0x0Fu;
+                total += aLo * bLo + aHi * bHi;
+            }
+            return total;
+        }
+
+        // Multi-bit dot product between two quantized codes. The kernel shape depends on docBits:
+        //   B=1: single popcount(a AND b)                         — bit-plane (1 plane)
+        //   B=2: 2x2 popcount-AND-shift double sum across planes  — bit-plane (2 planes)
+        //   B=4: byte-wise nibble multiply-accumulate             — Lucene's PACKED_NIBBLE layout
+        // Performance trade-off: for B=4 the bit-plane formulation needs 16 popcount calls per
+        // distance, while the byte-wise multiply matches Lucene's int4DotProductBothPacked and
+        // avoids both the popcount-shift dance and the ingest-time repack step. The math is the
+        // same in either case (Σ A_n B_n with A_n, B_n in [0, 2^B - 1]); only the byte layout
+        // differs. See claude_files/sq-mos-nibbles-explained.md for the full derivation.
         uint64_t multiBitDp(const uint8_t* a, const uint8_t* b) const {
             if (docBits == 1) {
                 return popcountAndPlane(a, b, planeBytes);
             }
+            if (docBits == 4) {
+                return bothPackedNibbleDp(a, b, quantizedVectorBytes);
+            }
+            // docBits == 2: bit-plane popcount path.
             uint64_t dp = 0;
             for (int32_t i = 0; i < docBits; ++i) {
                 const uint8_t* pa = a + (uint64_t) i * planeBytes;

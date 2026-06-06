@@ -214,19 +214,27 @@ jlong BinaryIndexService::initFaissSQIndex(knn_jni::JNIUtilInterface *jniUtil, J
     }
 
     // Validate docBits early: only 1, 2, and 4 are supported. The downstream
-    // FaissSQDistanceComputer divides by docBits to compute planeBytes and uses
-    // (1 << docBits) - 1 to scale the quantization interval; both formulas break
-    // for docBits == 0 (and produce silent garbage for unsupported widths).
+    // FaissSQDistanceComputer uses (1 << docBits) - 1 to scale the quantization interval and
+    // dispatches a different kernel per width, so an unsupported value would silently corrupt
+    // the graph at construction time.
     if (docBits != 1 && docBits != 2 && docBits != 4) {
         throw std::runtime_error("Unsupported docBits for Faiss SQ index: " + std::to_string(docBits)
             + " (expected 1, 2, or 4)");
     }
-    // The native distance computer assumes the quantized code is exactly docBits contiguous
-    // single-bit planes of equal length. Catch any layout mismatch here rather than letting
-    // it manifest as a corrupted graph.
-    if (quantizedVectorBytes <= 0 || (quantizedVectorBytes % docBits) != 0) {
+    // Layout requirements differ per width:
+    //   B=1: one bit-plane,  qvb = ceil(dim / 8)        — qvb must be > 0
+    //   B=2: two bit-planes, qvb = 2 * ceil(dim / 8)    — qvb must be a positive multiple of 2
+    //   B=4: packed nibbles, qvb = ceil(dim / 2)        — qvb must be > 0 (any positive value)
+    // For B=1 and B=2 the bit-plane kernel requires equal-length planes, so we keep the
+    // multiple-of-docBits check there. B=4 uses Lucene's packed-nibble bytes verbatim, so it
+    // only needs qvb > 0.
+    if (quantizedVectorBytes <= 0) {
+        throw std::runtime_error("quantizedVectorBytes must be positive, got "
+            + std::to_string(quantizedVectorBytes));
+    }
+    if (docBits != 4 && (quantizedVectorBytes % docBits) != 0) {
         throw std::runtime_error("quantizedVectorBytes (" + std::to_string(quantizedVectorBytes)
-            + ") must be a positive multiple of docBits (" + std::to_string(docBits) + ")");
+            + ") must be a multiple of docBits (" + std::to_string(docBits) + ") for bit-plane layouts");
     }
 
     // Extract `m` from the binary index

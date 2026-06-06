@@ -124,8 +124,9 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         // The centroid dot-product is a precomputed scalar used in the ADC scoring formula.
         // It appears as a correction term: score += additionalCorrection + indexCorrection - centroidDp
         final float centroidDp = binarizedVectorValues.getCentroidDP();
-        // Document bit width (1, 2, or 4), derived from the stored encoding. The native build path
-        // splits the quantized code into docBits bit planes for the symmetric distance computation.
+        // Document bit width (1, 2, or 4), derived from the stored encoding. Passed to the
+        // native side so it can dispatch the correct distance kernel: bit-plane popcount
+        // for B=1/2, byte-wise nibble multiply for B=4.
         final int docBits = ScalarEncodingResolver.docBits(binarizedVectorValues.getScalarEncoding());
         final Map<String, Object> indexParameters = new HashMap<>(indexInfo.getIndexParameters());
         // Force override vector data type as binary so that Faiss can treat it as binary index.
@@ -210,7 +211,6 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
             indexMemoryAddress,
             binarizedVectorValues,
             quantizedVecBytes,
-            docBits,
             indexInfo.getKnnEngine()
         );
 
@@ -310,7 +310,6 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         final long indexMemoryAddress,
         final QuantizedByteVectorValues binarizedVectorValues,
         final int quantizedVecBytes,
-        final int docBits,
         final KNNEngine knnEngine
     ) throws IOException {
         // Each vector block: [quantized binary code] + 4 correction factor fields (4 bytes each)
@@ -325,20 +324,15 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
             // Determine how many vectors to include in this batch
             final int loopSize = Math.min(binarizedVectorValues.size() - i, batchSize);
             for (int j = 0, o = 0; j < loopSize; ++j) {
-                // Read the quantized code for vector at ordinal (i + j).
-                // The byte length is ((dimension * docBits + 63) / 64) * 64 / 8, ensuring
-                // 64-bit alignment for efficient SIMD processing.
-                //
-                // Layout in Lucene's .veq file depends on the encoding:
-                // B=1 (SINGLE_BIT_QUERY_NIBBLE) - one bit-plane (packAsBinary)
-                // B=2 (DIBIT_QUERY_NIBBLE) - two contiguous bit-planes (transposeDibit:
-                // [low-bit stripe | high-bit stripe])
-                // B=4 (PACKED_NIBBLE) - two 4-bit values per byte
-                // (high nibble = element i, low nibble = element N/2+i)
-                //
-                // The native FaissSQDistanceComputer assumes B contiguous bit-planes, so for
-                // B=4 we repack PACKED_NIBBLE into 4 bit-plane stripes here. B=1 and B=2
-                // already match the expected layout and pass through with a single arraycopy.
+                // Read the quantized code for vector at ordinal (i + j) and pass it through
+                // verbatim — no repack. Layouts in Lucene's .veq file:
+                //   B=1 (SINGLE_BIT_QUERY_NIBBLE) — one bit-plane         (packAsBinary)
+                //   B=2 (DIBIT_QUERY_NIBBLE)      — two bit-planes        (transposeDibit)
+                //   B=4 (PACKED_NIBBLE)           — two 4-bit values/byte (packNibbles)
+                // The native FaissSQDistanceComputer dispatches a per-width kernel:
+                // bit-plane popcount for B=1/2, byte-wise nibble multiply for B=4 (mirrors
+                // Lucene's int4DotProductBothPacked). Each kernel matches the corresponding
+                // Lucene layout directly, so all three widths flow through with a single arraycopy.
                 final byte[] binaryVector = binarizedVectorValues.vectorValue(i + j);
                 if (buffer == null) {
                     // Lazily allocate the buffer on first access, sized for a full batch.
@@ -351,12 +345,9 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
                 // quantization by OptimizedScalarQuantizer and stored alongside the binary codes.
                 final OptimizedScalarQuantizer.QuantizationResult quantizationResult = binarizedVectorValues.getCorrectiveTerms(i + j);
 
-                // Copy the quantized code into the buffer, repacking PACKED_NIBBLE for B=4.
-                if (docBits == 4) {
-                    transposePackedNibbleToBitPlanes(binaryVector, buffer, o);
-                } else {
-                    System.arraycopy(binaryVector, 0, buffer, o, binaryVector.length);
-                }
+                // Copy the quantized code into the buffer verbatim. The native side handles
+                // the per-width layout (bit-plane for B=1/2, packed-nibble for B=4) directly.
+                System.arraycopy(binaryVector, 0, buffer, o, binaryVector.length);
                 o += binaryVector.length;
 
                 // Serialize lowerInterval as 4 bytes in little-endian order.
@@ -403,67 +394,4 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         }
     }
 
-    /**
-     * Repack a PACKED_NIBBLE-encoded vector into 4 contiguous bit-plane stripes.
-     *
-     * <p>Lucene's PACKED_NIBBLE stores two 4-bit quantized values per byte
-     * ({@code packed[i] = (unpacked[i] << 4) | unpacked[N/2 + i]} where N is the discretized
-     * dimension). The native FaissSQDistanceComputer expects 4 contiguous single-bit planes,
-     * each {@code planeBytes = packed.length / 4} long, ordered from least-significant bit (LSB)
-     * to most-significant bit (MSB). This is the same layout produced by
-     * {@code OptimizedScalarQuantizer.transposeHalfByte}, ensuring symmetric compatibility
-     * with the 4-bit nibble query path.
-     *
-     * <p>Output layout (length = {@code packed.length}):
-     * <pre>
-     * [bit-0 stripe | bit-1 stripe | bit-2 stripe | bit-3 stripe]
-     * </pre>
-     *
-     * <p>Each stripe is {@code packed.length / 4} bytes; bit-{@code k} of element {@code idx}
-     * lands in {@code dst[dstOff + k * stripeBytes + idx/8]} at bit position {@code 7 - (idx % 8)}.
-     * Bytes in {@code dst} that fall within the four stripes for this vector are zeroed before
-     * writing, so callers do not need to pre-zero the destination region.
-     *
-     * @param packed PACKED_NIBBLE bytes from Lucene (length = 2 * stripeBytes; even)
-     * @param dst destination buffer that holds {@code [code | correction factors]}
-     * @param dstOff offset in {@code dst} where the 4 bit-plane stripes should start
-     */
-    static void transposePackedNibbleToBitPlanes(final byte[] packed, final byte[] dst, final int dstOff) {
-        // packed.length == N / 2 where N = discretized dimensions (each byte holds 2 elements).
-        // We expand into 4 bit planes of N / 8 bytes each, so total output bytes
-        // == 4 * (N / 8) == N / 2 == packed.length.
-        final int packedLen = packed.length;
-        final int stripeBytes = packedLen >>> 2; // == N / 8
-
-        // Zero out the four stripes; we OR bits into them below.
-        for (int k = 0; k < packedLen; k++) {
-            dst[dstOff + k] = 0;
-        }
-
-        // PACKED_NIBBLE: high nibble of packed[i] = element i;
-        // low nibble of packed[i] = element packedLen + i.
-        for (int i = 0; i < packedLen; i++) {
-            final int b = packed[i] & 0xFF;
-            final int hi = (b >>> 4) & 0x0F; // element i
-            final int lo = b & 0x0F;         // element packedLen + i
-            scatterNibbleBits(hi, i, dst, dstOff, stripeBytes);
-            scatterNibbleBits(lo, packedLen + i, dst, dstOff, stripeBytes);
-        }
-    }
-
-    private static void scatterNibbleBits(
-        final int nibble,
-        final int elementIdx,
-        final byte[] dst,
-        final int dstOff,
-        final int stripeBytes
-    ) {
-        final int byteIdx = elementIdx >>> 3;
-        final int bitMask = 1 << (7 - (elementIdx & 7));
-        // Plane k holds bit k (LSB first), matching transposeHalfByte's stripe ordering.
-        if ((nibble & 0x1) != 0) dst[dstOff + byteIdx] |= (byte) bitMask;
-        if ((nibble & 0x2) != 0) dst[dstOff + stripeBytes + byteIdx] |= (byte) bitMask;
-        if ((nibble & 0x4) != 0) dst[dstOff + 2 * stripeBytes + byteIdx] |= (byte) bitMask;
-        if ((nibble & 0x8) != 0) dst[dstOff + 3 * stripeBytes + byteIdx] |= (byte) bitMask;
-    }
 }
