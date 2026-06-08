@@ -207,12 +207,7 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
         // Phase 1: Transfer all quantized vectors and their correction factors to off-heap memory.
         // After this call, the native Faiss index has all the data it needs to compute distances
         // between vectors during HNSW graph construction.
-        passQuantizedVectorsAndCorrectionFactors(
-            indexMemoryAddress,
-            binarizedVectorValues,
-            quantizedVecBytes,
-            indexInfo.getKnnEngine()
-        );
+        passQuantizedVectorsAndCorrectionFactors(indexMemoryAddress, binarizedVectorValues, quantizedVecBytes, indexInfo.getKnnEngine());
 
         // Phase 2: Stream document IDs in batches to the native layer to build the HNSW graph.
         // We batch in groups of 16 * 1024 (16KB of int data) to balance JNI call overhead against
@@ -326,9 +321,9 @@ public class MemOptimizedScalarQuantizedIndexBuildStrategy implements NativeInde
             for (int j = 0, o = 0; j < loopSize; ++j) {
                 // Read the quantized code for vector at ordinal (i + j) and pass it through
                 // verbatim — no repack. Layouts in Lucene's .veq file:
-                //   B=1 (SINGLE_BIT_QUERY_NIBBLE) — one bit-plane         (packAsBinary)
-                //   B=2 (DIBIT_QUERY_NIBBLE)      — two bit-planes        (transposeDibit)
-                //   B=4 (PACKED_NIBBLE)           — two 4-bit values/byte (packNibbles)
+                // B=1 (SINGLE_BIT_QUERY_NIBBLE) — one bit-plane (packAsBinary)
+                // B=2 (DIBIT_QUERY_NIBBLE) — two bit-planes (transposeDibit)
+                // B=4 (PACKED_NIBBLE) — two 4-bit values/byte (packNibbles)
                 // The native FaissSQDistanceComputer dispatches a per-width kernel:
                 // bit-plane popcount for B=1/2, byte-wise nibble multiply for B=4 (mirrors
                 // Lucene's int4DotProductBothPacked). Each kernel matches the corresponding
