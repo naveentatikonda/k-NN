@@ -28,6 +28,22 @@ public class SimdVectorComputeService {
         SQ_L2
     }
 
+    /**
+     * Persists all per-search state for a scalar-quantized (SQ) query into thread-local
+     * native storage.
+     *
+     * <p>{@code docBits} controls how the native code interprets the doc's on-disk layout:
+     * <ul>
+     *   <li>{@code 1} — {@code SINGLE_BIT_QUERY_NIBBLE}: 1 bit plane per doc,
+     *       {@code (dim + 7) / 8} bytes.</li>
+     *   <li>{@code 2} — {@code DIBIT_QUERY_NIBBLE}: 2 bit planes per doc,
+     *       {@code 2 * ((dim + 7) / 8)} bytes.</li>
+     *   <li>{@code 4} — {@code PACKED_NIBBLE}: 2 elements per byte,
+     *       {@code getDocPackedLength(dim)} bytes.</li>
+     * </ul>
+     * The doc byte layout must match {@code docBits} exactly — the native side uses it
+     * both to compute the per-vector stride and to dispatch to the correct kernel.
+     */
     public static native void saveSQSearchContext(
         byte[] quantizedQuery,
         float queryLowerInterval,
@@ -37,7 +53,8 @@ public class SimdVectorComputeService {
         long[] addressAndSize,
         int nativeFunctionTypeOrd,
         int dimension,
-        float centroidDp
+        float centroidDp,
+        int docBits
     );
 
     /**

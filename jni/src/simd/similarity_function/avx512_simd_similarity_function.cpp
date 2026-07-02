@@ -460,6 +460,71 @@ static FORCE_INLINE void avx512_4bitDotProductBatch(
     }
 }
 
+// Scalar B=2 kernel (mirrors Lucene's int4DibitDotProductImpl). Used on AVX-512 builds
+// as a correctness fallback for B=2 until a wide AVX-512 dibit kernel is added.
+// See default_simd_similarity_function.cpp / arm_neon_simd_similarity_function.cpp for
+// the same shape.
+static FORCE_INLINE int64_t int4DibitDotProduct(const uint8_t* q, const uint8_t* d, const int32_t planeBytes) {
+    const uint8_t* qp0 = q;
+    const uint8_t* qp1 = q + planeBytes;
+    const uint8_t* qp2 = q + 2 * planeBytes;
+    const uint8_t* qp3 = q + 3 * planeBytes;
+
+    int64_t sub0 = 0, sub1 = 0;
+    const int32_t words = planeBytes >> 3;
+    const int32_t remainStart = words * 8;
+
+    for (int32_t w = 0 ; w < words ; ++w) {
+        const int32_t off = w * 8;
+        uint64_t d0w, d1w, q0w, q1w, q2w, q3w;
+        std::memcpy(&d0w, d              + off, sizeof(uint64_t));
+        std::memcpy(&d1w, d + planeBytes + off, sizeof(uint64_t));
+        std::memcpy(&q0w, qp0 + off, sizeof(uint64_t));
+        std::memcpy(&q1w, qp1 + off, sizeof(uint64_t));
+        std::memcpy(&q2w, qp2 + off, sizeof(uint64_t));
+        std::memcpy(&q3w, qp3 + off, sizeof(uint64_t));
+
+        sub0 += __builtin_popcountll(q0w & d0w) * 1
+              + __builtin_popcountll(q1w & d0w) * 2
+              + __builtin_popcountll(q2w & d0w) * 4
+              + __builtin_popcountll(q3w & d0w) * 8;
+        sub1 += __builtin_popcountll(q0w & d1w) * 1
+              + __builtin_popcountll(q1w & d1w) * 2
+              + __builtin_popcountll(q2w & d1w) * 4
+              + __builtin_popcountll(q3w & d1w) * 8;
+    }
+    for (int32_t r = remainStart ; r < planeBytes ; ++r) {
+        const uint8_t d0b = d[r];
+        const uint8_t d1b = d[planeBytes + r];
+        sub0 += __builtin_popcount((qp0[r] & d0b) & 0xFF) * 1
+              + __builtin_popcount((qp1[r] & d0b) & 0xFF) * 2
+              + __builtin_popcount((qp2[r] & d0b) & 0xFF) * 4
+              + __builtin_popcount((qp3[r] & d0b) & 0xFF) * 8;
+        sub1 += __builtin_popcount((qp0[r] & d1b) & 0xFF) * 1
+              + __builtin_popcount((qp1[r] & d1b) & 0xFF) * 2
+              + __builtin_popcount((qp2[r] & d1b) & 0xFF) * 4
+              + __builtin_popcount((qp3[r] & d1b) & 0xFF) * 8;
+    }
+
+    return sub0 + (sub1 << 1);
+}
+
+// Doc-side scale factor: 1 / (2^docBits - 1).
+static FORCE_INLINE float docBitsScale(int32_t docBits) {
+    if (docBits == 1) return 1.0f;
+    if (docBits == 2) return 1.0f / 3.0f;
+    if (docBits == 4) return FOUR_BIT_SCALE;
+    return 1.0f;
+}
+
+// Scalar dispatcher for the batch tail and single-vector paths.
+static FORCE_INLINE int64_t sqDotProductScalar(const uint8_t* query, const uint8_t* doc,
+                                               const int32_t planeBytes, const int32_t docBits) {
+    if (docBits == 1) return int4BitDotProduct(query, doc, planeBytes);
+    if (docBits == 2) return int4DibitDotProduct(query, doc, planeBytes);
+    return 0;
+}
+
 template <bool IsMaxIP>
 struct AVX512SQSimilarityFunction final : SimilarityFunction {
     HOT_SPOT void calculateSimilarityInBulk(SimdVectorSearchContext* srchContext,
@@ -468,7 +533,10 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
                                             const int32_t numVectors) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t binaryCodeBytes = (dim + 7) / 8;
+        const int32_t planeBytes = (dim + 7) / 8;
+        const int32_t docBits = srchContext->docBits;
+        const int32_t docPackedLength = docBits * planeBytes;
+        const float docScale = docBitsScale(docBits);
 
         // Read query correction factors from tmpBuffer
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
@@ -484,18 +552,32 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
         constexpr int32_t vecHalfBlock = 4;
         uint8_t* vectors[vecBlock];
 
+        // AVX-512 wide SIMD path only implemented for B=1 today. For B=2 we fall back
+        // to the scalar dibit kernel (still correct, still uses hardware POPCNT, just
+        // not the 64-byte AVX-512 popcount kernel). A native AVX-512 dibit variant can
+        // land in a follow-up commit.
+        const bool useAvx512Batch = (docBits == 1);
+
         // Batch size 8
         for ( ; (processedCount + vecBlock) <= numVectors ; processedCount += vecBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecBlock);
-            avx512_4bitDotProductBatch<vecBlock>(queryPtr, vectors, binaryCodeBytes, &scores[processedCount]);
+            if (useAvx512Batch) {
+                avx512_4bitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            } else {
+                for (int32_t i = 0 ; i < vecBlock ; ++i) {
+                    scores[processedCount + i] = static_cast<float>(
+                        sqDotProductScalar(queryPtr, vectors[i], planeBytes, docBits));
+                }
+            }
 
             #pragma unroll
             for (int32_t i = 0 ; i < vecBlock ; ++i) {
                 if ((i + 1) < vecBlock) {
-                    __builtin_prefetch(vectors[i + 1] + binaryCodeBytes);
+                    __builtin_prefetch(vectors[i + 1] + docPackedLength);
                 }
-                float ax, lx, additional, x1;
-                readDataCorrections(vectors[i] + binaryCodeBytes, ax, lx, additional, x1);
+                float ax, lxRaw, additional, x1;
+                readDataCorrections(vectors[i] + docPackedLength, ax, lxRaw, additional, x1);
+                const float lx = lxRaw * docScale;
 
                 scores[processedCount + i] = ax * ay * dim
                                            + ay * lx * x1
@@ -513,15 +595,23 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
         // Batch size 4
         for ( ; (processedCount + vecHalfBlock) <= numVectors ; processedCount += vecHalfBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecHalfBlock);
-            avx512_4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, binaryCodeBytes, &scores[processedCount]);
+            if (useAvx512Batch) {
+                avx512_4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            } else {
+                for (int32_t i = 0 ; i < vecHalfBlock ; ++i) {
+                    scores[processedCount + i] = static_cast<float>(
+                        sqDotProductScalar(queryPtr, vectors[i], planeBytes, docBits));
+                }
+            }
 
             #pragma unroll
             for (int32_t i = 0 ; i < vecHalfBlock ; ++i) {
                 if ((i + 1) < vecHalfBlock) {
-                    __builtin_prefetch(vectors[i + 1] + binaryCodeBytes);
+                    __builtin_prefetch(vectors[i + 1] + docPackedLength);
                 }
-                float ax, lx, additional, x1;
-                readDataCorrections(vectors[i] + binaryCodeBytes, ax, lx, additional, x1);
+                float ax, lxRaw, additional, x1;
+                readDataCorrections(vectors[i] + docPackedLength, ax, lxRaw, additional, x1);
+                const float lx = lxRaw * docScale;
 
                 scores[processedCount + i] = ax * ay * dim
                                            + ay * lx * x1
@@ -541,10 +631,11 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
         for ( ; processedCount < numVectors ; ++processedCount) {
             const auto* dataVec = srchContext->getVectorPointer(internalVectorIds[processedCount]);
             const float qcDist = static_cast<float>(
-                int4BitDotProduct(queryPtr, dataVec, binaryCodeBytes));
+                sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
 
-            float ax, lx, additional, x1;
-            readDataCorrections(dataVec + binaryCodeBytes, ax, lx, additional, x1);
+            float ax, lxRaw, additional, x1;
+            readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
+            const float lx = lxRaw * docScale;
 
             scores[processedCount] = ax * ay * dim
                                    + ay * lx * x1
@@ -569,7 +660,10 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
     float calculateSimilarity(SimdVectorSearchContext* srchContext, const int32_t internalVectorId) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t binaryCodeBytes = (dim + 7) / 8;
+        const int32_t planeBytes = (dim + 7) / 8;
+        const int32_t docBits = srchContext->docBits;
+        const int32_t docPackedLength = docBits * planeBytes;
+        const float docScale = docBitsScale(docBits);
 
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
         const float ay = queryCorrectionPtr[0];
@@ -581,10 +675,11 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
 
         const auto* dataVec = srchContext->getVectorPointer(internalVectorId);
         const float qcDist = static_cast<float>(
-            int4BitDotProduct(queryPtr, dataVec, binaryCodeBytes));
+            sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
 
-        float ax, lx, additional, x1;
-        readDataCorrections(dataVec + binaryCodeBytes, ax, lx, additional, x1);
+        float ax, lxRaw, additional, x1;
+        readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
+        const float lx = lxRaw * docScale;
 
         float score = ax * ay * dim
                       + ay * lx * x1

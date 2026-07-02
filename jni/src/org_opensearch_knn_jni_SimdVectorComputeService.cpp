@@ -79,12 +79,13 @@ JNIEXPORT void JNICALL Java_org_opensearch_knn_jni_SimdVectorComputeService_save
       const jsize mmapAddressAndSizeLength = JNI_UTIL.GetJavaLongArrayLength(env, addressAndSize);
       jlong* mmapAddressAndSize = static_cast<jlong*>(JNI_UTIL.GetPrimitiveArrayCritical(env, addressAndSize, nullptr));
 
-      // Save search context
+      // Save search context. docBits is only relevant for SQ types; FP16 ignores it.
       SimilarityFunction::saveSearchContext(
           (uint8_t*) queryVecPtr, sizeof(jfloat) * queryVecSize,
           queryVecSize,
           (int64_t*) mmapAddressAndSize, mmapAddressAndSizeLength,
-          nativeFunctionTypeOrd);
+          nativeFunctionTypeOrd,
+          /*docBits=*/0);
 
       // Release query vector
       JNI_UTIL.ReleasePrimitiveArrayCritical(env, query, queryVecPtr, 0);
@@ -114,7 +115,7 @@ JNIEXPORT void JNICALL Java_org_opensearch_knn_jni_SimdVectorComputeService_save
   (JNIEnv *env, jclass clazz, jbyteArray quantizedQuery,
    jfloat lowerInterval, jfloat upperInterval, jfloat additionalCorrection,
    jint quantizedComponentSum, jlongArray addressAndSize,
-   jint functionTypeOrd, jint dimension, jfloat centroidDp) {
+   jint functionTypeOrd, jint dimension, jfloat centroidDp, jint docBits) {
     try {
       // Get quantized query bytes
       const jsize queryByteSize = JNI_UTIL.GetJavaBytesArrayLength(env, quantizedQuery);
@@ -137,7 +138,8 @@ JNIEXPORT void JNICALL Java_org_opensearch_knn_jni_SimdVectorComputeService_save
           reinterpret_cast<uint8_t*>(queryPtr), queryByteSize,
           dimension,
           reinterpret_cast<int64_t*>(mmapAddressAndSize), mmapAddressAndSizeLength,
-          functionTypeOrd);
+          functionTypeOrd,
+          docBits);
 
       // Now store correction factors in tmpBuffer (saveSearchContext clears it, then SQ_IP branch leaves it empty)
       SimdVectorSearchContext* ctx = SimilarityFunction::getSearchContext();

@@ -66,7 +66,7 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
     public void testSQCosineScoring() {
         for (int dim : Arrays.asList(1, 7, 56, 57, 77, 128, 512, 777, 1024)) {
             System.out.println("Dimension=" + dim);
-            doTest(VectorSimilarityFunction.COSINE, dim);
+            doTest(VectorSimilarityFunction.COSINE, dim, ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
         }
     }
 
@@ -74,7 +74,7 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
     public void testSQEuclideanScoring() {
         for (int dim : Arrays.asList(1, 7, 77, 128, 512, 777, 1024, 10240, 30000, 65535)) {
             System.out.println("Dimension=" + dim);
-            doTest(VectorSimilarityFunction.EUCLIDEAN, dim);
+            doTest(VectorSimilarityFunction.EUCLIDEAN, dim, ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
         }
     }
 
@@ -82,13 +82,36 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
     public void testSQMaxInnerProductScoring() {
         for (int dim : Arrays.asList(1, 7, 77, 128, 512, 777, 1024, 10240, 30000, 65535)) {
             System.out.println("Dimension=" + dim);
-            doTest(VectorSimilarityFunction.MAXIMUM_INNER_PRODUCT, dim);
+            doTest(VectorSimilarityFunction.MAXIMUM_INNER_PRODUCT, dim, ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE);
+        }
+    }
+
+    @Test
+    public void testSQDibitCosineScoring() {
+        for (int dim : Arrays.asList(1, 7, 56, 57, 77, 128, 512, 777, 1024)) {
+            System.out.println("Dimension=" + dim);
+            doTest(VectorSimilarityFunction.COSINE, dim, ScalarEncoding.DIBIT_QUERY_NIBBLE);
+        }
+    }
+
+    @Test
+    public void testSQDibitEuclideanScoring() {
+        for (int dim : Arrays.asList(1, 7, 77, 128, 512, 777, 1024, 10240)) {
+            System.out.println("Dimension=" + dim);
+            doTest(VectorSimilarityFunction.EUCLIDEAN, dim, ScalarEncoding.DIBIT_QUERY_NIBBLE);
+        }
+    }
+
+    @Test
+    public void testSQDibitMaxInnerProductScoring() {
+        for (int dim : Arrays.asList(1, 7, 77, 128, 512, 777, 1024, 10240)) {
+            System.out.println("Dimension=" + dim);
+            doTest(VectorSimilarityFunction.MAXIMUM_INNER_PRODUCT, dim, ScalarEncoding.DIBIT_QUERY_NIBBLE);
         }
     }
 
     @SneakyThrows
-    private void doTest(final VectorSimilarityFunction similarityFunction, final int dimension) {
-        final ScalarEncoding encoding = ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
+    private void doTest(final VectorSimilarityFunction similarityFunction, final int dimension, final ScalarEncoding encoding) {
         final FlatVectorsScorer defaultScorer = FlatVectorScorerUtil.getLucene99FlatVectorsScorer();
         final FlatVectorsFormat rawVectorFormat = getRawVectorFormat();
 

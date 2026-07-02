@@ -12,6 +12,10 @@
 #include <stdexcept>
 #include <iostream>
 
+#ifdef __ARM_NEON
+#include <arm_neon.h>
+#endif
+
 namespace knn_jni {
 
     // Reads correction factors from a potentially unaligned address using std::memcpy.
@@ -82,10 +86,28 @@ namespace knn_jni {
             numVectors(_numVectors) {
         }
 
-        // Popcount of (a AND b) over `planeBytes` bytes. Uses std::memcpy for 8-byte word loads so
-        // it is safe regardless of plane alignment (planeBytes need not be a multiple of 8 for B>1),
-        // with a byte remainder loop for the trailing bytes.
+        // Popcount of (a AND b) over `planeBytes` bytes.
+        //
+        // NEON path: 16 bytes per iteration via vcntq_u8, widened to a u32 accumulator.
+        // Scalar path: 8-byte-word popcount via __builtin_popcountll, using std::memcpy for
+        // the loads so it works when planeBytes is not a multiple of 8 (B>1 doc planes may
+        // start at unaligned offsets within the on-disk vector).
         static inline uint64_t popcountAndPlane(const uint8_t* a, const uint8_t* b, const uint64_t planeBytes) {
+#ifdef __ARM_NEON
+            uint32x4_t acc = vdupq_n_u32(0);
+            uint64_t i = 0;
+            for ( ; i + 16 <= planeBytes ; i += 16) {
+                uint8x16_t va = vld1q_u8(a + i);
+                uint8x16_t vb = vld1q_u8(b + i);
+                uint8x16_t cnt = vcntq_u8(vandq_u8(va, vb));
+                acc = vaddq_u32(acc, vpaddlq_u16(vpaddlq_u8(cnt)));
+            }
+            uint64_t pc = vaddvq_u32(acc);
+            for ( ; i < planeBytes ; ++i) {
+                pc += __builtin_popcount((a[i] & b[i]) & 0xFF);
+            }
+            return pc;
+#else
             const uint64_t words = planeBytes >> 3;
             uint64_t pc = 0;
             for (uint64_t w = 0; w < words; ++w) {
@@ -98,6 +120,64 @@ namespace knn_jni {
                 pc += __builtin_popcount((a[r] & b[r]) & 0xFF);
             }
             return pc;
+#endif
+        }
+
+        // Symmetric B=2 dot product used by the HNSW build path (both operands are stored
+        // 2-plane docs in `transposeDibit` layout). The 2x2 loop expands to
+        //   dp = pc(a0,b0) + 2·pc(a0,b1) + 2·pc(a1,b0) + 4·pc(a1,b1)
+        //
+        // On aarch64 the four traversals are fused into a single sweep: each 16-byte
+        // chunk loads a0/a1/b0/b1 once (4 loads instead of 8) and issues 4 vandq+vcntq
+        // popcounts into 4 separate u32 accumulators. Combined with shift weights at
+        // horizontal-sum time. On non-ARM this reduces to four scalar popcountAndPlane
+        // calls, so the fused form is a NEON-only optimization.
+        static inline uint64_t symmetricDibitDp(const uint8_t* a, const uint8_t* b, const uint64_t planeBytes) {
+#ifdef __ARM_NEON
+            const uint8_t* a0 = a;
+            const uint8_t* a1 = a + planeBytes;
+            const uint8_t* b0 = b;
+            const uint8_t* b1 = b + planeBytes;
+
+            uint32x4_t acc00 = vdupq_n_u32(0);
+            uint32x4_t acc01 = vdupq_n_u32(0);
+            uint32x4_t acc10 = vdupq_n_u32(0);
+            uint32x4_t acc11 = vdupq_n_u32(0);
+
+            uint64_t i = 0;
+            for ( ; i + 16 <= planeBytes ; i += 16) {
+                uint8x16_t va0 = vld1q_u8(a0 + i);
+                uint8x16_t va1 = vld1q_u8(a1 + i);
+                uint8x16_t vb0 = vld1q_u8(b0 + i);
+                uint8x16_t vb1 = vld1q_u8(b1 + i);
+
+                acc00 = vaddq_u32(acc00, vpaddlq_u16(vpaddlq_u8(vcntq_u8(vandq_u8(va0, vb0)))));
+                acc01 = vaddq_u32(acc01, vpaddlq_u16(vpaddlq_u8(vcntq_u8(vandq_u8(va0, vb1)))));
+                acc10 = vaddq_u32(acc10, vpaddlq_u16(vpaddlq_u8(vcntq_u8(vandq_u8(va1, vb0)))));
+                acc11 = vaddq_u32(acc11, vpaddlq_u16(vpaddlq_u8(vcntq_u8(vandq_u8(va1, vb1)))));
+            }
+
+            uint64_t pc00 = vaddvq_u32(acc00);
+            uint64_t pc01 = vaddvq_u32(acc01);
+            uint64_t pc10 = vaddvq_u32(acc10);
+            uint64_t pc11 = vaddvq_u32(acc11);
+
+            for ( ; i < planeBytes ; ++i) {
+                uint8_t x0 = a0[i], x1 = a1[i], y0 = b0[i], y1 = b1[i];
+                pc00 += __builtin_popcount((x0 & y0) & 0xFF);
+                pc01 += __builtin_popcount((x0 & y1) & 0xFF);
+                pc10 += __builtin_popcount((x1 & y0) & 0xFF);
+                pc11 += __builtin_popcount((x1 & y1) & 0xFF);
+            }
+
+            return pc00 + ((pc01 + pc10) << 1) + (pc11 << 2);
+#else
+            const uint64_t pc00 = popcountAndPlane(a,              b,              planeBytes);
+            const uint64_t pc01 = popcountAndPlane(a,              b + planeBytes, planeBytes);
+            const uint64_t pc10 = popcountAndPlane(a + planeBytes, b,              planeBytes);
+            const uint64_t pc11 = popcountAndPlane(a + planeBytes, b + planeBytes, planeBytes);
+            return pc00 + ((pc01 + pc10) << 1) + (pc11 << 2);
+#endif
         }
 
         // Byte-wise dot product over Lucene's PACKED_NIBBLE doc layout.
@@ -130,19 +210,15 @@ namespace knn_jni {
             if (docBits == 1) {
                 return popcountAndPlane(a, b, planeBytes);
             }
+            if (docBits == 2) {
+                // Fused 2x2 kernel: loads each plane chunk once instead of four times.
+                return symmetricDibitDp(a, b, planeBytes);
+            }
             if (docBits == 4) {
                 return bothPackedNibbleDp(a, b, quantizedVectorBytes);
             }
-            // docBits == 2: bit-plane popcount path.
-            uint64_t dp = 0;
-            for (int32_t i = 0; i < docBits; ++i) {
-                const uint8_t* pa = a + (uint64_t) i * planeBytes;
-                for (int32_t j = 0; j < docBits; ++j) {
-                    const uint8_t* pb = b + (uint64_t) j * planeBytes;
-                    dp += popcountAndPlane(pa, pb, planeBytes) << (i + j);
-                }
-            }
-            return dp;
+            // Unsupported width — should have been rejected in InitFaissSQIndex.
+            throw std::runtime_error("Unsupported docBits in multiBitDp: " + std::to_string(docBits));
         }
 
         void set_query(const float* x) final {

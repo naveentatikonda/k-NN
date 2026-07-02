@@ -103,6 +103,56 @@ static FORCE_INLINE int64_t int4BitDotProduct(const uint8_t* q, const uint8_t* d
     return result;
 }
 
+// Σ_i popcount(qplane_i AND docPlane) << i over `planeBytes` bytes. Reusable primitive
+// for both B=1 (single call per doc) and B=2 (two calls, one per doc plane).
+static FORCE_INLINE int64_t fourPlanesVsOneDocScalar(
+    const uint8_t* qplane0, const uint8_t* qplane1,
+    const uint8_t* qplane2, const uint8_t* qplane3,
+    const uint8_t* docPlane, const int32_t planeBytes) {
+    const int32_t words = planeBytes >> 3;
+    const int32_t remainStart = words * 8;
+    int64_t acc = 0;
+
+    for (int32_t w = 0 ; w < words ; ++w) {
+        const int32_t offset = w * 8;
+        uint64_t dWord;
+        std::memcpy(&dWord, docPlane + offset, sizeof(uint64_t));
+
+        uint64_t q0, q1, q2, q3;
+        std::memcpy(&q0, qplane0 + offset, sizeof(uint64_t));
+        std::memcpy(&q1, qplane1 + offset, sizeof(uint64_t));
+        std::memcpy(&q2, qplane2 + offset, sizeof(uint64_t));
+        std::memcpy(&q3, qplane3 + offset, sizeof(uint64_t));
+
+        acc += __builtin_popcountll(q0 & dWord) * 1
+             + __builtin_popcountll(q1 & dWord) * 2
+             + __builtin_popcountll(q2 & dWord) * 4
+             + __builtin_popcountll(q3 & dWord) * 8;
+    }
+
+    for (int32_t r = remainStart ; r < planeBytes ; ++r) {
+        uint8_t db = docPlane[r];
+        acc += __builtin_popcount((qplane0[r] & db) & 0xFF) * 1
+             + __builtin_popcount((qplane1[r] & db) & 0xFF) * 2
+             + __builtin_popcount((qplane2[r] & db) & 0xFF) * 4
+             + __builtin_popcount((qplane3[r] & db) & 0xFF) * 8;
+    }
+
+    return acc;
+}
+
+// Scalar reference — mirrors Lucene's int4DibitDotProductImpl
+// (DefaultVectorUtilSupport.java:303): dp = sum_over_plane0 + (sum_over_plane1 << 1).
+static FORCE_INLINE int64_t int4DibitDotProduct(const uint8_t* q, const uint8_t* d, const int32_t planeBytes) {
+    const uint8_t* qplane0 = q;
+    const uint8_t* qplane1 = q + planeBytes;
+    const uint8_t* qplane2 = q + 2 * planeBytes;
+    const uint8_t* qplane3 = q + 3 * planeBytes;
+    const int64_t ret0 = fourPlanesVsOneDocScalar(qplane0, qplane1, qplane2, qplane3, d,              planeBytes);
+    const int64_t ret1 = fourPlanesVsOneDocScalar(qplane0, qplane1, qplane2, qplane3, d + planeBytes, planeBytes);
+    return ret0 + (ret1 << 1);
+}
+
 // Default (non-SIMD) batched int4BitDotProduct.
 // Processes one batch element at a time with the byte loop as the inner loop,
 // giving the compiler the best auto-vectorization opportunity across the byte dimension.
@@ -110,50 +160,56 @@ template <int BATCH_SIZE>
 static FORCE_INLINE void default4bitDotProductBatch(
     const uint8_t* queryPtr,
     uint8_t** dataVecs,
-    const int32_t binaryCodeBytes,
+    const int32_t planeBytes,
     float* results) {
 
     const uint8_t* plane0 = queryPtr;
-    const uint8_t* plane1 = queryPtr + binaryCodeBytes;
-    const uint8_t* plane2 = queryPtr + 2 * binaryCodeBytes;
-    const uint8_t* plane3 = queryPtr + 3 * binaryCodeBytes;
-
-    const int32_t words = binaryCodeBytes >> 3;
-    const int32_t remainStart = words * 8;
+    const uint8_t* plane1 = queryPtr + planeBytes;
+    const uint8_t* plane2 = queryPtr + 2 * planeBytes;
+    const uint8_t* plane3 = queryPtr + 3 * planeBytes;
 
     for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
-        int64_t acc = 0;
-        const uint8_t* data = dataVecs[b];
-
-        // 8-byte word loop — compiler can auto-vectorize this
-        for (int32_t w = 0 ; w < words ; ++w) {
-            const int32_t offset = w * 8;
-            uint64_t dWord;
-            std::memcpy(&dWord, data + offset, sizeof(uint64_t));
-
-            uint64_t q0, q1, q2, q3;
-            std::memcpy(&q0, plane0 + offset, sizeof(uint64_t));
-            std::memcpy(&q1, plane1 + offset, sizeof(uint64_t));
-            std::memcpy(&q2, plane2 + offset, sizeof(uint64_t));
-            std::memcpy(&q3, plane3 + offset, sizeof(uint64_t));
-
-            acc += __builtin_popcountll(q0 & dWord) * 1
-                 + __builtin_popcountll(q1 & dWord) * 2
-                 + __builtin_popcountll(q2 & dWord) * 4
-                 + __builtin_popcountll(q3 & dWord) * 8;
-        }
-
-        // Byte remainder — handles non-multiple-of-8 binaryCodeBytes
-        for (int32_t r = remainStart ; r < binaryCodeBytes ; ++r) {
-            uint8_t db = data[r];
-            acc += __builtin_popcount((plane0[r] & db) & 0xFF) * 1
-                 + __builtin_popcount((plane1[r] & db) & 0xFF) * 2
-                 + __builtin_popcount((plane2[r] & db) & 0xFF) * 4
-                 + __builtin_popcount((plane3[r] & db) & 0xFF) * 8;
-        }
-
-        results[b] = static_cast<float>(acc);
+        results[b] = static_cast<float>(
+            fourPlanesVsOneDocScalar(plane0, plane1, plane2, plane3, dataVecs[b], planeBytes));
     }
+}
+
+template <int BATCH_SIZE>
+static FORCE_INLINE void default4bitDibitDotProductBatch(
+    const uint8_t* queryPtr,
+    uint8_t** dataVecs,
+    const int32_t planeBytes,
+    float* results) {
+
+    const uint8_t* plane0 = queryPtr;
+    const uint8_t* plane1 = queryPtr + planeBytes;
+    const uint8_t* plane2 = queryPtr + 2 * planeBytes;
+    const uint8_t* plane3 = queryPtr + 3 * planeBytes;
+
+    for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+        const int64_t sum0 = fourPlanesVsOneDocScalar(plane0, plane1, plane2, plane3,
+                                                     dataVecs[b], planeBytes);
+        const int64_t sum1 = fourPlanesVsOneDocScalar(plane0, plane1, plane2, plane3,
+                                                     dataVecs[b] + planeBytes, planeBytes);
+        results[b] = static_cast<float>(sum0 + (sum1 << 1));
+    }
+}
+
+// Doc-side reconstruction scale: 1 / (2^docBits - 1). Scales `lx = upper - lower`
+// so the delta matches the doc's quantization level range.
+static FORCE_INLINE float docBitsScale(int32_t docBits) {
+    if (docBits == 1) return 1.0f;
+    if (docBits == 2) return 1.0f / 3.0f;
+    if (docBits == 4) return FOUR_BIT_SCALE;
+    return 1.0f;
+}
+
+static FORCE_INLINE int64_t sqDotProductScalar(const uint8_t* query, const uint8_t* doc,
+                                               const int32_t planeBytes, const int32_t docBits) {
+    if (docBits == 1) return int4BitDotProduct(query, doc, planeBytes);
+    if (docBits == 2) return int4DibitDotProduct(query, doc, planeBytes);
+    // B=4 (PACKED_NIBBLE) added in a follow-up commit.
+    return 0;
 }
 
 template <bool IsMaxIP>
@@ -164,7 +220,10 @@ struct DefaultSQSimilarityFunction final : SimilarityFunction {
                                             const int32_t numVectors) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t binaryCodeBytes = (dim + 7) / 8;
+        const int32_t planeBytes = (dim + 7) / 8;
+        const int32_t docBits = srchContext->docBits;
+        const int32_t docPackedLength = docBits * planeBytes;
+        const float docScale = docBitsScale(docBits);
 
         // Read query correction factors from tmpBuffer
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
@@ -183,11 +242,16 @@ struct DefaultSQSimilarityFunction final : SimilarityFunction {
         // Batch size 8
         for ( ; (processedCount + vecBlock) <= numVectors ; processedCount += vecBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecBlock);
-            default4bitDotProductBatch<vecBlock>(queryPtr, vectors, binaryCodeBytes, &scores[processedCount]);
+            if (docBits == 2) {
+                default4bitDibitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            } else {
+                default4bitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            }
 
             for (int32_t i = 0 ; i < vecBlock ; ++i) {
-                float ax, lx, additional, x1;
-                readDataCorrections(vectors[i] + binaryCodeBytes, ax, lx, additional, x1);
+                float ax, lxRaw, additional, x1;
+                readDataCorrections(vectors[i] + docPackedLength, ax, lxRaw, additional, x1);
+                const float lx = lxRaw * docScale;
 
                 scores[processedCount + i] = ax * ay * dim
                                            + ay * lx * x1
@@ -205,11 +269,16 @@ struct DefaultSQSimilarityFunction final : SimilarityFunction {
         // Batch size 4
         for ( ; (processedCount + vecHalfBlock) <= numVectors ; processedCount += vecHalfBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecHalfBlock);
-            default4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, binaryCodeBytes, &scores[processedCount]);
+            if (docBits == 2) {
+                default4bitDibitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            } else {
+                default4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            }
 
             for (int32_t i = 0 ; i < vecHalfBlock ; ++i) {
-                float ax, lx, additional, x1;
-                readDataCorrections(vectors[i] + binaryCodeBytes, ax, lx, additional, x1);
+                float ax, lxRaw, additional, x1;
+                readDataCorrections(vectors[i] + docPackedLength, ax, lxRaw, additional, x1);
+                const float lx = lxRaw * docScale;
 
                 scores[processedCount + i] = ax * ay * dim
                                            + ay * lx * x1
@@ -229,10 +298,11 @@ struct DefaultSQSimilarityFunction final : SimilarityFunction {
         for ( ; processedCount < numVectors ; ++processedCount) {
             const auto* dataVec = srchContext->getVectorPointer(internalVectorIds[processedCount]);
             const float qcDist = static_cast<float>(
-                int4BitDotProduct(queryPtr, dataVec, binaryCodeBytes));
+                sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
 
-            float ax, lx, additional, x1;
-            readDataCorrections(dataVec + binaryCodeBytes, ax, lx, additional, x1);
+            float ax, lxRaw, additional, x1;
+            readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
+            const float lx = lxRaw * docScale;
 
             scores[processedCount] = ax * ay * dim
                                    + ay * lx * x1
@@ -257,7 +327,10 @@ struct DefaultSQSimilarityFunction final : SimilarityFunction {
     float calculateSimilarity(SimdVectorSearchContext* srchContext, const int32_t internalVectorId) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t binaryCodeBytes = (dim + 7) / 8;
+        const int32_t planeBytes = (dim + 7) / 8;
+        const int32_t docBits = srchContext->docBits;
+        const int32_t docPackedLength = docBits * planeBytes;
+        const float docScale = docBitsScale(docBits);
 
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
         const float ay = queryCorrectionPtr[0];
@@ -269,10 +342,11 @@ struct DefaultSQSimilarityFunction final : SimilarityFunction {
 
         const auto* dataVec = srchContext->getVectorPointer(internalVectorId);
         const float qcDist = static_cast<float>(
-            int4BitDotProduct(queryPtr, dataVec, binaryCodeBytes));
+            sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
 
-        float ax, lx, additional, x1;
-        readDataCorrections(dataVec + binaryCodeBytes, ax, lx, additional, x1);
+        float ax, lxRaw, additional, x1;
+        readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
+        const float lx = lxRaw * docScale;
 
         float score = ax * ay * dim
                     + ay * lx * x1

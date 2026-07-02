@@ -214,8 +214,30 @@ static FORCE_INLINE int64_t int4BitDotProduct(const uint8_t* q, const uint8_t* d
     return result;
 }
 
-// NEON SIMD batched int4BitDotProduct.
-// Uses vcntq_u8 for per-byte popcount on each plane, then weights by 1/2/4/8.
+// Per-byte weighted popcount of 4 query planes against a single doc register.
+// For each of the 16 bytes:
+//   result[byte] = popcount(q0[byte] & d[byte]) * 1
+//                + popcount(q1[byte] & d[byte]) * 2
+//                + popcount(q2[byte] & d[byte]) * 4
+//                + popcount(q3[byte] & d[byte]) * 8
+// Max value per byte: 8*(1 + 2 + 4 + 8) = 120, fits in uint8_t.
+//
+// This is the reusable primitive for both B=1 (called once per doc chunk) and
+// B=2 (called twice — once per doc plane — with the second result weighted by <<1).
+static FORCE_INLINE uint8x16_t weightedPopcount4PlanesVs1Doc(
+    const uint8x16_t q0, const uint8x16_t q1, const uint8x16_t q2, const uint8x16_t q3,
+    const uint8x16_t d) {
+    uint8x16_t p0 = vcntq_u8(vandq_u8(q0, d));
+    uint8x16_t p1 = vcntq_u8(vandq_u8(q1, d));
+    uint8x16_t p2 = vcntq_u8(vandq_u8(q2, d));
+    uint8x16_t p3 = vcntq_u8(vandq_u8(q3, d));
+    uint8x16_t weighted = vaddq_u8(p0, vshlq_n_u8(p1, 1));
+    weighted = vaddq_u8(weighted, vshlq_n_u8(p2, 2));
+    weighted = vaddq_u8(weighted, vshlq_n_u8(p3, 3));
+    return weighted;
+}
+
+// NEON SIMD batched int4BitDotProduct (B=1 doc, 4-bit query).
 template <int BATCH_SIZE>
 static FORCE_INLINE void simd4bitDotProductBatch(
     const uint8_t* queryPtr,
@@ -251,21 +273,8 @@ static FORCE_INLINE void simd4bitDotProductBatch(
         }
 
         for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
-            // Load 16 bytes of data vector's binary code
             uint8x16_t d = vld1q_u8(dataVecs[b] + i);
-
-            // AND each plane with data, then per-byte popcount
-            uint8x16_t p0 = vcntq_u8(vandq_u8(q0, d));
-            uint8x16_t p1 = vcntq_u8(vandq_u8(q1, d));
-            uint8x16_t p2 = vcntq_u8(vandq_u8(q2, d));
-            uint8x16_t p3 = vcntq_u8(vandq_u8(q3, d));
-
-            // Weight: p0*1 + p1*2 + p2*4 + p3*8
-            // Max per byte: 8*1 + 8*2 + 8*4 + 8*8 = 120, fits in uint8_t
-            uint8x16_t weighted = vaddq_u8(p0, vshlq_n_u8(p1, 1));
-            weighted = vaddq_u8(weighted, vshlq_n_u8(p2, 2));
-            weighted = vaddq_u8(weighted, vshlq_n_u8(p3, 3));
-
+            uint8x16_t weighted = weightedPopcount4PlanesVs1Doc(q0, q1, q2, q3, d);
             // Widen and accumulate: u8 -> u16 -> u32
             acc[b] = vaddq_u32(acc[b], vpaddlq_u16(vpaddlq_u8(weighted)));
         }
@@ -290,6 +299,112 @@ static FORCE_INLINE void simd4bitDotProductBatch(
     }
 }
 
+// Scalar reference — mirrors Lucene's int4DibitDotProductImpl
+// (DefaultVectorUtilSupport.java:303). Used for the batch tail so the SIMD kernel
+// stays bit-identical to Lucene on partial-chunk vectors.
+static FORCE_INLINE int64_t int4DibitDotProduct(const uint8_t* q, const uint8_t* d, const int32_t planeBytes) {
+    const int64_t ret0 = int4BitDotProduct(q, d,              planeBytes);
+    const int64_t ret1 = int4BitDotProduct(q, d + planeBytes, planeBytes);
+    return ret0 + (ret1 << 1);
+}
+
+// NEON SIMD batched int4DibitDotProduct (B=2 doc, 4-bit query).
+// Two doc planes are accumulated into separate u32 accumulators and combined as
+// dp = sum0 + (sum1 << 1) at horizontal-sum time. Merging them per byte instead
+// would overflow uint8_t: max = 120 + 2*120 = 360.
+template <int BATCH_SIZE>
+static FORCE_INLINE void simd4bitDibitDotProductBatch(
+    const uint8_t* queryPtr,
+    uint8_t** dataVecs,
+    const int32_t planeBytes,
+    float* results) {
+
+    const uint8_t* qplane0 = queryPtr;
+    const uint8_t* qplane1 = queryPtr + planeBytes;
+    const uint8_t* qplane2 = queryPtr + 2 * planeBytes;
+    const uint8_t* qplane3 = queryPtr + 3 * planeBytes;
+
+    uint32x4_t accPlane0[BATCH_SIZE];
+    uint32x4_t accPlane1[BATCH_SIZE];
+    for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+        accPlane0[b] = vdupq_n_u32(0);
+        accPlane1[b] = vdupq_n_u32(0);
+    }
+
+    int32_t i = 0;
+    for ( ; i + 16 <= planeBytes ; i += 16) {
+        // Query planes are loaded once and reused across every batch element.
+        uint8x16_t q0 = vld1q_u8(qplane0 + i);
+        uint8x16_t q1 = vld1q_u8(qplane1 + i);
+        uint8x16_t q2 = vld1q_u8(qplane2 + i);
+        uint8x16_t q3 = vld1q_u8(qplane3 + i);
+
+        if (i + 16 < planeBytes) {
+            __builtin_prefetch(qplane0 + i + 16);
+            for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+                __builtin_prefetch(dataVecs[b] + i + 16);
+                __builtin_prefetch(dataVecs[b] + planeBytes + i + 16);
+            }
+        }
+
+        for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+            uint8x16_t d0 = vld1q_u8(dataVecs[b] + i);
+            uint8x16_t d1 = vld1q_u8(dataVecs[b] + planeBytes + i);
+            uint8x16_t w0 = weightedPopcount4PlanesVs1Doc(q0, q1, q2, q3, d0);
+            uint8x16_t w1 = weightedPopcount4PlanesVs1Doc(q0, q1, q2, q3, d1);
+            accPlane0[b] = vaddq_u32(accPlane0[b], vpaddlq_u16(vpaddlq_u8(w0)));
+            accPlane1[b] = vaddq_u32(accPlane1[b], vpaddlq_u16(vpaddlq_u8(w1)));
+        }
+    }
+
+    for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+        const uint32_t sum0 = vaddvq_u32(accPlane0[b]);
+        const uint32_t sum1 = vaddvq_u32(accPlane1[b]);
+        results[b] = static_cast<float>(sum0 + (static_cast<uint64_t>(sum1) << 1));
+    }
+
+    if (i < planeBytes) {
+        for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+            const uint8_t* d0Ptr = dataVecs[b];
+            const uint8_t* d1Ptr = dataVecs[b] + planeBytes;
+            int64_t sub0 = 0, sub1 = 0;
+            for (int32_t r = i ; r < planeBytes ; ++r) {
+                const uint8_t db0 = d0Ptr[r];
+                const uint8_t db1 = d1Ptr[r];
+                const int32_t w0 = __builtin_popcount((qplane0[r] & db0) & 0xFF) * 1
+                                 + __builtin_popcount((qplane1[r] & db0) & 0xFF) * 2
+                                 + __builtin_popcount((qplane2[r] & db0) & 0xFF) * 4
+                                 + __builtin_popcount((qplane3[r] & db0) & 0xFF) * 8;
+                const int32_t w1 = __builtin_popcount((qplane0[r] & db1) & 0xFF) * 1
+                                 + __builtin_popcount((qplane1[r] & db1) & 0xFF) * 2
+                                 + __builtin_popcount((qplane2[r] & db1) & 0xFF) * 4
+                                 + __builtin_popcount((qplane3[r] & db1) & 0xFF) * 8;
+                sub0 += w0;
+                sub1 += w1;
+            }
+            results[b] += static_cast<float>(sub0 + (sub1 << 1));
+        }
+    }
+}
+
+// Doc-side reconstruction scale: 1 / (2^docBits - 1). Scales `lx = upper - lower`
+// so the delta matches the doc's quantization level range.
+static FORCE_INLINE float docBitsScale(int32_t docBits) {
+    if (docBits == 1) return 1.0f;
+    if (docBits == 2) return 1.0f / 3.0f;
+    if (docBits == 4) return FOUR_BIT_SCALE;
+    return 1.0f;
+}
+
+static FORCE_INLINE int64_t sqDotProductScalar(const uint8_t* query, const uint8_t* doc,
+                                               const int32_t planeBytes, const int32_t docBits) {
+    if (docBits == 1) return int4BitDotProduct(query, doc, planeBytes);
+    if (docBits == 2) return int4DibitDotProduct(query, doc, planeBytes);
+    // B=4 (PACKED_NIBBLE) is routed to Lucene's Java scorer today; a byte-wise
+    // multiply kernel will replace this in a follow-up commit.
+    return 0;
+}
+
 template <bool IsMaxIP>
 struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
     HOT_SPOT void calculateSimilarityInBulk(SimdVectorSearchContext* srchContext,
@@ -298,9 +413,12 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
                                             const int32_t numVectors) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t binaryCodeBytes = (dim + 7) / 8;
+        const int32_t planeBytes = (dim + 7) / 8;
+        const int32_t docBits = srchContext->docBits;
+        // Correction factors sit immediately after the last doc plane on disk.
+        const int32_t docPackedLength = docBits * planeBytes;
+        const float docScale = docBitsScale(docBits);
 
-        // Read query correction factors from tmpBuffer
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
         const float ay = queryCorrectionPtr[0];
         const float ly = (queryCorrectionPtr[1] - queryCorrectionPtr[0]) * FOUR_BIT_SCALE;
@@ -314,17 +432,21 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
         constexpr int32_t vecHalfBlock = 4;
         uint8_t* vectors[vecBlock];
 
-        // Batch size 8
         for ( ; (processedCount + vecBlock) <= numVectors ; processedCount += vecBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecBlock);
-            simd4bitDotProductBatch<vecBlock>(queryPtr, vectors, binaryCodeBytes, &scores[processedCount]);
+            if (docBits == 2) {
+                simd4bitDibitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            } else {
+                simd4bitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            }
 
             for (int32_t i = 0 ; i < vecBlock ; ++i) {
                 if ((i + 1) < vecBlock) {
-                    __builtin_prefetch(vectors[i + 1] + binaryCodeBytes);
+                    __builtin_prefetch(vectors[i + 1] + docPackedLength);
                 }
-                float ax, lx, additional, x1;
-                readDataCorrections(vectors[i] + binaryCodeBytes, ax, lx, additional, x1);
+                float ax, lxRaw, additional, x1;
+                readDataCorrections(vectors[i] + docPackedLength, ax, lxRaw, additional, x1);
+                const float lx = lxRaw * docScale;
 
                 scores[processedCount + i] = ax * ay * dim
                                            + ay * lx * x1
@@ -342,14 +464,19 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
         // Batch size 4
         for ( ; (processedCount + vecHalfBlock) <= numVectors ; processedCount += vecHalfBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecHalfBlock);
-            simd4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, binaryCodeBytes, &scores[processedCount]);
+            if (docBits == 2) {
+                simd4bitDibitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            } else {
+                simd4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            }
 
             for (int32_t i = 0 ; i < vecHalfBlock ; ++i) {
                 if ((i + 1) < vecHalfBlock) {
-                    __builtin_prefetch(vectors[i + 1] + binaryCodeBytes);
+                    __builtin_prefetch(vectors[i + 1] + docPackedLength);
                 }
-                float ax, lx, additional, x1;
-                readDataCorrections(vectors[i] + binaryCodeBytes, ax, lx, additional, x1);
+                float ax, lxRaw, additional, x1;
+                readDataCorrections(vectors[i] + docPackedLength, ax, lxRaw, additional, x1);
+                const float lx = lxRaw * docScale;
 
                 scores[processedCount + i] = ax * ay * dim
                                            + ay * lx * x1
@@ -369,10 +496,11 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
         for ( ; processedCount < numVectors ; ++processedCount) {
             const auto* dataVec = srchContext->getVectorPointer(internalVectorIds[processedCount]);
             const float qcDist = static_cast<float>(
-                int4BitDotProduct(queryPtr, dataVec, binaryCodeBytes));
+                sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
 
-            float ax, lx, additional, x1;
-            readDataCorrections(dataVec + binaryCodeBytes, ax, lx, additional, x1);
+            float ax, lxRaw, additional, x1;
+            readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
+            const float lx = lxRaw * docScale;
 
             scores[processedCount] = ax * ay * dim
                                    + ay * lx * x1
@@ -397,7 +525,10 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
     float calculateSimilarity(SimdVectorSearchContext* srchContext, const int32_t internalVectorId) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t binaryCodeBytes = (dim + 7) / 8;
+        const int32_t planeBytes = (dim + 7) / 8;
+        const int32_t docBits = srchContext->docBits;
+        const int32_t docPackedLength = docBits * planeBytes;
+        const float docScale = docBitsScale(docBits);
 
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
         const float ay = queryCorrectionPtr[0];
@@ -409,10 +540,11 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
 
         const auto* dataVec = srchContext->getVectorPointer(internalVectorId);
         const float qcDist = static_cast<float>(
-            int4BitDotProduct(queryPtr, dataVec, binaryCodeBytes));
+            sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
 
-        float ax, lx, additional, x1;
-        readDataCorrections(dataVec + binaryCodeBytes, ax, lx, additional, x1);
+        float ax, lxRaw, additional, x1;
+        readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
+        const float lx = lxRaw * docScale;
 
         float score = ax * ay * dim
                       + ay * lx * x1

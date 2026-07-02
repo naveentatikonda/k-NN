@@ -172,7 +172,8 @@ SimdVectorSearchContext* SimilarityFunction::saveSearchContext(
            int32_t dimension,
            int64_t* mmapAddressAndSize,
            int32_t numAddressAndSize,
-           int32_t nativeFunctionTypeOrd) {
+           int32_t nativeFunctionTypeOrd,
+           int32_t docBits) {
     // Free tmp buffer
     THREAD_LOCAL_SIMD_VEC_SRCH_CTX.tmpBuffer = {};
 
@@ -240,11 +241,34 @@ SimdVectorSearchContext* SimilarityFunction::saveSearchContext(
          THREAD_LOCAL_SIMD_VEC_SRCH_CTX.similarityFunction =
              selectSimilarityFunction(static_cast<NativeSimilarityFunctionType>(nativeFunctionTypeOrd));
 
-         // oneVectorByteSize = quantized vector bytes + 3 floats + 1 int (correction factors)
-         // On-disk layout: [binaryCode | lowerInterval(float) | upperInterval(float) | additionalCorrection(float) | quantizedComponentSum(int)]
-         // Lucene's docPackedLength for SINGLE_BIT_QUERY_NIBBLE: (dim + 7) / 8
+         // oneVectorByteSize = docPackedLength + 3 floats + 1 int (correction factors)
+         // On-disk layout: [docBytes | lowerInterval(f32) | upperInterval(f32) | additionalCorrection(f32) | quantizedComponentSum(i32)]
+         //
+         // docPackedLength depends on the doc encoding:
+         //   B=1 (SINGLE_BIT_QUERY_NIBBLE): 1 bit plane, (dim + 7) / 8 bytes
+         //   B=2 (DIBIT_QUERY_NIBBLE):      2 bit planes, 2 * ((dim + 7) / 8) bytes
+         //   B=4 (PACKED_NIBBLE):           packed nibble, ((dim + 1) / 2) rounded to discretization
+         //
+         // Matches Lucene's ScalarEncoding.getDocPackedLength for each encoding — we assume
+         // the discretized dim padding is already reflected in the file on disk.
+         int32_t docPackedLength;
+         if (docBits == 1 || docBits == 2) {
+             const int32_t planeBytes = (dimension + 7) / 8;
+             docPackedLength = docBits * planeBytes;
+         } else if (docBits == 4) {
+             // Lucene PACKED_NIBBLE discretizes dim so that (discretized * 4) is a multiple of 8.
+             // The doc packed length is ceil(discretized / 2). For non-multiple-of-2 dim,
+             // discretized == dim + 1 rounded up to keep 2 elements per byte.
+             const int32_t totalBits = ((dimension * 4 + 7) / 8) * 8;
+             docPackedLength = (totalBits + 7) / 8;
+         } else {
+             throw std::runtime_error(
+                 std::string("Unsupported SQ docBits: ") + std::to_string(docBits)
+                 + ". Supported: 1, 2, 4.");
+         }
+
          THREAD_LOCAL_SIMD_VEC_SRCH_CTX.oneVectorByteSize =
-             (dimension + 7) / 8 + 3 * sizeof(float) + sizeof(int32_t);
+             docPackedLength + 3 * sizeof(float) + sizeof(int32_t);
     } else {
         throw std::runtime_error(
             std::string("Invalid native similarity function type was given, nativeFunctionTypeOrd=")
@@ -254,8 +278,9 @@ SimdVectorSearchContext* SimilarityFunction::saveSearchContext(
     // Assign native function ord number
     THREAD_LOCAL_SIMD_VEC_SRCH_CTX.nativeFunctionTypeOrd = nativeFunctionTypeOrd;
 
-    // Set dimension
+    // Set dimension and docBits (docBits only meaningful for SQ types)
     THREAD_LOCAL_SIMD_VEC_SRCH_CTX.dimension = dimension;
+    THREAD_LOCAL_SIMD_VEC_SRCH_CTX.docBits = docBits;
 
     // Set mmap pages
     THREAD_LOCAL_SIMD_VEC_SRCH_CTX.mmapPages.clear();

@@ -26,6 +26,12 @@ namespace knn_jni::simd::similarity_function {
         int32_t queryVectorByteSize = 0;
         // Vector dimension
         int32_t dimension = 0;
+        // Number of bits used to quantize each document dimension for SQ (1, 2, or 4).
+        // Ignored for non-SQ function types. Determines the on-disk doc layout:
+        //   B=1  -> 1 bit plane,  planeBytes = (dim + 7) / 8
+        //   B=2  -> 2 bit planes, each planeBytes bytes (transposeDibit output)
+        //   B=4  -> packed nibble (2 elements per byte)
+        int32_t docBits = 0;
         // Stored vector byte size. Based on its quantization status, this value can vary than `queryVectorByteSize`.
         // For example, for FP16, this value would be 2 * dimension
         int64_t oneVectorByteSize = 0;
@@ -59,13 +65,20 @@ namespace knn_jni::simd::similarity_function {
 
         // Save required information during search in static thread local storage.
         // The maximum thread local storage is bounded by O(SizeOf(Query Vector Size)).
+        //
+        // docBits is only consulted for SQ_IP / SQ_L2 function types. It controls
+        // the per-vector stride: for bit-plane doc layouts (B=1, B=2) the doc
+        // packed length is docBits * ((dim + 7) / 8); for packed-nibble (B=4)
+        // it is (dim + 1) / 2 rounded up to the SQ discretization boundary.
+        // For non-SQ types docBits is ignored.
         static SimdVectorSearchContext* saveSearchContext(
                    uint8_t* queryPtr,
                    int32_t queryByteSize,
                    int32_t dimension,
                    int64_t* mmapAddressAndSize,
                    int32_t numAddressAndSize,
-                   int32_t nativeFunctionTypeOrd);
+                   int32_t nativeFunctionTypeOrd,
+                   int32_t docBits);
 
         // Return thread static storage it's holding.
         static SimdVectorSearchContext* getSearchContext();
