@@ -182,10 +182,51 @@ namespace knn_jni {
 
         // Byte-wise dot product over Lucene's PACKED_NIBBLE doc layout.
         // packed[i] high nibble = element i, low nibble = element (packedBytes + i).
-        // Mirrors Lucene's VectorUtil.int4DotProductBothPacked. For each byte, we extract two
-        // 4-bit values per side and accumulate two products. The compiler's auto-vectorizer
-        // turns this into wide 16-bit multiplies on x86 (PMULLW) and ARM (NEON MUL).
+        // Mirrors Lucene's VectorUtil.int4DotProductBothPacked. For each byte we extract two
+        // 4-bit values per side and accumulate two products.
+        //
+        // NEON path: per 16 packed bytes (32 elements) we issue 4 vmull_u8 widening
+        // multiplies (aHi*bHi + aLo*bLo, low & high halves of the 16-lane register) and
+        // accumulate into a u32 register via vpadalq_u16. Nibble values ∈ [0, 15], so per-
+        // product max = 225 (u8-safe pre-widen); 32 accumulated per 16-byte chunk = 7200
+        // per chunk, well within u32 headroom for realistic dims.
+        //
+        // Scalar path: two-per-byte scalar MUL loop. Compilers with -O2 auto-vectorize
+        // this into PMULLW on x86 and NEON MUL on ARM builds without NEON intrinsics
+        // enabled, but relying on that is fragile — the explicit NEON path guarantees it.
         static inline uint64_t bothPackedNibbleDp(const uint8_t* a, const uint8_t* b, const uint64_t packedBytes) {
+#ifdef __ARM_NEON
+            const uint8x16_t lowMask = vdupq_n_u8(0x0F);
+            uint32x4_t acc = vdupq_n_u32(0);
+            uint64_t i = 0;
+            for ( ; i + 16 <= packedBytes ; i += 16) {
+                uint8x16_t va = vld1q_u8(a + i);
+                uint8x16_t vb = vld1q_u8(b + i);
+                uint8x16_t aHi = vshrq_n_u8(va, 4);
+                uint8x16_t aLo = vandq_u8(va, lowMask);
+                uint8x16_t bHi = vshrq_n_u8(vb, 4);
+                uint8x16_t bLo = vandq_u8(vb, lowMask);
+
+                uint16x8_t hiProd0 = vmull_u8(vget_low_u8(aHi),  vget_low_u8(bHi));
+                uint16x8_t hiProd1 = vmull_u8(vget_high_u8(aHi), vget_high_u8(bHi));
+                uint16x8_t loProd0 = vmull_u8(vget_low_u8(aLo),  vget_low_u8(bLo));
+                uint16x8_t loProd1 = vmull_u8(vget_high_u8(aLo), vget_high_u8(bLo));
+
+                acc = vpadalq_u16(acc, hiProd0);
+                acc = vpadalq_u16(acc, hiProd1);
+                acc = vpadalq_u16(acc, loProd0);
+                acc = vpadalq_u16(acc, loProd1);
+            }
+            uint64_t total = vaddvq_u32(acc);
+            for ( ; i < packedBytes ; ++i) {
+                const uint32_t aLo = a[i] & 0x0Fu;
+                const uint32_t aHi = (a[i] >> 4) & 0x0Fu;
+                const uint32_t bLo = b[i] & 0x0Fu;
+                const uint32_t bHi = (b[i] >> 4) & 0x0Fu;
+                total += aLo * bLo + aHi * bHi;
+            }
+            return total;
+#else
             uint64_t total = 0;
             for (uint64_t i = 0; i < packedBytes; ++i) {
                 const uint32_t aLo = a[i] & 0x0Fu;
@@ -195,6 +236,7 @@ namespace knn_jni {
                 total += aLo * bLo + aHi * bHi;
             }
             return total;
+#endif
         }
 
         // Multi-bit dot product between two quantized codes. The kernel shape depends on docBits:

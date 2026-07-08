@@ -460,6 +460,20 @@ static FORCE_INLINE void avx512_4bitDotProductBatch(
     }
 }
 
+// Scalar B=4 kernel (mirrors Lucene's int4DotProductSinglePacked). Used on AVX-512
+// builds as a correctness fallback until a wide AVX-512 packed-nibble kernel lands.
+static FORCE_INLINE int64_t int4DotProductSinglePacked(const uint8_t* unpacked, const uint8_t* packed, const int32_t packedLen) {
+    int64_t total = 0;
+    for (int32_t i = 0 ; i < packedLen ; ++i) {
+        const uint8_t p = packed[i];
+        const uint8_t u1 = unpacked[i];
+        const uint8_t u2 = unpacked[i + packedLen];
+        total += static_cast<int64_t>((p & 0x0Fu)) * u2;
+        total += static_cast<int64_t>((p >> 4) & 0x0Fu) * u1;
+    }
+    return total;
+}
+
 // Scalar B=2 kernel (mirrors Lucene's int4DibitDotProductImpl). Used on AVX-512 builds
 // as a correctness fallback for B=2 until a wide AVX-512 dibit kernel is added.
 // See default_simd_similarity_function.cpp / arm_neon_simd_similarity_function.cpp for
@@ -517,12 +531,28 @@ static FORCE_INLINE float docBitsScale(int32_t docBits) {
     return 1.0f;
 }
 
-// Scalar dispatcher for the batch tail and single-vector paths.
+// Dispatches to the width-specific scalar dot product. For bit-plane layouts (B=1, B=2)
+// `sizeBytes` is planeBytes = (dim + 7) / 8. For B=4 it is packedLen = discretized_dim / 2.
 static FORCE_INLINE int64_t sqDotProductScalar(const uint8_t* query, const uint8_t* doc,
-                                               const int32_t planeBytes, const int32_t docBits) {
-    if (docBits == 1) return int4BitDotProduct(query, doc, planeBytes);
-    if (docBits == 2) return int4DibitDotProduct(query, doc, planeBytes);
+                                               const int32_t sizeBytes, const int32_t docBits) {
+    if (docBits == 1) return int4BitDotProduct(query, doc, sizeBytes);
+    if (docBits == 2) return int4DibitDotProduct(query, doc, sizeBytes);
+    if (docBits == 4) return int4DotProductSinglePacked(query, doc, sizeBytes);
     return 0;
+}
+
+// Kernel-size for the batched dot product loop. Matches Lucene's docPackedLength.
+static FORCE_INLINE int32_t computeKernelSize(int32_t dim, int32_t docBits) {
+    if (docBits == 4) {
+        const int32_t totalBits = ((dim * 4 + 7) / 8) * 8;
+        return (totalBits + 7) / 8;
+    }
+    return (dim + 7) / 8;
+}
+
+// Offset from start of vector to correction factors on disk.
+static FORCE_INLINE int32_t computeDocPackedLength(int32_t kernelSize, int32_t docBits) {
+    return (docBits == 4) ? kernelSize : docBits * kernelSize;
 }
 
 template <bool IsMaxIP>
@@ -533,9 +563,9 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
                                             const int32_t numVectors) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t planeBytes = (dim + 7) / 8;
         const int32_t docBits = srchContext->docBits;
-        const int32_t docPackedLength = docBits * planeBytes;
+        const int32_t kernelSize = computeKernelSize(dim, docBits);
+        const int32_t docPackedLength = computeDocPackedLength(kernelSize, docBits);
         const float docScale = docBitsScale(docBits);
 
         // Read query correction factors from tmpBuffer
@@ -552,21 +582,21 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
         constexpr int32_t vecHalfBlock = 4;
         uint8_t* vectors[vecBlock];
 
-        // AVX-512 wide SIMD path only implemented for B=1 today. For B=2 we fall back
-        // to the scalar dibit kernel (still correct, still uses hardware POPCNT, just
-        // not the 64-byte AVX-512 popcount kernel). A native AVX-512 dibit variant can
-        // land in a follow-up commit.
+        // AVX-512 wide SIMD path only implemented for B=1 today. B=2 and B=4 fall back
+        // to the scalar dispatcher (still correct, still uses hardware POPCNT for B=2 and
+        // compiler auto-vectorization for B=4, just not the 64-byte AVX-512 popcount /
+        // widening-MUL kernels). Native AVX-512 variants can land in follow-up commits.
         const bool useAvx512Batch = (docBits == 1);
 
         // Batch size 8
         for ( ; (processedCount + vecBlock) <= numVectors ; processedCount += vecBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecBlock);
             if (useAvx512Batch) {
-                avx512_4bitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+                avx512_4bitDotProductBatch<vecBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
             } else {
                 for (int32_t i = 0 ; i < vecBlock ; ++i) {
                     scores[processedCount + i] = static_cast<float>(
-                        sqDotProductScalar(queryPtr, vectors[i], planeBytes, docBits));
+                        sqDotProductScalar(queryPtr, vectors[i], kernelSize, docBits));
                 }
             }
 
@@ -596,11 +626,11 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
         for ( ; (processedCount + vecHalfBlock) <= numVectors ; processedCount += vecHalfBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecHalfBlock);
             if (useAvx512Batch) {
-                avx512_4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+                avx512_4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
             } else {
                 for (int32_t i = 0 ; i < vecHalfBlock ; ++i) {
                     scores[processedCount + i] = static_cast<float>(
-                        sqDotProductScalar(queryPtr, vectors[i], planeBytes, docBits));
+                        sqDotProductScalar(queryPtr, vectors[i], kernelSize, docBits));
                 }
             }
 
@@ -631,7 +661,7 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
         for ( ; processedCount < numVectors ; ++processedCount) {
             const auto* dataVec = srchContext->getVectorPointer(internalVectorIds[processedCount]);
             const float qcDist = static_cast<float>(
-                sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
+                sqDotProductScalar(queryPtr, dataVec, kernelSize, docBits));
 
             float ax, lxRaw, additional, x1;
             readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
@@ -660,9 +690,9 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
     float calculateSimilarity(SimdVectorSearchContext* srchContext, const int32_t internalVectorId) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t planeBytes = (dim + 7) / 8;
         const int32_t docBits = srchContext->docBits;
-        const int32_t docPackedLength = docBits * planeBytes;
+        const int32_t kernelSize = computeKernelSize(dim, docBits);
+        const int32_t docPackedLength = computeDocPackedLength(kernelSize, docBits);
         const float docScale = docBitsScale(docBits);
 
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
@@ -675,7 +705,7 @@ struct AVX512SQSimilarityFunction final : SimilarityFunction {
 
         const auto* dataVec = srchContext->getVectorPointer(internalVectorId);
         const float qcDist = static_cast<float>(
-            sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
+            sqDotProductScalar(queryPtr, dataVec, kernelSize, docBits));
 
         float ax, lxRaw, additional, x1;
         readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);

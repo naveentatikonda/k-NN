@@ -110,6 +110,30 @@ public class FaissScalarQuantizedBulkSimdScorerTests extends KNNTestCase {
         }
     }
 
+    @Test
+    public void testSQPackedNibbleCosineScoring() {
+        for (int dim : Arrays.asList(1, 7, 56, 57, 77, 128, 512, 777, 1024)) {
+            System.out.println("Dimension=" + dim);
+            doTest(VectorSimilarityFunction.COSINE, dim, ScalarEncoding.PACKED_NIBBLE);
+        }
+    }
+
+    @Test
+    public void testSQPackedNibbleEuclideanScoring() {
+        for (int dim : Arrays.asList(1, 7, 77, 128, 512, 777, 1024, 10240)) {
+            System.out.println("Dimension=" + dim);
+            doTest(VectorSimilarityFunction.EUCLIDEAN, dim, ScalarEncoding.PACKED_NIBBLE);
+        }
+    }
+
+    @Test
+    public void testSQPackedNibbleMaxInnerProductScoring() {
+        for (int dim : Arrays.asList(1, 7, 77, 128, 512, 777, 1024, 10240)) {
+            System.out.println("Dimension=" + dim);
+            doTest(VectorSimilarityFunction.MAXIMUM_INNER_PRODUCT, dim, ScalarEncoding.PACKED_NIBBLE);
+        }
+    }
+
     @SneakyThrows
     private void doTest(final VectorSimilarityFunction similarityFunction, final int dimension, final ScalarEncoding encoding) {
         final FlatVectorsScorer defaultScorer = FlatVectorScorerUtil.getLucene99FlatVectorsScorer();

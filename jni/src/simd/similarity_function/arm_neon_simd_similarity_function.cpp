@@ -299,6 +299,26 @@ static FORCE_INLINE void simd4bitDotProductBatch(
     }
 }
 
+// Scalar reference — mirrors Lucene's int4DotProductSinglePacked
+// (DefaultVectorUtilSupport.java:170). Used for the batch tail so the SIMD kernel
+// stays bit-identical to Lucene on partial-chunk vectors.
+//
+// `unpacked` holds one 4-bit element per byte (query side, length = discretized_dim).
+// `packed`   holds two 4-bit elements per byte (doc side, length = discretized_dim / 2).
+// The high nibble of packed[i] pairs with unpacked[i]; the low nibble of packed[i]
+// pairs with unpacked[i + packedLen] — the same pairing packNibbles produced.
+static FORCE_INLINE int64_t int4DotProductSinglePacked(const uint8_t* unpacked, const uint8_t* packed, const int32_t packedLen) {
+    int64_t total = 0;
+    for (int32_t i = 0 ; i < packedLen ; ++i) {
+        const uint8_t p = packed[i];
+        const uint8_t u1 = unpacked[i];                // pairs with high nibble
+        const uint8_t u2 = unpacked[i + packedLen];    // pairs with low nibble
+        total += static_cast<int64_t>((p & 0x0Fu)) * u2;
+        total += static_cast<int64_t>((p >> 4) & 0x0Fu) * u1;
+    }
+    return total;
+}
+
 // Scalar reference — mirrors Lucene's int4DibitDotProductImpl
 // (DefaultVectorUtilSupport.java:303). Used for the batch tail so the SIMD kernel
 // stays bit-identical to Lucene on partial-chunk vectors.
@@ -387,6 +407,83 @@ static FORCE_INLINE void simd4bitDibitDotProductBatch(
     }
 }
 
+// NEON SIMD batched int4DotProductSinglePacked (B=4 doc, 4-bit query).
+// Query is one-byte-per-element (values in [0,15]); doc is packed-nibble (2 elts/byte).
+// Per 16 packed bytes we cover 32 elements: 16 from the high-nibble half (elements
+// `i..i+15`) and 16 from the low-nibble half (elements `packedLen+i..packedLen+i+15`).
+// Two widening multiply-add lanes hit both halves in the same iteration.
+// Max per byte-product: 15*15 = 225 (u8-safe pre-widen); u32 accumulator holds well
+// past realistic dims (dim=65535 → ~7.4e6 max, u32 max ≈ 4.3e9).
+template <int BATCH_SIZE>
+static FORCE_INLINE void simd4bitPackedNibbleDotProductBatch(
+    const uint8_t* queryPtr,
+    uint8_t** dataVecs,
+    const int32_t packedLen,
+    float* results) {
+
+    const uint8x16_t lowMask = vdupq_n_u8(0x0F);
+
+    uint32x4_t acc[BATCH_SIZE];
+    for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+        acc[b] = vdupq_n_u32(0);
+    }
+
+    int32_t i = 0;
+    for ( ; i + 16 <= packedLen ; i += 16) {
+        // Query is shared across all batch elements — load once per outer iteration.
+        // u1 pairs with the doc's HIGH nibble, u2 pairs with the LOW nibble.
+        uint8x16_t u1 = vld1q_u8(queryPtr + i);
+        uint8x16_t u2 = vld1q_u8(queryPtr + packedLen + i);
+
+        if (i + 16 < packedLen) {
+            __builtin_prefetch(queryPtr + i + 16);
+            __builtin_prefetch(queryPtr + packedLen + i + 16);
+            for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+                __builtin_prefetch(dataVecs[b] + i + 16);
+            }
+        }
+
+        for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+            uint8x16_t p = vld1q_u8(dataVecs[b] + i);
+            uint8x16_t hi = vshrq_n_u8(p, 4);
+            uint8x16_t lo = vandq_u8(p, lowMask);
+
+            // 8-bit × 8-bit → 16-bit widening multiply, half at a time.
+            // vmull_u8 on the low half of two uint8x16_t gives 8 uint16 products.
+            uint16x8_t hiProd0 = vmull_u8(vget_low_u8(hi), vget_low_u8(u1));
+            uint16x8_t hiProd1 = vmull_u8(vget_high_u8(hi), vget_high_u8(u1));
+            uint16x8_t loProd0 = vmull_u8(vget_low_u8(lo), vget_low_u8(u2));
+            uint16x8_t loProd1 = vmull_u8(vget_high_u8(lo), vget_high_u8(u2));
+
+            // Pairwise-add-and-accumulate u16 → u32 into the running acc.
+            acc[b] = vpadalq_u16(acc[b], hiProd0);
+            acc[b] = vpadalq_u16(acc[b], hiProd1);
+            acc[b] = vpadalq_u16(acc[b], loProd0);
+            acc[b] = vpadalq_u16(acc[b], loProd1);
+        }
+    }
+
+    for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+        results[b] = static_cast<float>(vaddvq_u32(acc[b]));
+    }
+
+    // Scalar tail — same pairing as the SIMD body so we stay bit-identical to Lucene
+    // (int4DotProductSinglePacked).
+    if (i < packedLen) {
+        for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
+            int64_t sum = 0;
+            for (int32_t r = i ; r < packedLen ; ++r) {
+                const uint8_t p  = dataVecs[b][r];
+                const uint8_t u1 = queryPtr[r];
+                const uint8_t u2 = queryPtr[packedLen + r];
+                sum += static_cast<int64_t>((p >> 4) & 0x0Fu) * u1;
+                sum += static_cast<int64_t>(p & 0x0Fu) * u2;
+            }
+            results[b] += static_cast<float>(sum);
+        }
+    }
+}
+
 // Doc-side reconstruction scale: 1 / (2^docBits - 1). Scales `lx = upper - lower`
 // so the delta matches the doc's quantization level range.
 static FORCE_INLINE float docBitsScale(int32_t docBits) {
@@ -396,13 +493,32 @@ static FORCE_INLINE float docBitsScale(int32_t docBits) {
     return 1.0f;
 }
 
+// Dispatches to the width-specific scalar dot product. For bit-plane layouts (B=1, B=2)
+// `sizeBytes` is planeBytes = (dim + 7) / 8. For B=4 it is packedLen = discretized_dim / 2.
 static FORCE_INLINE int64_t sqDotProductScalar(const uint8_t* query, const uint8_t* doc,
-                                               const int32_t planeBytes, const int32_t docBits) {
-    if (docBits == 1) return int4BitDotProduct(query, doc, planeBytes);
-    if (docBits == 2) return int4DibitDotProduct(query, doc, planeBytes);
-    // B=4 (PACKED_NIBBLE) is routed to Lucene's Java scorer today; a byte-wise
-    // multiply kernel will replace this in a follow-up commit.
+                                               const int32_t sizeBytes, const int32_t docBits) {
+    if (docBits == 1) return int4BitDotProduct(query, doc, sizeBytes);
+    if (docBits == 2) return int4DibitDotProduct(query, doc, sizeBytes);
+    if (docBits == 4) return int4DotProductSinglePacked(query, doc, sizeBytes);
     return 0;
+}
+
+// Kernel-size for the batched dot product loop. For bit-plane layouts (B=1, B=2) this
+// is planeBytes (each of B planes has this many bytes). For packed-nibble (B=4) it is
+// packedLen = discretized_dim / 2 (2 elements per byte).
+static FORCE_INLINE int32_t computeKernelSize(int32_t dim, int32_t docBits) {
+    if (docBits == 4) {
+        // Match Lucene's PACKED_NIBBLE getDocPackedLength; see saveSearchContext body.
+        const int32_t totalBits = ((dim * 4 + 7) / 8) * 8;
+        return (totalBits + 7) / 8;
+    }
+    return (dim + 7) / 8; // planeBytes for B=1, B=2
+}
+
+// Where the correction factors start on-disk (offset from start of vector). For
+// bit-plane layouts this is docBits * planeBytes; for packed-nibble it is packedLen.
+static FORCE_INLINE int32_t computeDocPackedLength(int32_t kernelSize, int32_t docBits) {
+    return (docBits == 4) ? kernelSize : docBits * kernelSize;
 }
 
 template <bool IsMaxIP>
@@ -413,10 +529,13 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
                                             const int32_t numVectors) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t planeBytes = (dim + 7) / 8;
         const int32_t docBits = srchContext->docBits;
-        // Correction factors sit immediately after the last doc plane on disk.
-        const int32_t docPackedLength = docBits * planeBytes;
+        // kernelSize is what the batch kernel loops over (planeBytes for B=1/B=2,
+        // packedLen for B=4). docPackedLength is the on-disk offset to correction
+        // factors. They differ only for bit-plane B=2, where docPackedLength = 2 *
+        // kernelSize.
+        const int32_t kernelSize = computeKernelSize(dim, docBits);
+        const int32_t docPackedLength = computeDocPackedLength(kernelSize, docBits);
         const float docScale = docBitsScale(docBits);
 
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
@@ -434,10 +553,12 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
 
         for ( ; (processedCount + vecBlock) <= numVectors ; processedCount += vecBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecBlock);
-            if (docBits == 2) {
-                simd4bitDibitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            if (docBits == 4) {
+                simd4bitPackedNibbleDotProductBatch<vecBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
+            } else if (docBits == 2) {
+                simd4bitDibitDotProductBatch<vecBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
             } else {
-                simd4bitDotProductBatch<vecBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+                simd4bitDotProductBatch<vecBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
             }
 
             for (int32_t i = 0 ; i < vecBlock ; ++i) {
@@ -464,10 +585,12 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
         // Batch size 4
         for ( ; (processedCount + vecHalfBlock) <= numVectors ; processedCount += vecHalfBlock) {
             srchContext->getVectorPointersInBulk(vectors, &internalVectorIds[processedCount], vecHalfBlock);
-            if (docBits == 2) {
-                simd4bitDibitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+            if (docBits == 4) {
+                simd4bitPackedNibbleDotProductBatch<vecHalfBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
+            } else if (docBits == 2) {
+                simd4bitDibitDotProductBatch<vecHalfBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
             } else {
-                simd4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, planeBytes, &scores[processedCount]);
+                simd4bitDotProductBatch<vecHalfBlock>(queryPtr, vectors, kernelSize, &scores[processedCount]);
             }
 
             for (int32_t i = 0 ; i < vecHalfBlock ; ++i) {
@@ -496,7 +619,7 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
         for ( ; processedCount < numVectors ; ++processedCount) {
             const auto* dataVec = srchContext->getVectorPointer(internalVectorIds[processedCount]);
             const float qcDist = static_cast<float>(
-                sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
+                sqDotProductScalar(queryPtr, dataVec, kernelSize, docBits));
 
             float ax, lxRaw, additional, x1;
             readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);
@@ -525,9 +648,9 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
     float calculateSimilarity(SimdVectorSearchContext* srchContext, const int32_t internalVectorId) {
         const auto* queryPtr = reinterpret_cast<const uint8_t*>(srchContext->queryVectorSimdAligned);
         const int32_t dim = srchContext->dimension;
-        const int32_t planeBytes = (dim + 7) / 8;
         const int32_t docBits = srchContext->docBits;
-        const int32_t docPackedLength = docBits * planeBytes;
+        const int32_t kernelSize = computeKernelSize(dim, docBits);
+        const int32_t docPackedLength = computeDocPackedLength(kernelSize, docBits);
         const float docScale = docBitsScale(docBits);
 
         const auto* queryCorrectionPtr = reinterpret_cast<const float*>(srchContext->tmpBuffer.data());
@@ -540,7 +663,7 @@ struct ArmNeonSQSimilarityFunction final : SimilarityFunction {
 
         const auto* dataVec = srchContext->getVectorPointer(internalVectorId);
         const float qcDist = static_cast<float>(
-            sqDotProductScalar(queryPtr, dataVec, planeBytes, docBits));
+            sqDotProductScalar(queryPtr, dataVec, kernelSize, docBits));
 
         float ax, lxRaw, additional, x1;
         readDataCorrections(dataVec + docPackedLength, ax, lxRaw, additional, x1);

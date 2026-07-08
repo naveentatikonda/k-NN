@@ -24,6 +24,7 @@ import org.opensearch.knn.memoryoptsearch.faiss.WrappedFloatVectorValues;
 import java.io.IOException;
 
 import static org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding.DIBIT_QUERY_NIBBLE;
+import static org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding.PACKED_NIBBLE;
 import static org.apache.lucene.codecs.lucene104.Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding.SINGLE_BIT_QUERY_NIBBLE;
 
 /**
@@ -106,12 +107,12 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantized
         final QuantizedByteVectorValues quantizedByteVectorValues,
         final float[] target
     ) throws IOException {
-        // Native bulk-SIMD scoring is now implemented for 1-bit and 2-bit documents. B=4
-        // (PACKED_NIBBLE) still falls through to Lucene's reference scorer until a byte-wise
-        // packed-nibble kernel lands.
+        // Native bulk-SIMD scoring covers B=1 (SINGLE_BIT_QUERY_NIBBLE), B=2 (DIBIT_QUERY_NIBBLE),
+        // and B=4 (PACKED_NIBBLE). Anything else (e.g. UNSIGNED_BYTE, SEVEN_BIT) falls through
+        // to Lucene's reference scorer.
         final Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding scalarEncoding = quantizedByteVectorValues.getScalarEncoding();
         final int docBits = ScalarEncodingResolver.docBits(scalarEncoding);
-        if (docBits != 1 && docBits != 2) {
+        if (docBits != 1 && docBits != 2 && docBits != 4) {
             return (RandomVectorScorer.AbstractRandomVectorScorer) super.getRandomVectorScorer(
                 similarityFunction,
                 quantizedByteVectorValues,
@@ -164,15 +165,16 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantized
         // Check encoding type
         final Lucene104ScalarQuantizedVectorsFormat.ScalarEncoding scalarEncoding = quantizedByteVectorValues.getScalarEncoding();
 
-        // The native bulk-SIMD path currently supports 1-bit and 2-bit docs. Anything else is
+        // The native bulk-SIMD path supports 1-bit, 2-bit, and 4-bit docs. Anything else is
         // dispatched to the parent reference scorer in getRandomVectorScorer above and never
         // reaches here; this guard is defense-in-depth.
-        if (scalarEncoding != SINGLE_BIT_QUERY_NIBBLE && scalarEncoding != DIBIT_QUERY_NIBBLE) {
+        if (scalarEncoding != SINGLE_BIT_QUERY_NIBBLE && scalarEncoding != DIBIT_QUERY_NIBBLE && scalarEncoding != PACKED_NIBBLE) {
             throw new IllegalStateException(
                 String.format(
-                    "Bulk SIMD SQ scorer only supports %s or %s; saw %s",
+                    "Bulk SIMD SQ scorer only supports %s, %s, or %s; saw %s",
                     SINGLE_BIT_QUERY_NIBBLE,
                     DIBIT_QUERY_NIBBLE,
+                    PACKED_NIBBLE,
                     scalarEncoding
                 )
             );
@@ -181,11 +183,20 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantized
         // Validate dimensionality
         FlatVectorsScorer.checkDimensions(target.length, quantizedByteVectorValues.dimension());
 
-        // Query is always 4-bit for these encodings (both are asymmetric). transposeHalfByte
-        // produces 4 bit planes suitable for popcount-AND against the doc's docBits planes.
+        // Query layout:
+        // - Asymmetric (B=1, B=2): quantize into `scratch` at 4 bits/dim, then transposeHalfByte
+        // packs the 4 bit planes into `targetQuantized` of length getQueryPackedLength.
+        // - Symmetric (B=4): quantize into `scratch` at 4 bits/dim; the native kernel expects
+        // one byte per element, so `targetQuantized == scratch` with no transpose.
+        // Mirrors Lucene104ScalarQuantizedVectorScorer's getRandomVectorScorer.
         final OptimizedScalarQuantizer quantizer = quantizedByteVectorValues.getQuantizer();
         final byte[] scratch = new byte[scalarEncoding.getDiscreteDimensions(quantizedByteVectorValues.dimension())];
-        final byte[] targetQuantized = new byte[scalarEncoding.getQueryPackedLength(scratch.length)];
+        final byte[] targetQuantized;
+        if (scalarEncoding.isAsymmetric()) {
+            targetQuantized = new byte[scalarEncoding.getQueryPackedLength(scratch.length)];
+        } else {
+            targetQuantized = scratch;
+        }
 
         // We make a copy as the quantization process mutates the input
         final float[] targetCopy = ArrayUtil.copyOfSubArray(target, 0, target.length);
@@ -202,8 +213,10 @@ public class KNN1040ScalarQuantizedVectorScorer extends Lucene104ScalarQuantized
             quantizedByteVectorValues.getCentroid()
         );
 
-        // Transpose half-bytes (nibbles) for SIMD-friendly layout
-        OptimizedScalarQuantizer.transposeHalfByte(scratch, targetQuantized);
+        // For asymmetric encodings only: transpose 4-bit query into 4 contiguous bit planes.
+        if (scalarEncoding.isAsymmetric()) {
+            OptimizedScalarQuantizer.transposeHalfByte(scratch, targetQuantized);
+        }
 
         // Return Bulk SIMD scorer
         return new BulkSimdRandomVectorScorer(
