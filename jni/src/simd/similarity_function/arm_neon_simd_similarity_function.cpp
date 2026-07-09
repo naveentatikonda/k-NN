@@ -332,6 +332,16 @@ static FORCE_INLINE int64_t int4DibitDotProduct(const uint8_t* q, const uint8_t*
 // Two doc planes are accumulated into separate u32 accumulators and combined as
 // dp = sum0 + (sum1 << 1) at horizontal-sum time. Merging them per byte instead
 // would overflow uint8_t: max = 120 + 2*120 = 360.
+//
+// Prefetch strategy: the inner loop touches 2 * BATCH_SIZE independent doc streams
+// (plane0 and plane1 per batch element). With BATCH_SIZE=8 that's 16 concurrent
+// streams — well beyond Graviton3's HW prefetcher capacity (~8 streams), so SW
+// prefetches are needed for cold-cache HNSW traversals. But firing 2 * BATCH_SIZE
+// prefetches every 16 bytes floods the LSU queue and the prefetch distance is too
+// short for the fetch to complete before the load. Instead we prefetch once per
+// 64-byte cache line (every 4 iterations), aimed PREFETCH_DIST bytes ahead. This
+// cuts prefetch count 4x and lets fetches actually complete before use. Query
+// planes are sequential and covered by the HW prefetcher, so no SW prefetch there.
 template <int BATCH_SIZE>
 static FORCE_INLINE void simd4bitDibitDotProductBatch(
     const uint8_t* queryPtr,
@@ -351,6 +361,10 @@ static FORCE_INLINE void simd4bitDibitDotProductBatch(
         accPlane1[b] = vdupq_n_u32(0);
     }
 
+    // 2 cache lines ahead — enough time for the fetch to arrive from L2/L3
+    // before the corresponding load fires.
+    constexpr int32_t PREFETCH_DIST = 128;
+
     int32_t i = 0;
     for ( ; i + 16 <= planeBytes ; i += 16) {
         // Query planes are loaded once and reused across every batch element.
@@ -359,11 +373,13 @@ static FORCE_INLINE void simd4bitDibitDotProductBatch(
         uint8x16_t q2 = vld1q_u8(qplane2 + i);
         uint8x16_t q3 = vld1q_u8(qplane3 + i);
 
-        if (i + 16 < planeBytes) {
-            __builtin_prefetch(qplane0 + i + 16);
+        // Fire prefetches once per cache-line boundary (every 4 iterations).
+        // For small planeBytes (< PREFETCH_DIST) prefetches never fire, which is
+        // fine — the data fits in L1 easily.
+        if ((i & 63) == 0 && (i + PREFETCH_DIST) < planeBytes) {
             for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
-                __builtin_prefetch(dataVecs[b] + i + 16);
-                __builtin_prefetch(dataVecs[b] + planeBytes + i + 16);
+                __builtin_prefetch(dataVecs[b] + i + PREFETCH_DIST);
+                __builtin_prefetch(dataVecs[b] + planeBytes + i + PREFETCH_DIST);
             }
         }
 
