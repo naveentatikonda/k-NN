@@ -430,6 +430,12 @@ static FORCE_INLINE void simd4bitDibitDotProductBatch(
 // Two widening multiply-add lanes hit both halves in the same iteration.
 // Max per byte-product: 15*15 = 225 (u8-safe pre-widen); u32 accumulator holds well
 // past realistic dims (dim=65535 → ~7.4e6 max, u32 max ≈ 4.3e9).
+//
+// Prefetch strategy: mirrors the fix applied to simd4bitDibitDotProductBatch. Firing
+// 2 + BATCH_SIZE prefetches every 16 bytes at 16-byte lookahead was flooding the LSU
+// queue on Graviton (r7gd) and driving p99 tail regression. Instead prefetch once
+// per 64-byte cache-line boundary, aimed PREFETCH_DIST bytes ahead. Query prefetches
+// are dropped — the two query streams (u1, u2) are sequential and HW-prefetcher-friendly.
 template <int BATCH_SIZE>
 static FORCE_INLINE void simd4bitPackedNibbleDotProductBatch(
     const uint8_t* queryPtr,
@@ -444,6 +450,10 @@ static FORCE_INLINE void simd4bitPackedNibbleDotProductBatch(
         acc[b] = vdupq_n_u32(0);
     }
 
+    // 2 cache lines ahead — enough time for the fetch to arrive from L2/L3
+    // before the corresponding load fires.
+    constexpr int32_t PREFETCH_DIST = 128;
+
     int32_t i = 0;
     for ( ; i + 16 <= packedLen ; i += 16) {
         // Query is shared across all batch elements — load once per outer iteration.
@@ -451,11 +461,12 @@ static FORCE_INLINE void simd4bitPackedNibbleDotProductBatch(
         uint8x16_t u1 = vld1q_u8(queryPtr + i);
         uint8x16_t u2 = vld1q_u8(queryPtr + packedLen + i);
 
-        if (i + 16 < packedLen) {
-            __builtin_prefetch(queryPtr + i + 16);
-            __builtin_prefetch(queryPtr + packedLen + i + 16);
+        // Fire prefetches once per cache-line boundary (every 4 iterations).
+        // For small packedLen (< PREFETCH_DIST) prefetches never fire, which is
+        // fine — the data fits in L1 easily.
+        if ((i & 63) == 0 && (i + PREFETCH_DIST) < packedLen) {
             for (int32_t b = 0 ; b < BATCH_SIZE ; ++b) {
-                __builtin_prefetch(dataVecs[b] + i + 16);
+                __builtin_prefetch(dataVecs[b] + i + PREFETCH_DIST);
             }
         }
 
