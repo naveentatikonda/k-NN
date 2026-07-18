@@ -204,8 +204,8 @@ public class CompressionLevelTests extends KNNTestCase {
         assertFalse(rescoreContext.isAllowOverrideOversampleFactor());
     }
 
-    public void testGetDefaultRescoreContext_whenNonSQOneBitEncoder_thenFallsBackToNormalLogic() {
-        // Non-sq(bits=1) encoder should fall through to normal compression level logic
+    public void testGetDefaultRescoreContext_whenNonSQMultiBitEncoder_thenFallsBackToNormalLogic() {
+        // Non-multi-bit-SQ encoder should fall through to normal compression level logic
         RescoreContext rescoreContext = CompressionLevel.x8.getDefaultRescoreContext(Mode.ON_DISK, 500, Version.CURRENT, false, false);
         assertNotNull(rescoreContext);
         // x8 with dimension <= 1000 should use 5.0f oversample (normal logic)
@@ -215,6 +215,39 @@ public class CompressionLevelTests extends KNNTestCase {
         rescoreContext = CompressionLevel.x8.getDefaultRescoreContext(Mode.ON_DISK, 500, Version.CURRENT, false, false);
         assertNotNull(rescoreContext);
         assertEquals(RescoreContext.OVERSAMPLE_FACTOR_BELOW_DIMENSION_THRESHOLD, rescoreContext.getOversampleFactor(), 0.0f);
+    }
+
+    public void testGetDefaultRescoreContext_whenSQMultiBitAtX16_thenOversampleOne() {
+        // sq(bits=2) at x16 should return oversample=1 (2-bit codes recover most recall on their own).
+        // User override remains allowed (allowOverrideOversampleFactor defaults to true).
+        for (int dimension : new int[] { 500, 1500 }) {
+            for (Mode mode : new Mode[] { Mode.NOT_CONFIGURED, Mode.ON_DISK }) {
+                RescoreContext rescoreContext = CompressionLevel.x16.getDefaultRescoreContext(
+                    mode,
+                    dimension,
+                    Version.CURRENT,
+                    false,
+                    true
+                );
+                assertNotNull("mode=" + mode + " dim=" + dimension, rescoreContext);
+                assertEquals("mode=" + mode + " dim=" + dimension, 1.0f, rescoreContext.getOversampleFactor(), 0.0f);
+                assertFalse("mode=" + mode + " dim=" + dimension, rescoreContext.isUserProvided());
+                assertTrue("mode=" + mode + " dim=" + dimension, rescoreContext.isAllowOverrideOversampleFactor());
+            }
+        }
+    }
+
+    public void testGetDefaultRescoreContext_whenSQMultiBitAtX8_thenOversampleOne() {
+        // sq(bits=4) at x8 should return oversample=1 (4-bit codes are near-lossless).
+        for (int dimension : new int[] { 500, 1500 }) {
+            for (Mode mode : new Mode[] { Mode.NOT_CONFIGURED, Mode.ON_DISK }) {
+                RescoreContext rescoreContext = CompressionLevel.x8.getDefaultRescoreContext(mode, dimension, Version.CURRENT, false, true);
+                assertNotNull("mode=" + mode + " dim=" + dimension, rescoreContext);
+                assertEquals("mode=" + mode + " dim=" + dimension, 1.0f, rescoreContext.getOversampleFactor(), 0.0f);
+                assertFalse("mode=" + mode + " dim=" + dimension, rescoreContext.isUserProvided());
+                assertTrue("mode=" + mode + " dim=" + dimension, rescoreContext.isAllowOverrideOversampleFactor());
+            }
+        }
     }
 
     public void testX32MapsToOneBitQuantization() {

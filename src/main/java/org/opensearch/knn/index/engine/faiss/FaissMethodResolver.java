@@ -124,15 +124,27 @@ public class FaissMethodResolver extends AbstractMethodResolver {
         }
 
         if (CompressionLevel.x8 == resolvedCompressionLevel) {
-            encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
-            encoder = encoderMap.get(QFrameBitEncoder.NAME);
-            encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x8.numBitsForFloat32());
+            if (shouldUseSQFourBitForX8(knnMethodConfigContext, encoderMap)) {
+                encoderComponentContext = new MethodComponentContext(ENCODER_SQ, new HashMap<>());
+                encoder = encoderMap.get(ENCODER_SQ);
+                encoderComponentContext.getParameters().put(SQ_BITS, FaissSQEncoder.Bits.FOUR.getValue());
+            } else {
+                encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
+                encoder = encoderMap.get(QFrameBitEncoder.NAME);
+                encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x8.numBitsForFloat32());
+            }
         }
 
         if (CompressionLevel.x16 == resolvedCompressionLevel) {
-            encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
-            encoder = encoderMap.get(QFrameBitEncoder.NAME);
-            encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x16.numBitsForFloat32());
+            if (shouldUseSQTwoBitForX16(knnMethodConfigContext, encoderMap)) {
+                encoderComponentContext = new MethodComponentContext(ENCODER_SQ, new HashMap<>());
+                encoder = encoderMap.get(ENCODER_SQ);
+                encoderComponentContext.getParameters().put(SQ_BITS, FaissSQEncoder.Bits.TWO.getValue());
+            } else {
+                encoderComponentContext = new MethodComponentContext(QFrameBitEncoder.NAME, new HashMap<>());
+                encoder = encoderMap.get(QFrameBitEncoder.NAME);
+                encoderComponentContext.getParameters().put(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x16.numBitsForFloat32());
+            }
         }
 
         if (CompressionLevel.x32 == resolvedCompressionLevel) {
@@ -154,10 +166,10 @@ public class FaissMethodResolver extends AbstractMethodResolver {
         );
         encoderComponentContext.getParameters().putAll(resolvedParams);
 
-        // When auto-resolved to bits=1, remove the type and clip defaults that were injected —
-        // the 1-bit quantization path doesn't use them, and validateEncoderConfig would reject them.
-        if (encoderComponentContext.getParameters().get(SQ_BITS) instanceof Integer bitsVal
-            && bitsVal == FaissSQEncoder.Bits.ONE.getValue()) {
+        // When auto-resolved to a multi-bit MOS path (bits ∈ {1, 2, 4}), remove the type and clip
+        // defaults that may have been injected — those parameters are only valid for fp16 (bits=16),
+        // and validateEncoderConfig would reject them.
+        if (encoderComponentContext.getParameters().get(SQ_BITS) instanceof Integer bitsVal && FaissSQEncoder.isMosBits(bitsVal)) {
             encoderComponentContext.getParameters().remove(FAISS_SQ_TYPE);
             encoderComponentContext.getParameters().remove(FAISS_SQ_CLIP);
         }
@@ -220,15 +232,47 @@ public class FaissMethodResolver extends AbstractMethodResolver {
      * 1-bit quantization delegates to Lucene's flat format rather than the k-NN quantization
      * framework, which gives better recall. The encoderMap guard is needed because IVF doesn't
      * register the sq encoder — only HNSW does.
-     *
-     * Currently disabled — the SQ writer pipeline is not yet fully stable for auto-resolved
-     * indices. Users can still explicitly specify sq(bits=1) to opt in. This will be enabled
-     * as the default in Part 2.
-     * TODO: Enable once the Faiss1040ScalarQuantizedKnnVectorsWriter pipeline is validated end-to-end.
      */
     private static boolean shouldUseSQOneBitForX32(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
+        return isSQMosAvailable(knnMethodConfigContext, encoderMap, Version.V_3_6_0);
+    }
+
+    /**
+     * Starting 3.8.0, x16 compression can use sq(bits=2) instead of QFrameBitEncoder (binary, 2-bit).
+     * Same trade-off as {@link #shouldUseSQOneBitForX32}: 2-bit SQ delegates HNSW construction to
+     * Faiss over Lucene-stored scalar codes (DIBIT_QUERY_NIBBLE), which gives better recall than
+     * the 2-bit binary quantization path. Gated at a later version than the x32 flip so indices
+     * created on 3.6.0 or 3.7.0 continue to resolve to BQ.
+     */
+    private static boolean shouldUseSQTwoBitForX16(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
+        return isSQMosAvailable(knnMethodConfigContext, encoderMap, Version.V_3_8_0);
+    }
+
+    /**
+     * Starting 3.8.0, x8 compression can use sq(bits=4) instead of QFrameBitEncoder (binary, 4-bit).
+     * Same trade-off as {@link #shouldUseSQOneBitForX32}: 4-bit SQ delegates HNSW construction to
+     * Faiss over Lucene-stored scalar codes (PACKED_NIBBLE), which gives better recall than the
+     * 4-bit binary quantization path. Gated at a later version than the x32 flip so indices
+     * created on 3.6.0 or 3.7.0 continue to resolve to BQ.
+     */
+    private static boolean shouldUseSQFourBitForX8(KNNMethodConfigContext knnMethodConfigContext, Map<String, Encoder> encoderMap) {
+        return isSQMosAvailable(knnMethodConfigContext, encoderMap, Version.V_3_8_0);
+    }
+
+    /**
+     * Version + encoder-map guard for the SQ memory-optimized-search auto-routing. Returns true
+     * when the index was created on {@code minVersion} or later AND the sq encoder is registered
+     * in the map (HNSW registers it; IVF doesn't, so IVF stays on the QFrameBitEncoder path).
+     * The minVersion differs per compression level so default flips can be staged across releases
+     * without changing existing indices' resolution.
+     */
+    private static boolean isSQMosAvailable(
+        KNNMethodConfigContext knnMethodConfigContext,
+        Map<String, Encoder> encoderMap,
+        Version minVersion
+    ) {
         return knnMethodConfigContext.getVersionCreated() != null
-            && knnMethodConfigContext.getVersionCreated().onOrAfter(Version.V_3_6_0)
+            && knnMethodConfigContext.getVersionCreated().onOrAfter(minVersion)
             && encoderMap.containsKey(ENCODER_SQ);
     }
 }

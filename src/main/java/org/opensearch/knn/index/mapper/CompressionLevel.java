@@ -39,7 +39,6 @@ public enum CompressionLevel {
      * Default is set to 1x and is a noop
      */
     private static final CompressionLevel DEFAULT = x1;
-    private static final float FLAT_OVERSAMPLE_FACTOR = 2.0f;
 
     /**
      * Get the compression level from a string representation. The format for the string should be "Nx", where N is
@@ -63,7 +62,9 @@ public enum CompressionLevel {
     private final int compressionLevel;
     @Getter
     private final String name;
+    @Getter
     private final RescoreContext defaultRescoreContext;
+    @Getter
     private final Set<Mode> modesForRescore;
 
     /**
@@ -121,8 +122,8 @@ public enum CompressionLevel {
         return getDefaultRescoreContext(mode, dimension, version, isFlatMethod, false, engine);
     }
 
-    public RescoreContext getDefaultRescoreContext(Mode mode, int dimension, Version version, boolean isFlatMethod, boolean isSQOneBit) {
-        return getDefaultRescoreContext(mode, dimension, version, isFlatMethod, isSQOneBit, null);
+    public RescoreContext getDefaultRescoreContext(Mode mode, int dimension, Version version, boolean isFlatMethod, boolean isSQMultiBit) {
+        return getDefaultRescoreContext(mode, dimension, version, isFlatMethod, isSQMultiBit, null);
     }
 
     @VisibleForTesting
@@ -130,52 +131,30 @@ public enum CompressionLevel {
         return getDefaultRescoreContext(mode, dimension, Version.CURRENT, false, false, null);
     }
 
+    /**
+     * Delegates to {@link RescoreContextResolver#resolve(RescoreContextResolver.Request)}. The rules
+     * that decide which {@link RescoreContext} to return live in the resolver — see its class Javadoc
+     * for priority order and how to add a new rule.
+     */
     public RescoreContext getDefaultRescoreContext(
         Mode mode,
         int dimension,
         Version version,
         boolean isFlatMethod,
-        boolean isSQOneBit,
+        boolean isSQMultiBit,
         KNNEngine engine
     ) {
-        // For sq(bits=1) encoder, use fixed oversample factor.
-        if (isSQOneBit) {
-            return RescoreContext.builder()
-                .oversampleFactor(RescoreContext.FAISS_SCALAR_QUANTIZED_INDEX_OVERSAMPLE_FACTOR)
-                .allowOverrideOversampleFactor(false)
-                .userProvided(false)
-                .build();
-        }
-        // TODO move this to separate class called resolver to resolve rescore context
-        if (this == x32 && isFlatMethod) {
-            return RescoreContext.builder().oversampleFactor(FLAT_OVERSAMPLE_FACTOR).userProvided(false).build();
-        }
-        if (modesForRescore.contains(mode)) {
-            // Special handling for Lucene Scalar Quantizer (x32 compression)
-            // Engine check is temporary until binary scalar quantizer is finalized for FAISS as well
-            if (this == x32 && engine == KNNEngine.LUCENE && version.onOrAfter(Version.V_3_6_0)) {
-                return RescoreContext.builder()
-                    .oversampleFactor(RescoreContext.OVERSAMPLE_FACTOR_DEFAULT_FOR_LUCENE_SCALAR_QUANTIZER_AFTER_V360)
-                    .userProvided(false)
-                    .build();
-            }
-
-            if (this == x4 && version.before(Version.V_3_1_0)) {
-                // For index created before 3.1, context was always null and mode is empty
-                return null;
-            }
-
-            // Adjust RescoreContext based on dimension except for 4x compression
-            if (this != x4 && dimension <= RescoreContext.DIMENSION_THRESHOLD) {
-                // For dimensions <= 1000, return a RescoreContext with 5.0f oversample factor
-                return RescoreContext.builder()
-                    .oversampleFactor(RescoreContext.OVERSAMPLE_FACTOR_BELOW_DIMENSION_THRESHOLD)
-                    .userProvided(false)
-                    .build();
-            }
-            return defaultRescoreContext;
-        }
-        return null;
+        return RescoreContextResolver.resolve(
+            RescoreContextResolver.Request.builder()
+                .compression(this)
+                .mode(mode)
+                .dimension(dimension)
+                .version(version)
+                .isFlatMethod(isFlatMethod)
+                .isSQMultiBit(isSQMultiBit)
+                .engine(engine)
+                .build()
+        );
     }
 
 }

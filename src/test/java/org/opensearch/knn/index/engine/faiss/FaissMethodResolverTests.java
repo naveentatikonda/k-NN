@@ -52,6 +52,7 @@ public class FaissMethodResolverTests extends KNNTestCase {
         );
         validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x32, SpaceType.INNER_PRODUCT, ENCODER_SQ, true);
 
+        // On 3.6.0+, x16 with no explicit encoder auto-resolves to sq(bits=2) instead of BQ.
         resolvedMethodContext = TEST_RESOLVER.resolveMethod(
             null,
             KNNMethodConfigContext.builder()
@@ -63,7 +64,7 @@ public class FaissMethodResolverTests extends KNNTestCase {
             false,
             SpaceType.INNER_PRODUCT
         );
-        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.INNER_PRODUCT, QFrameBitEncoder.NAME, true);
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.INNER_PRODUCT, ENCODER_SQ, true);
 
         resolvedMethodContext = TEST_RESOLVER.resolveMethod(
             null,
@@ -75,7 +76,7 @@ public class FaissMethodResolverTests extends KNNTestCase {
             false,
             SpaceType.INNER_PRODUCT
         );
-        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.INNER_PRODUCT, QFrameBitEncoder.NAME, true);
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.INNER_PRODUCT, ENCODER_SQ, true);
 
         resolvedMethodContext = TEST_RESOLVER.resolveMethod(
             new KNNMethodContext(
@@ -506,5 +507,186 @@ public class FaissMethodResolverTests extends KNNTestCase {
                 resolvedMethodContext.getCompressionLevel()
             );
         }
+    }
+
+    // --- Multi-bit SQ auto-routing: x16 → sq(bits=2), x8 → sq(bits=4) on 3.6.0+ ---
+
+    public void testResolveMethod_whenExplicitCompression16x_thenResolvesToSQTwoBit() {
+        ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+            null,
+            KNNMethodConfigContext.builder()
+                .vectorDataType(VectorDataType.FLOAT)
+                .compressionLevel(CompressionLevel.x16)
+                .versionCreated(Version.CURRENT)
+                .build(),
+            false,
+            SpaceType.L2
+        );
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.L2, ENCODER_SQ, true);
+        MethodComponentContext encoderCtx = (MethodComponentContext) resolvedMethodContext.getKnnMethodContext()
+            .getMethodComponentContext()
+            .getParameters()
+            .get(METHOD_ENCODER_PARAMETER);
+        assertEquals(ENCODER_SQ, encoderCtx.getName());
+        assertEquals(2, encoderCtx.getParameters().get("bits"));
+        assertFalse(encoderCtx.getParameters().containsKey("type"));
+        assertFalse(encoderCtx.getParameters().containsKey("clip"));
+    }
+
+    public void testResolveMethod_whenExplicitCompression8x_thenResolvesToSQFourBit() {
+        ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+            null,
+            KNNMethodConfigContext.builder()
+                .vectorDataType(VectorDataType.FLOAT)
+                .compressionLevel(CompressionLevel.x8)
+                .versionCreated(Version.CURRENT)
+                .build(),
+            false,
+            SpaceType.L2
+        );
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x8, SpaceType.L2, ENCODER_SQ, true);
+        MethodComponentContext encoderCtx = (MethodComponentContext) resolvedMethodContext.getKnnMethodContext()
+            .getMethodComponentContext()
+            .getParameters()
+            .get(METHOD_ENCODER_PARAMETER);
+        assertEquals(ENCODER_SQ, encoderCtx.getName());
+        assertEquals(4, encoderCtx.getParameters().get("bits"));
+        assertFalse(encoderCtx.getParameters().containsKey("type"));
+        assertFalse(encoderCtx.getParameters().containsKey("clip"));
+    }
+
+    public void testResolveMethod_whenOnDiskCompression16x_thenResolvesToSQTwoBit() {
+        ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+            null,
+            KNNMethodConfigContext.builder()
+                .vectorDataType(VectorDataType.FLOAT)
+                .mode(Mode.ON_DISK)
+                .compressionLevel(CompressionLevel.x16)
+                .versionCreated(Version.CURRENT)
+                .build(),
+            false,
+            SpaceType.INNER_PRODUCT
+        );
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.INNER_PRODUCT, ENCODER_SQ, true);
+    }
+
+    public void testResolveMethod_whenOnDiskCompression8x_thenResolvesToSQFourBit() {
+        ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+            null,
+            KNNMethodConfigContext.builder()
+                .vectorDataType(VectorDataType.FLOAT)
+                .mode(Mode.ON_DISK)
+                .compressionLevel(CompressionLevel.x8)
+                .versionCreated(Version.CURRENT)
+                .build(),
+            false,
+            SpaceType.INNER_PRODUCT
+        );
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x8, SpaceType.INNER_PRODUCT, ENCODER_SQ, true);
+    }
+
+    public void testResolveMethod_whenPreV380Compression16x_thenResolvesToBQ() {
+        // Indices created before the x16 default flip (V_3_8_0) must continue to resolve to
+        // QFrameBitEncoder (BQ) so that reopened segments are read with the correct scorer.
+        for (Version version : new Version[] { Version.V_3_5_0, Version.V_3_6_0, Version.V_3_7_0 }) {
+            ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+                null,
+                KNNMethodConfigContext.builder()
+                    .vectorDataType(VectorDataType.FLOAT)
+                    .compressionLevel(CompressionLevel.x16)
+                    .versionCreated(version)
+                    .build(),
+                false,
+                SpaceType.L2
+            );
+            validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.L2, QFrameBitEncoder.NAME, true);
+        }
+    }
+
+    public void testResolveMethod_whenPreV380Compression8x_thenResolvesToBQ() {
+        // Same as above for x8: pre-3.8.0 indices stay on BQ.
+        for (Version version : new Version[] { Version.V_3_5_0, Version.V_3_6_0, Version.V_3_7_0 }) {
+            ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+                null,
+                KNNMethodConfigContext.builder()
+                    .vectorDataType(VectorDataType.FLOAT)
+                    .compressionLevel(CompressionLevel.x8)
+                    .versionCreated(version)
+                    .build(),
+                false,
+                SpaceType.L2
+            );
+            validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x8, SpaceType.L2, QFrameBitEncoder.NAME, true);
+        }
+    }
+
+    public void testResolveMethod_whenV360Compression32x_thenStillResolvesToSQOneBit() {
+        // Regression guard: the x32 auto-routing is gated at V_3_6_0 (unchanged by the x16/x8
+        // flip at V_3_7_0). Indices created on 3.6.0 must continue to auto-resolve x32 -> sq(bits=1).
+        ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+            null,
+            KNNMethodConfigContext.builder()
+                .vectorDataType(VectorDataType.FLOAT)
+                .compressionLevel(CompressionLevel.x32)
+                .versionCreated(Version.V_3_6_0)
+                .build(),
+            false,
+            SpaceType.L2
+        );
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x32, SpaceType.L2, ENCODER_SQ, true);
+        MethodComponentContext encoderCtx = (MethodComponentContext) resolvedMethodContext.getKnnMethodContext()
+            .getMethodComponentContext()
+            .getParameters()
+            .get(METHOD_ENCODER_PARAMETER);
+        assertEquals(1, encoderCtx.getParameters().get("bits"));
+    }
+
+    public void testResolveMethod_whenExplicitBQAtX16_thenHonoredNotOverriddenBySQTwoBit() {
+        // User explicitly asks for QFrameBitEncoder on 3.6.0+ — must be honored, not silently
+        // replaced by sq(bits=2).
+        ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+            new KNNMethodContext(
+                KNNEngine.FAISS,
+                SpaceType.L2,
+                new MethodComponentContext(
+                    METHOD_HNSW,
+                    Map.of(
+                        METHOD_ENCODER_PARAMETER,
+                        new MethodComponentContext(
+                            QFrameBitEncoder.NAME,
+                            Map.of(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x16.numBitsForFloat32())
+                        )
+                    )
+                )
+            ),
+            KNNMethodConfigContext.builder().vectorDataType(VectorDataType.FLOAT).versionCreated(Version.CURRENT).build(),
+            false,
+            SpaceType.L2
+        );
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x16, SpaceType.L2, QFrameBitEncoder.NAME, true);
+    }
+
+    public void testResolveMethod_whenExplicitBQAtX8_thenHonoredNotOverriddenBySQFourBit() {
+        // Same as above for x8: explicit BQ from the user must win over the default flip.
+        ResolvedMethodContext resolvedMethodContext = TEST_RESOLVER.resolveMethod(
+            new KNNMethodContext(
+                KNNEngine.FAISS,
+                SpaceType.L2,
+                new MethodComponentContext(
+                    METHOD_HNSW,
+                    Map.of(
+                        METHOD_ENCODER_PARAMETER,
+                        new MethodComponentContext(
+                            QFrameBitEncoder.NAME,
+                            Map.of(QFrameBitEncoder.BITCOUNT_PARAM, CompressionLevel.x8.numBitsForFloat32())
+                        )
+                    )
+                )
+            ),
+            KNNMethodConfigContext.builder().vectorDataType(VectorDataType.FLOAT).versionCreated(Version.CURRENT).build(),
+            false,
+            SpaceType.L2
+        );
+        validateResolveMethodContext(resolvedMethodContext, CompressionLevel.x8, SpaceType.L2, QFrameBitEncoder.NAME, true);
     }
 }
