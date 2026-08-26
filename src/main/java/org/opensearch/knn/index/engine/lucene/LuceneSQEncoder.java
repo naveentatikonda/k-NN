@@ -44,11 +44,17 @@ public class LuceneSQEncoder implements Encoder {
     /**
      * Supported bit widths for SQ quantization. Each maps to a specific quantization strategy
      * and compression level.
+     *
+     * <p>1/2/4-bit codes are integer-quantized and stored via the Lucene 10.4 SIMD scalar
+     * quantization path; 7-bit is the legacy scalar quantization path (retained for backward
+     * compatibility with pre-3.6.0 indices).
      */
     @Getter
     @RequiredArgsConstructor
     public enum Bits {
         ONE(1, CompressionLevel.x32),
+        TWO(2, CompressionLevel.x16),
+        FOUR(4, CompressionLevel.x8),
         SEVEN(7, CompressionLevel.x4);
 
         private final int value;
@@ -59,6 +65,20 @@ public class LuceneSQEncoder implements Encoder {
                 if (b.value == value) return b;
             }
             throw new IllegalArgumentException(String.format(Locale.ROOT, "Unsupported bits value: %d", value));
+        }
+
+        /**
+         * Reverse lookup: returns the {@link Bits} entry whose compression level matches
+         * {@code compressionLevel}, or {@code null} if none does. Used by the HNSW resolver to
+         * auto-fill {@code bits} from a user-supplied {@link CompressionLevel} without hardcoding
+         * a per-level table.
+         */
+        public static Bits fromCompressionLevelOrNull(CompressionLevel compressionLevel) {
+            if (compressionLevel == null) return null;
+            for (Bits b : values()) {
+                if (b.compressionLevel == compressionLevel) return b;
+            }
+            return null;
         }
     }
 

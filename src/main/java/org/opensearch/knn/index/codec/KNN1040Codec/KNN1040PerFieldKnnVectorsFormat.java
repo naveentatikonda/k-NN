@@ -84,7 +84,12 @@ public class KNN1040PerFieldKnnVectorsFormat extends KNN1040BasePerFieldKnnVecto
                 ctx.getDefaultBeamWidth()
             );
             final Tuple<Integer, ExecutorService> merge = getMergeThreadCountAndExecutorService();
-            if (p.getBits() == LuceneSQEncoder.Bits.ONE.getValue()) {
+            // bits ∈ {1, 2, 4} — Lucene 10.4 integer-coded SQ path (x32 / x16 / x8) with SIMD
+            // flat scorer. bits == 7 falls through to the legacy Lucene99 RW format so the
+            // {@code confidenceInterval} parameter is preserved for pre-3.6.0 mappings.
+            if (p.getBits() == LuceneSQEncoder.Bits.ONE.getValue()
+                || p.getBits() == LuceneSQEncoder.Bits.TWO.getValue()
+                || p.getBits() == LuceneSQEncoder.Bits.FOUR.getValue()) {
                 return new KNN1040HnswScalarQuantizedVectorsFormat(
                     p.getBitEncoding(),
                     p.getMaxConnections(),
