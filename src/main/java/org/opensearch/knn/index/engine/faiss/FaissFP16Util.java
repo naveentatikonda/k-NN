@@ -102,7 +102,12 @@ public class FaissFP16Util {
         }
 
         Object bitsObj = encoderContext.getParameters().get(SQ_BITS);
-        if (bitsObj instanceof Integer && (Integer) bitsObj == QuantizationBits.ONE.getValue()) {
+        // Coded-bit SQ widths (1/2/4) are integer-quantized and never fp16; exclude them so
+        // callers don't apply fp16 range validation / clipping to those write paths.
+        if (bitsObj instanceof Integer bits
+            && (bits == QuantizationBits.ONE.getValue()
+                || bits == QuantizationBits.TWO.getValue()
+                || bits == QuantizationBits.FOUR.getValue())) {
             return false;
         }
 

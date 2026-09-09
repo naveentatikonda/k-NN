@@ -173,6 +173,10 @@ public class DimensionBasedOversamplingIT extends KNNRestTestCase {
     }
 
     private void createDiskBased16xIndex(int dimension) throws IOException {
+        // Explicit binary encoder pins x16 to BQ 2-bit. The auto-resolved default flipped to
+        // Faiss SQ 2-bit on 3.9+, and the SQ multi-bit rescore path sets
+        // allowOverrideOversampleFactor(false) — which disables the dimension-based
+        // oversampling this test exercises.
         XContentBuilder builder = XContentFactory.jsonBuilder()
             .startObject()
             .startObject("properties")
@@ -185,6 +189,14 @@ public class DimensionBasedOversamplingIT extends KNNRestTestCase {
             .field(NAME, METHOD_HNSW)
             .field(KNN_ENGINE, FAISS_NAME)
             .field(METHOD_PARAMETER_SPACE_TYPE, "l2")
+            .startObject(PARAMETERS)
+            .startObject(METHOD_ENCODER_PARAMETER)
+            .field(NAME, "binary")
+            .startObject(PARAMETERS)
+            .field("bits", 2)
+            .endObject()
+            .endObject()
+            .endObject()
             .endObject()
             .endObject()
             .endObject()

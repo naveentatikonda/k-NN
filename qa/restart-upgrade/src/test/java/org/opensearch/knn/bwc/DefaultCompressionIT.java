@@ -33,25 +33,15 @@ public class DefaultCompressionIT extends AbstractRestartUpgradeTestCase {
     public void testRestartUpgrade_defaultCompression() throws Exception {
         waitForClusterHealthGreen(NODES_BWC_CLUSTER);
         final String explicitX32Index = testIndex + "-explicit-x32";
+        final String explicitX16Index = testIndex + "-explicit-x16";
+        final String explicitX8Index = testIndex + "-explicit-x8";
         final boolean compressionSupported = isCompressionSupported(getBWCVersion());
 
         if (isRunningAgainstOldCluster()) {
             if (compressionSupported) {
-                String explicitMapping = XContentFactory.jsonBuilder()
-                    .startObject()
-                    .startObject(PROPERTIES)
-                    .startObject(TEST_FIELD)
-                    .field(VECTOR_TYPE, KNN_VECTOR)
-                    .field(DIMENSION, DIMENSIONS)
-                    .field(COMPRESSION_LEVEL_PARAMETER, CompressionLevel.x32.getName())
-                    .field(MODE_PARAMETER, Mode.ON_DISK.getName())
-                    .endObject()
-                    .endObject()
-                    .endObject()
-                    .toString();
-                createKnnIndex(explicitX32Index, getKNNDefaultIndexSettings(), explicitMapping);
-                addKNNDocs(explicitX32Index, TEST_FIELD, DIMENSIONS, 0, NUM_DOCS);
-                flush(explicitX32Index, true);
+                createExplicitCompressionIndex(explicitX32Index, CompressionLevel.x32);
+                createExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16);
+                createExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8);
             }
 
             createKnnIndex(testIndex, getKNNDefaultIndexSettings(), createKnnIndexMapping(TEST_FIELD, DIMENSIONS, METHOD_HNSW, FAISS_NAME));
@@ -68,20 +58,45 @@ public class DefaultCompressionIT extends AbstractRestartUpgradeTestCase {
             assertNull(defaultFieldProps.get(COMPRESSION_LEVEL_PARAMETER));
 
             if (compressionSupported) {
-                validateKNNSearch(explicitX32Index, TEST_FIELD, DIMENSIONS, NUM_DOCS, K);
-
-                Map<String, Object> x32Mappings = getIndexMappingAsMap(explicitX32Index);
-                Map<String, Object> x32Properties = (Map<String, Object>) x32Mappings.get(PROPERTIES);
-                assertNotNull("x32 properties should not be null", x32Properties);
-                Map<String, Object> x32FieldProps = (Map<String, Object>) x32Properties.get(TEST_FIELD);
-                assertNotNull("x32 field properties should not be null", x32FieldProps);
-                assertEquals(CompressionLevel.x32.getName(), x32FieldProps.get(COMPRESSION_LEVEL_PARAMETER));
-                assertEquals(Mode.ON_DISK.getName(), x32FieldProps.get(MODE_PARAMETER));
-                deleteKNNIndex(explicitX32Index);
+                validateExplicitCompressionIndex(explicitX32Index, CompressionLevel.x32);
+                validateExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16);
+                validateExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8);
             }
 
             deleteKNNIndex(testIndex);
         }
+    }
+
+    private void createExplicitCompressionIndex(String indexName, CompressionLevel compressionLevel) throws Exception {
+        String mapping = XContentFactory.jsonBuilder()
+            .startObject()
+            .startObject(PROPERTIES)
+            .startObject(TEST_FIELD)
+            .field(VECTOR_TYPE, KNN_VECTOR)
+            .field(DIMENSION, DIMENSIONS)
+            .field(COMPRESSION_LEVEL_PARAMETER, compressionLevel.getName())
+            .field(MODE_PARAMETER, Mode.ON_DISK.getName())
+            .endObject()
+            .endObject()
+            .endObject()
+            .toString();
+        createKnnIndex(indexName, getKNNDefaultIndexSettings(), mapping);
+        addKNNDocs(indexName, TEST_FIELD, DIMENSIONS, 0, NUM_DOCS);
+        flush(indexName, true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void validateExplicitCompressionIndex(String indexName, CompressionLevel compressionLevel) throws Exception {
+        validateKNNSearch(indexName, TEST_FIELD, DIMENSIONS, NUM_DOCS, K);
+
+        Map<String, Object> mappings = getIndexMappingAsMap(indexName);
+        Map<String, Object> properties = (Map<String, Object>) mappings.get(PROPERTIES);
+        assertNotNull(compressionLevel.getName() + " properties should not be null", properties);
+        Map<String, Object> fieldProps = (Map<String, Object>) properties.get(TEST_FIELD);
+        assertNotNull(compressionLevel.getName() + " field properties should not be null", fieldProps);
+        assertEquals(compressionLevel.getName(), fieldProps.get(COMPRESSION_LEVEL_PARAMETER));
+        assertEquals(Mode.ON_DISK.getName(), fieldProps.get(MODE_PARAMETER));
+        deleteKNNIndex(indexName);
     }
 
     private boolean isCompressionSupported(final Optional<String> bwcVersion) {
