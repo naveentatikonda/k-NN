@@ -25,7 +25,7 @@ import static org.opensearch.knn.common.KNNConstants.MODE_PARAMETER;
 
 public class DefaultCompressionIT extends AbstractRollingUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
-    private static final int DIMENSIONS = 5;
+    private static final int DIMENSIONS = 64;
     private static final int K = 5;
     private static final int NUM_DOCS = 10;
 
@@ -36,13 +36,18 @@ public class DefaultCompressionIT extends AbstractRollingUpgradeTestCase {
         final String explicitX16Index = testIndex + "-explicit-x16";
         final String explicitX8Index = testIndex + "-explicit-x8";
         final boolean compressionSupported = isCompressionSupported(getBWCVersion());
+        // x16 / x8 need the multi-bit quantization state fix (backported to 2.19.5). Older
+        // releases hit "Number of vectors cannot be 0" during per-doc refresh.
+        final boolean multiBitQuantFixed = isMultiBitQuantizationFixed(getBWCVersion());
 
         switch (getClusterType()) {
             case OLD:
                 if (compressionSupported) {
                     createExplicitCompressionIndex(explicitX32Index, CompressionLevel.x32);
-                    createExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16);
-                    createExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8);
+                    if (multiBitQuantFixed) {
+                        createExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16);
+                        createExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8);
+                    }
                 }
 
                 createKnnIndex(
@@ -66,8 +71,10 @@ public class DefaultCompressionIT extends AbstractRollingUpgradeTestCase {
 
                 if (compressionSupported) {
                     validateExplicitCompressionIndex(explicitX32Index, CompressionLevel.x32, false);
-                    validateExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16, false);
-                    validateExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8, false);
+                    if (multiBitQuantFixed) {
+                        validateExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16, false);
+                        validateExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8, false);
+                    }
                 }
                 break;
 
@@ -83,8 +90,10 @@ public class DefaultCompressionIT extends AbstractRollingUpgradeTestCase {
 
                 if (compressionSupported) {
                     validateExplicitCompressionIndex(explicitX32Index, CompressionLevel.x32, true);
-                    validateExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16, true);
-                    validateExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8, true);
+                    if (multiBitQuantFixed) {
+                        validateExplicitCompressionIndex(explicitX16Index, CompressionLevel.x16, true);
+                        validateExplicitCompressionIndex(explicitX8Index, CompressionLevel.x8, true);
+                    }
                 }
 
                 deleteKNNIndex(testIndex);
@@ -271,5 +280,22 @@ public class DefaultCompressionIT extends AbstractRollingUpgradeTestCase {
         }
         String versionString = bwcVersion.get().replace("-SNAPSHOT", "");
         return Version.fromString(versionString).onOrAfter(Version.V_2_17_0);
+    }
+
+    /**
+     * Multi-bit quantization state ({@code getBytesPerVector} / {@code getDimensions}) was fixed
+     * in 2.19.5 (#3019 backport #3123). Only backported to the {@code 2.19} branch — {@code 2.x}
+     * (source of {@code 2.20.0-SNAPSHOT}) still has the bug, so 2.20 BWC would fail too. Older
+     * releases (2.17.x / 2.18.x) also don't have the fix. So the x16 / x8 assertions here run
+     * only when the OLD cluster is in the {@code [2.19.5, 2.20.0)} window — i.e., a 2.19.x
+     * release with the fix. The current BWC matrix uses 2.19.6, which qualifies.
+     */
+    private boolean isMultiBitQuantizationFixed(final Optional<String> bwcVersion) {
+        if (bwcVersion.isEmpty()) {
+            return false;
+        }
+        String versionString = bwcVersion.get().replace("-SNAPSHOT", "");
+        Version v = Version.fromString(versionString);
+        return v.onOrAfter(Version.V_2_19_0) && v.before(Version.V_2_20_0);
     }
 }

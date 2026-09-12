@@ -25,7 +25,7 @@ import static org.opensearch.knn.common.KNNConstants.MODE_PARAMETER;
 
 public class DefaultCompressionIT extends AbstractRestartUpgradeTestCase {
     private static final String TEST_FIELD = "test-field";
-    private static final int DIMENSIONS = 5;
+    private static final int DIMENSIONS = 64;
     private static final int K = 5;
     private static final int NUM_DOCS = 10;
 
@@ -106,4 +106,5 @@ public class DefaultCompressionIT extends AbstractRestartUpgradeTestCase {
         String versionString = bwcVersion.get().replace("-SNAPSHOT", "");
         return Version.fromString(versionString).onOrAfter(Version.V_2_17_0);
     }
+
 }
