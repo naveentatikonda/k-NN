@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Add `half_float` as a vector data type for Flat and HNSW [#3578](https://github.com/opensearch-project/k-NN/pull/3578)
 * Enable `half_float` vector data type for remote vector index build [#3575](https://github.com/opensearch-project/k-NN/pull/3575)
 * Add BFloat16 (BF16) scalar quantization support [#3190](https://github.com/opensearch-project/k-NN/pull/3190)
+* Support knn queries on native engine fields inside percolator queries by scoring the percolated document with exact search [#3556](https://github.com/opensearch-project/k-NN/pull/3556)
+* Add SQ 2-bit and 4-bit for half_float [#3603](https://github.com/opensearch-project/k-NN/pull/3603)
+* Add bulk SIMD scoring for SQ 2-bit and 4-bit HNSW search with runtime-dispatched kernels
 
 ### Maintenance
 
